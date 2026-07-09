@@ -25,10 +25,10 @@ LensCoach 是一个面向摄影新手的 AI 摄影成长教练 MVP。用户可�
 
 ```bash
 cd backend
-copy .env.example .env
+copy example.env .env
 
 cd ..\frontend
-copy .env.example .env
+copy example.env .env
 ```
 
 ## 如何启动 PostgreSQL
@@ -66,7 +66,7 @@ CREATE DATABASE lenscoach;
 确保 `backend/.env` 中的 `DATABASE_URL` 与本地 PostgreSQL 密码一致：
 
 ```env
-DATABASE_URL=postgresql://postgres:password@localhost:5432/lenscoach
+DATABASE_URL=postgresql://postgres:your-password@localhost:5432/lenscoach
 ```
 
 ## 如何启动后端
@@ -124,16 +124,21 @@ http://localhost:5173
 ### backend/.env
 
 ```env
-DATABASE_URL=postgresql://postgres:password@localhost:5432/lenscoach
-JWT_SECRET_KEY=please-change-this
+DATABASE_URL=postgresql://postgres:your-password@localhost:5432/lenscoach
+JWT_SECRET_KEY=change-this-to-a-random-local-secret
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=10080
 BACKEND_CORS_ORIGINS=http://localhost:5173
 UPLOAD_DIR=uploads
-ARK_API_KEY=your-ark-api-key
+AI_ANALYSIS_MODE=api
+AI_ANALYSIS_ENABLED=true
+AI_API_KEY=replace-with-your-own-api-key
+AI_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+AI_MODEL=doubao-seed-1-6-vision-250815
+AI_TIMEOUT_SECONDS=45
+ARK_API_KEY=replace-with-your-own-api-key
 ARK_API_URL=https://ark.cn-beijing.volces.com/api/v3/responses
 ARK_VISION_MODEL=doubao-seed-1-6-vision-250815
-AI_ANALYSIS_ENABLED=true
 ```
 
 ### frontend/.env
@@ -224,7 +229,7 @@ Mock 模式也会完整返回 benchmark、风格判断、平台建议、修图�
 
 ```env
 AI_ANALYSIS_MODE=api
-AI_API_KEY=your-ark-api-key
+AI_API_KEY=replace-with-your-own-api-key
 AI_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
 AI_MODEL=doubao-seed-1-6-vision-250815
 AI_TIMEOUT_SECONDS=45
