@@ -5,10 +5,8 @@ from app.models.preference import Preference
 
 
 def build_analysis_report(item: PortfolioItem, preference: Preference | None) -> dict[str, str]:
-    style = item.target_style or preference.preferred_styles if preference else item.target_style
-    platform = item.target_platform or preference.target_platform if preference else item.target_platform
-    style = style or "清新自然"
-    platform = platform or "作品集"
+    style = (item.target_style or (preference.preferred_styles if preference else None) or "清新自然").strip()
+    platform = (item.target_platform or (preference.target_platform if preference else None) or "作品集").strip()
 
     editing_params = {
         "exposure": "+0.2",
@@ -24,15 +22,41 @@ def build_analysis_report(item: PortfolioItem, preference: Preference | None) ->
     color = "建议保持色彩统一，减少杂色干扰，让目标风格更稳定。"
 
     if "清新自然" in style or "日系" in style:
-        editing_params.update({"exposure": "+0.3", "contrast": "-12", "highlights": "-20", "shadows": "+20", "temperature": "-2", "saturation": "-2"})
+        editing_params.update(
+            {
+                "exposure": "+0.3",
+                "contrast": "-12",
+                "highlights": "-20",
+                "shadows": "+20",
+                "temperature": "-2",
+                "saturation": "-2",
+            }
+        )
         lighting = "清新或日系方向适合略微提亮、降低对比，并用柔和光线保留干净肤色和空气感。"
         color = "色彩建议降低杂色饱和度，让绿色、蓝色更轻，整体不要过度浓艳。"
     elif "胶片感" in style or "复古" in style:
-        editing_params.update({"exposure": "+0.1", "contrast": "+6", "highlights": "-24", "shadows": "+12", "temperature": "+6", "grain": "+12"})
+        editing_params.update(
+            {
+                "exposure": "+0.1",
+                "contrast": "+6",
+                "highlights": "-24",
+                "shadows": "+12",
+                "temperature": "+6",
+                "grain": "+12",
+            }
+        )
         lighting = "胶片或复古方向可以保留一点暖色高光，并让暗部有层次，不要把阴影压死。"
         color = "色彩建议偏暖、略降清晰度，加少量颗粒强化氛围。"
     elif "高级灰" in style:
-        editing_params.update({"exposure": "+0.1", "contrast": "+8", "highlights": "-22", "shadows": "+6", "saturation": "-18"})
+        editing_params.update(
+            {
+                "exposure": "+0.1",
+                "contrast": "+8",
+                "highlights": "-22",
+                "shadows": "+6",
+                "saturation": "-18",
+            }
+        )
         composition = "高级灰风格更依赖留白和秩序感，建议减少画面元素，让主体和空间关系更克制。"
         color = "色彩建议低饱和、保留黑白灰层次，避免局部颜色过艳。"
 

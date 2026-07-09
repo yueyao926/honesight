@@ -10,6 +10,7 @@ from app.models.preference import Preference
 from app.models.user import User
 from app.schemas.analysis import AnalysisRead, AnalyzeRequest
 from app.services.analysis_service import build_analysis_report
+from app.services.ark_vision_service import build_ai_analysis_report
 
 
 router = APIRouter(prefix="/analyze", tags=["analyze"])
@@ -31,7 +32,7 @@ def analyze_photo(
         raise HTTPException(status_code=404, detail="Portfolio item not found")
 
     preference = db.scalar(select(Preference).where(Preference.user_id == current_user.id))
-    report = build_analysis_report(item, preference)
+    report = build_ai_analysis_report(item, preference) or build_analysis_report(item, preference)
     analysis = AnalysisResult(
         portfolio_item_id=item.id,
         user_id=current_user.id,

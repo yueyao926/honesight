@@ -12,8 +12,12 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = Field(default=10080, alias="ACCESS_TOKEN_EXPIRE_MINUTES")
     backend_cors_origins: str = Field(default="http://localhost:5173", alias="BACKEND_CORS_ORIGINS")
     upload_dir: str = Field(default="uploads", alias="UPLOAD_DIR")
+    ark_api_key: str | None = Field(default=None, alias="ARK_API_KEY")
+    ark_api_url: str = Field(default="https://ark.cn-beijing.volces.com/api/v3/responses", alias="ARK_API_URL")
+    ark_vision_model: str = Field(default="doubao-seed-1-6-vision-250815", alias="ARK_VISION_MODEL")
+    ai_analysis_enabled: bool = Field(default=True, alias="AI_ANALYSIS_ENABLED")
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", populate_by_name=True)
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8-sig", populate_by_name=True, extra="ignore")
 
     @property
     def cors_origins(self) -> list[str]:

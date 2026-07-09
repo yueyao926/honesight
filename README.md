@@ -11,6 +11,7 @@ LensCoach 是一个面向摄影新手的 AI 摄影成长教练 MVP。用户可�
 - Database: PostgreSQL
 - Auth: JWT + bcrypt password hash
 - Upload: FastAPI static uploads
+- Vision Model: Volcengine Ark Responses API, with template fallback
 
 ## 本地开发准备
 
@@ -129,6 +130,10 @@ JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=10080
 BACKEND_CORS_ORIGINS=http://localhost:5173
 UPLOAD_DIR=uploads
+ARK_API_KEY=your-ark-api-key
+ARK_API_URL=https://ark.cn-beijing.volces.com/api/v3/responses
+ARK_VISION_MODEL=doubao-seed-1-6-vision-250815
+AI_ANALYSIS_ENABLED=true
 ```
 
 ### frontend/.env
@@ -147,6 +152,7 @@ VITE_API_BASE_URL=http://localhost:8000
 - 图片上传到 `backend/uploads`
 - 静态访问上传图片
 - 模板化照片分析报告
+- 豆包视觉模型识图分析，未配置或调用失败时自动回退模板报告
 - 获取作品最新分析结果
 - React 前端登录保护
 - 首页、注册、登录、onboarding、dashboard、settings、作品集、上传作品、作品详情页面
@@ -168,7 +174,7 @@ VITE_API_BASE_URL=http://localhost:8000
 
 ## 当前版本未实现
 
-- 未接入真实 AI / 多模态 API。
+- 已预留并接入火山方舟豆包视觉模型；当前仍保留模板回退，避免 API 不可用时阻断主流程。
 - 未实现云对象存储，当前图片保存在本地 `backend/uploads`。
 - 未实现邮箱验证、找回密码、第三方登录。
 - 未实现社区、点赞、评论、关注、支付等非核心功能。
@@ -176,7 +182,7 @@ VITE_API_BASE_URL=http://localhost:8000
 
 ## 后续开发计划
 
-- 接入真实多模态 API，识别主体、场景和照片问题。
+- 继续完善多模态提示词、结构化输出校验和 API 调用日志。
 - 将上传图片迁移到 S3 / OSS / Supabase Storage。
 - 增加作品系列、成长趋势和分析历史对比。
 - 加入更细粒度的风格 preset 和平台化发布建议。
