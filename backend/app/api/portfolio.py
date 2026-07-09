@@ -1,0 +1,79 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import desc, select
+from sqlalchemy.orm import Session
+
+from app.api.deps import get_current_user
+from app.database import get_db
+from app.models.analysis import AnalysisResult
+from app.models.portfolio import PortfolioItem
+from app.models.user import User
+from app.schemas.analysis import AnalysisRead
+from app.schemas.portfolio import PortfolioCreate, PortfolioRead, PortfolioUpdate
+
+
+router = APIRouter(prefix="/portfolio", tags=["portfolio"])
+
+
+def _get_owned_item(item_id: int, user_id: int, db: Session) -> PortfolioItem:
+    item = db.scalar(select(PortfolioItem).where(PortfolioItem.id == item_id, PortfolioItem.user_id == user_id))
+    if not item:
+        raise HTTPException(status_code=404, detail="Portfolio item not found")
+    return item
+
+
+@router.get("", response_model=list[PortfolioRead])
+def list_portfolio(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[PortfolioItem]:
+    return list(db.scalars(select(PortfolioItem).where(PortfolioItem.user_id == current_user.id).order_by(desc(PortfolioItem.created_at))))
+
+
+@router.post("", response_model=PortfolioRead, status_code=status.HTTP_201_CREATED)
+def create_portfolio_item(
+    payload: PortfolioCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> PortfolioItem:
+    item = PortfolioItem(user_id=current_user.id, **payload.model_dump())
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+@router.get("/{item_id}", response_model=PortfolioRead)
+def get_portfolio_item(item_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> PortfolioItem:
+    return _get_owned_item(item_id, current_user.id, db)
+
+
+@router.put("/{item_id}", response_model=PortfolioRead)
+def update_portfolio_item(
+    item_id: int,
+    payload: PortfolioUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> PortfolioItem:
+    item = _get_owned_item(item_id, current_user.id, db)
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        setattr(item, key, value)
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+@router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_portfolio_item(item_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> None:
+    item = _get_owned_item(item_id, current_user.id, db)
+    db.delete(item)
+    db.commit()
+
+
+@router.get("/{item_id}/analysis", response_model=AnalysisRead)
+def get_latest_analysis(item_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> AnalysisResult:
+    _get_owned_item(item_id, current_user.id, db)
+    analysis = db.scalar(
+        select(AnalysisResult)
+        .where(AnalysisResult.portfolio_item_id == item_id, AnalysisResult.user_id == current_user.id)
+        .order_by(desc(AnalysisResult.created_at))
+    )
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+    return analysis

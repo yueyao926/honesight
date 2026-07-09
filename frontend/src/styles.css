@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(232, 244, 238, 0.95), transparent 30rem),
+    linear-gradient(180deg, #fbfdfb 0%, #f7faf8 100%);
+  color: #17211d;
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-6xl px-5 py-8;
+  }
+
+  .card {
+    @apply rounded-2xl border border-slate-200/80 bg-white/90 p-6 shadow-soft;
+  }
+
+  .btn-primary {
+    @apply rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800;
+  }
+
+  .btn-secondary {
+    @apply rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-brand focus:ring-4 focus:ring-soft;
+  }
+
+  .label {
+    @apply mb-2 block text-sm font-medium text-ink;
+  }
+}
