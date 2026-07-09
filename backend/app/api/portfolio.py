@@ -4,11 +4,12 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.database import get_db
-from app.models.analysis import AnalysisResult
+from app.models.analysis import AnalysisResult, PhotoChatMessage
 from app.models.portfolio import PortfolioItem
 from app.models.user import User
-from app.schemas.analysis import AnalysisRead
+from app.schemas.analysis import AnalysisRead, ChatMessageRead, ChatReply, ChatRequest, analysis_to_read_dict
 from app.schemas.portfolio import PortfolioCreate, PortfolioRead, PortfolioUpdate
+from app.services.ai_chat import build_chat_reply
 
 
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
@@ -76,4 +77,40 @@ def get_latest_analysis(item_id: int, current_user: User = Depends(get_current_u
     )
     if not analysis:
         raise HTTPException(status_code=404, detail="Analysis not found")
-    return analysis
+    return analysis_to_read_dict(analysis)
+
+
+@router.get("/{item_id}/chat", response_model=list[ChatMessageRead])
+def get_photo_chat(item_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[PhotoChatMessage]:
+    _get_owned_item(item_id, current_user.id, db)
+    return list(
+        db.scalars(
+            select(PhotoChatMessage)
+            .where(PhotoChatMessage.portfolio_item_id == item_id, PhotoChatMessage.user_id == current_user.id)
+            .order_by(PhotoChatMessage.created_at)
+        )
+    )
+
+
+@router.post("/{item_id}/chat", response_model=ChatReply)
+def post_photo_chat(
+    item_id: int,
+    payload: ChatRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ChatReply:
+    item = _get_owned_item(item_id, current_user.id, db)
+    analysis = db.scalar(
+        select(AnalysisResult)
+        .where(AnalysisResult.portfolio_item_id == item_id, AnalysisResult.user_id == current_user.id)
+        .order_by(desc(AnalysisResult.created_at))
+    )
+    user_message = PhotoChatMessage(portfolio_item_id=item_id, user_id=current_user.id, role="user", content=payload.message)
+    db.add(user_message)
+    db.flush()
+    reply = build_chat_reply(item, analysis, payload.message)
+    assistant_message = PhotoChatMessage(portfolio_item_id=item_id, user_id=current_user.id, role="assistant", content=reply)
+    db.add(assistant_message)
+    db.commit()
+    db.refresh(assistant_message)
+    return ChatReply(reply=assistant_message.content, created_at=assistant_message.created_at)

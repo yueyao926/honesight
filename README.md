@@ -153,6 +153,8 @@ VITE_API_BASE_URL=http://localhost:8000
 - 静态访问上传图片
 - 模板化照片分析报告
 - 豆包视觉模型识图分析，未配置或调用失败时自动回退模板报告
+- AI 摄影教练闭环：选择目标风格和发布平台后，生成基础画面质量 benchmark、目标风格匹配度、风格判断、修图参数和平台发布建议
+- 照片级 AI 对话：用户可以围绕某张作品继续追问调色、构图、平台发布和文案建议
 - 获取作品最新分析结果
 - React 前端登录保护
 - 首页、注册、登录、onboarding、dashboard、settings、作品集、上传作品、作品详情页面
@@ -170,7 +172,76 @@ VITE_API_BASE_URL=http://localhost:8000
 8. 进入 onboarding 填写摄影偏好。
 9. 上传第一张作品。
 10. 在作品详情页点击“生成分析报告”。
-11. 查看总体评价、构图建议、光线建议、色彩建议和修图参数。
+11. 查看综合 benchmark、曝光/对焦/构图/色彩四维评分、权重、风格判断、修图参数和平台建议。
+12. 在底部聊天框继续提问，例如“怎么调成日系清新风？”。
+
+## AI 摄影教练功能说明
+
+LensCoach 的核心能力不是“判断照片好坏”，而是基于用户选择的目标风格和发布平台，给出摄影成长建议：
+
+- 基础画面质量 benchmark
+- 目标风格匹配度
+- 照片类型识别
+- 当前风格判断
+- Lightroom 与手机修图 App 参数建议
+- 小红书、朋友圈、Instagram、作品集、商业约拍平台建议
+- 围绕单张照片继续追问的 AI 对话
+
+### Benchmark 评分模型
+
+评分维度固定为四个：
+
+- 曝光：是否过曝、欠曝，主体亮度是否合适，高光和阴影是否保留细节。
+- 对焦：主体是否清晰，人像眼部/面部是否清楚，是否有明显虚焦。
+- 构图：主体是否突出，画面是否杂乱，是否符合三分法、中心构图、引导线和留白。
+- 色彩：白平衡是否自然，色彩是否统一，是否符合目标风格。
+
+每个维度输出 0-100。综合 benchmark 会根据照片类型动态加权。
+
+### 动态权重规则
+
+- portrait：曝光 0.25，对焦 0.25，构图 0.35，色彩 0.15
+- landscape：曝光 0.20，对焦 0.20，构图 0.25，色彩 0.35
+- food：曝光 0.25，对焦 0.20，构图 0.25，色彩 0.30
+- street：曝光 0.20，对焦 0.20，构图 0.35，色彩 0.25
+- campus：曝光 0.25，对焦 0.20，构图 0.30，色彩 0.25
+- product：曝光 0.25，对焦 0.30，构图 0.25，色彩 0.20
+- night：曝光 0.35，对焦 0.25，构图 0.20，色彩 0.20
+- general：四项均为 0.25
+
+### Mock 模式与 API 模式
+
+后端统一入口在 `backend/app/services/analyzer.py`。
+
+- API 模式：`vision_analyzer.py` 调用火山方舟 OpenAI-compatible Responses API。
+- Mock 模式：没有 API Key、`AI_ANALYSIS_MODE=mock`、图片不可读、API 调用失败或模型返回异常时，自动使用 `mock_analyzer.py`。
+
+Mock 模式也会完整返回 benchmark、风格判断、平台建议、修图参数和聊天回复，因此本地开发不会被第三方 API 阻断。
+
+### 火山方舟配置
+
+在 `backend/.env` 中配置：
+
+```env
+AI_ANALYSIS_MODE=api
+AI_API_KEY=your-ark-api-key
+AI_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+AI_MODEL=doubao-seed-1-6-vision-250815
+AI_TIMEOUT_SECONDS=45
+```
+
+如果想强制 mock：
+
+```env
+AI_ANALYSIS_MODE=mock
+```
+
+### API Key 安全说明
+
+- API Key 只允许存在于 `backend/.env`。
+- 前端不会读取、保存或展示 API Key。
+- `.env` 已被 `.gitignore` 忽略。
+- 后端不会打印 API Key，也不会打印完整 base64 图片。
 
 ## 当前版本未实现
 
@@ -179,6 +250,7 @@ VITE_API_BASE_URL=http://localhost:8000
 - 未实现邮箱验证、找回密码、第三方登录。
 - 未实现社区、点赞、评论、关注、支付等非核心功能。
 - 未实现复杂标签体系，偏好多选字段当前用逗号分隔字符串保存。
+- 当前 benchmark 是规则模型与视觉模型结构化输出结合，不是训练得到的评分模型。
 
 ## 后续开发计划
 
@@ -187,3 +259,4 @@ VITE_API_BASE_URL=http://localhost:8000
 - 增加作品系列、成长趋势和分析历史对比。
 - 加入更细粒度的风格 preset 和平台化发布建议。
 - 将偏好字段升级为 JSON 或独立标签表。
+- 如果要训练真正的评分模型，优先替换 `backend/app/services/benchmark.py`，并保留 `analyzer.py` 作为统一编排入口。

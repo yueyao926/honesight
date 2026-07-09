@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     ark_api_url: str = Field(default="https://ark.cn-beijing.volces.com/api/v3/responses", alias="ARK_API_URL")
     ark_vision_model: str = Field(default="doubao-seed-1-6-vision-250815", alias="ARK_VISION_MODEL")
     ai_analysis_enabled: bool = Field(default=True, alias="AI_ANALYSIS_ENABLED")
+    ai_analysis_mode: str = Field(default="api", alias="AI_ANALYSIS_MODE")
+    ai_api_key: str | None = Field(default=None, alias="AI_API_KEY")
+    ai_base_url: str = Field(default="https://ark.cn-beijing.volces.com/api/v3", alias="AI_BASE_URL")
+    ai_model: str = Field(default="doubao-seed-1-6-vision-250815", alias="AI_MODEL")
+    ai_timeout_seconds: int = Field(default=45, alias="AI_TIMEOUT_SECONDS")
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8-sig", populate_by_name=True, extra="ignore")
 
@@ -26,6 +31,18 @@ class Settings(BaseSettings):
     @property
     def upload_path(self) -> Path:
         return Path(self.upload_dir)
+
+    @property
+    def resolved_ai_api_key(self) -> str | None:
+        return self.ai_api_key or self.ark_api_key
+
+    @property
+    def resolved_ai_base_url(self) -> str:
+        return self.ai_base_url.rstrip("/")
+
+    @property
+    def resolved_ai_model(self) -> str:
+        return self.ai_model or self.ark_vision_model
 
 
 @lru_cache

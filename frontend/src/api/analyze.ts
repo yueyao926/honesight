@@ -1,13 +1,21 @@
 import { apiRequest } from "./client";
-import type { Analysis } from "../types";
+import type { PhotoAnalysis } from "../types";
 
-export function analyzePhoto(portfolioItemId: number) {
-  return apiRequest<Analysis>("/analyze/photo", {
+export type AnalyzePayload = {
+  portfolio_item_id: number;
+  target_style?: string;
+  target_platform?: string;
+};
+
+export function analyzePhoto(payload: AnalyzePayload) {
+  return apiRequest<PhotoAnalysis>("/analyze/photo", {
     method: "POST",
-    body: JSON.stringify({ portfolio_item_id: portfolioItemId }),
+    body: JSON.stringify(payload),
   });
 }
 
-export function getLatestAnalysis(portfolioItemId: string | number) {
-  return apiRequest<Analysis>(`/portfolio/${portfolioItemId}/analysis`);
+export function getPhotoAnalysis(portfolioItemId: string | number) {
+  return apiRequest<PhotoAnalysis>(`/portfolio/${portfolioItemId}/analysis`);
 }
+
+export const getLatestAnalysis = getPhotoAnalysis;
