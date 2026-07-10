@@ -8,7 +8,13 @@ from app.models.analysis import AnalysisResult, PhotoChatMessage
 from app.models.portfolio import PortfolioItem
 from app.models.user import User
 from app.schemas.analysis import AnalysisRead, ChatMessageRead, ChatReply, ChatRequest, analysis_to_read_dict
-from app.schemas.portfolio import PortfolioCreate, PortfolioRead, PortfolioUpdate
+from app.schemas.portfolio import (
+    PortfolioCreate,
+    PortfolioRead,
+    PortfolioUpdate,
+    SavePortfolioWithAnalysisRequest,
+    SavePortfolioWithAnalysisResponse,
+)
 from app.services.ai_chat import build_chat_reply
 
 
@@ -38,6 +44,37 @@ def create_portfolio_item(
     db.commit()
     db.refresh(item)
     return item
+
+
+@router.post("/save-with-analysis", response_model=SavePortfolioWithAnalysisResponse, status_code=status.HTTP_201_CREATED)
+def save_portfolio_with_analysis(
+    payload: SavePortfolioWithAnalysisRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> SavePortfolioWithAnalysisResponse:
+    item = PortfolioItem(
+        user_id=current_user.id,
+        image_url=payload.image_url,
+        title=payload.title,
+        description=payload.description,
+        category=payload.category,
+        target_style=payload.target_style,
+        target_platform=payload.target_platform,
+    )
+    db.add(item)
+    db.flush()
+
+    report = dict(payload.analysis_report)
+    analysis = AnalysisResult(
+        portfolio_item_id=item.id,
+        user_id=current_user.id,
+        **report,
+    )
+    db.add(analysis)
+    db.commit()
+    db.refresh(item)
+    db.refresh(analysis)
+    return SavePortfolioWithAnalysisResponse(item=item, analysis_id=analysis.id)
 
 
 @router.get("/{item_id}", response_model=PortfolioRead)

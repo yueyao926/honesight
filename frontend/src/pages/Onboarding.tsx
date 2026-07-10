@@ -7,9 +7,10 @@ export default function Onboarding() {
   const navigate = useNavigate();
   const [error, setError] = useState("");
   return (
-    <main className="container-page">
-      <div className="card">
-        <h1 className="text-3xl font-semibold">先告诉我们你的摄影偏好</h1>
+    <main className="container-page max-w-3xl">
+      <div className="card animate-fade-up">
+        <p className="section-eyebrow">Onboarding</p>
+        <h1 className="mt-2 font-display text-4xl font-semibold">告诉我们你的摄影偏好</h1>
         <p className="mt-3 text-muted">这些信息会用于生成更贴近你目标的作品分析报告。</p>
         <div className="mt-8">
           <PreferenceForm
@@ -24,7 +25,7 @@ export default function Onboarding() {
             }}
           />
         </div>
-        {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
+        {error && <p className="mt-4 text-sm text-red-500">{error}</p>}
       </div>
     </main>
   );

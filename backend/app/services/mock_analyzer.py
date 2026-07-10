@@ -107,6 +107,10 @@ def build_mock_vision_result(photo_type: str, target_style: str, target_platform
         "platform_suggestions": {},
         "shooting_tips": "下一次拍摄时先确定主体位置，再控制背景干扰；如果是人像，优先保证眼部和面部清晰。",
         "next_step": "先按建议完成一次裁切和基础调色，再对比目标风格样张检查色彩是否统一。",
+        "expected_effect": {
+            "description": f"修图后将更接近「{target_style}」：肤色通透、对比柔和、色彩统一，整体氛围更干净有质感。",
+            "style_keywords": [target_style, "柔和", "通透", "统一色调"],
+        },
         "confidence": 0.68,
     }
 

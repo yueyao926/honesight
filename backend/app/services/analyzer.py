@@ -12,22 +12,46 @@ from app.services.style_detector import detect_style
 from app.services.vision_analyzer import call_vision_model
 
 
-def analyze_photo_item(item: PortfolioItem, preference: Preference | None, target_style: str | None, target_platform: str | None) -> dict:
-    style = target_style or item.target_style or (preference.preferred_styles if preference else None) or "清新自然"
-    platform = target_platform or item.target_platform or (preference.target_platform if preference else None) or "作品集"
+def analyze_photo_context(
+    image_url: str,
+    preference: Preference | None,
+    target_style: str | None,
+    target_platform: str | None,
+    style_reference_urls: list[str] | None = None,
+    *,
+    title: str = "待分析作品",
+    description: str | None = None,
+    category: str | None = None,
+) -> dict:
+    style = target_style or (preference.preferred_styles if preference else None) or "清新自然"
+    platform = target_platform or (preference.target_platform if preference else None) or "作品集"
 
-    model_result = call_vision_model(item, preference, style, platform)
+    model_result = call_vision_model(
+        image_url=image_url,
+        title=title,
+        description=description,
+        category=category,
+        preference=preference,
+        target_style=style,
+        target_platform=platform,
+        style_reference_urls=style_reference_urls,
+    )
     analysis_mode = "api"
     if not model_result:
-        model_result = build_mock_vision_result(item.category or "general", style, platform)
+        model_result = build_mock_vision_result(category or "general", style, platform)
         analysis_mode = "mock"
 
-    photo_type = str(model_result.get("photo_type") or item.category or "general")
+    photo_type = str(model_result.get("photo_type") or category or "general")
     benchmark = build_benchmark(model_result, photo_type, style, platform)
-    style_result = detect_style(model_result, f"{style} {item.description or ''}")
+    style_result = detect_style(model_result, f"{style} {description or ''}")
     platform_suggestions = build_platform_suggestions(platform, style, model_result)
     target_match = model_result.get("target_style_match") if isinstance(model_result.get("target_style_match"), dict) else {}
     editing_params = model_result.get("editing_params") if isinstance(model_result.get("editing_params"), dict) else {}
+    expected_effect = model_result.get("expected_effect") if isinstance(model_result.get("expected_effect"), dict) else {}
+    expected_effect_description = str(
+        expected_effect.get("description")
+        or _build_expected_effect_fallback(style, style_reference_urls)
+    )
     detail = benchmark["benchmark_detail"]
     weights = benchmark["weights"]
     settings = get_settings()
@@ -53,6 +77,9 @@ def analyze_photo_item(item: PortfolioItem, preference: Preference | None, targe
                 **detail,
                 "weight_reason": benchmark["weight_reason"],
                 "benchmark_summary": benchmark["benchmark_summary"],
+                "style_reference_image_urls": style_reference_urls or [],
+                "expected_effect_description": expected_effect_description,
+                "expected_effect_keywords": expected_effect.get("style_keywords", []),
             },
             ensure_ascii=False,
         ),
@@ -70,9 +97,37 @@ def analyze_photo_item(item: PortfolioItem, preference: Preference | None, targe
     }
 
 
+def analyze_photo_item(
+    item: PortfolioItem,
+    preference: Preference | None,
+    target_style: str | None,
+    target_platform: str | None,
+    style_reference_urls: list[str] | None = None,
+) -> dict:
+    return analyze_photo_context(
+        image_url=item.image_url,
+        preference=preference,
+        target_style=target_style or item.target_style,
+        target_platform=target_platform or item.target_platform,
+        style_reference_urls=style_reference_urls,
+        title=item.title,
+        description=item.description,
+        category=item.category,
+    )
+
+
 def _clamp_score(value: object) -> int:
     try:
         number = int(round(float(value)))
     except (TypeError, ValueError):
         number = 72
     return max(0, min(100, number))
+
+
+def _build_expected_effect_fallback(style: str, style_reference_urls: list[str] | None) -> str:
+    if style_reference_urls:
+        return (
+            f"参考你上传的风格样片，照片将呈现更接近「{style}」的色调与氛围："
+            "肤色更通透、整体对比更柔和、色彩更统一，并保留自然质感。"
+        )
+    return f"按「{style}」方向调色后，画面会更统一柔和，主体更突出，整体氛围更贴近目标风格。"
