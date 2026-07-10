@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: '要部署的分支'
+        required: false
+        default: 'main'
 
 jobs:
   deploy:
@@ -17,7 +23,23 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
           script: |
+            BRANCH="${{ github.event.inputs.branch || 'main' }}"
+
+            # 首次部署：如果目录不存在则克隆
+            if [ ! -d ~/lenscoach ]; then
+              git clone https://github.com/yueyao926/lenscoach.git ~/lenscoach
+            fi
+
             cd ~/lenscoach
-            git pull
+            git fetch origin
+            git checkout "$BRANCH"
+            git pull origin "$BRANCH"
+
+            # 如果 .env 不存在，从模板创建（需要先在服务器填好真实值）
+            if [ ! -f .env ]; then
+              cp .env.production.example .env
+              echo "⚠️  .env 文件不存在，已从模板复制，请立即修改密码和密钥！"
+            fi
+
             docker compose -f docker-compose.deploy.yml up -d --build
             docker image prune -f
