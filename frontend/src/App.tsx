@@ -1,6 +1,7 @@
 import { Route, Routes } from "react-router-dom";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AiStudio from "./pages/AiStudio";
 import Dashboard from "./pages/Dashboard";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -24,6 +25,7 @@ export default function App() {
         <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
         <Route path="/portfolio/new" element={<ProtectedRoute><PortfolioNew /></ProtectedRoute>} />
         <Route path="/portfolio/:id" element={<ProtectedRoute><PortfolioDetail /></ProtectedRoute>} />
+        <Route path="/ai" element={<ProtectedRoute><AiStudio /></ProtectedRoute>} />
       </Route>
     </Routes>
   );

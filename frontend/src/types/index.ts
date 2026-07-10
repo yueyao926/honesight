@@ -73,6 +73,9 @@ export type PhotoAnalysis = {
   next_step: string;
   analysis_mode: string;
   model_used: string;
+  style_reference_image_urls?: string[];
+  expected_effect_description?: string;
+  analysis_report?: Record<string, unknown>;
   created_at: string;
 };
 

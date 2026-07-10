@@ -35,3 +35,18 @@ export function updatePortfolioItem(id: string | number, payload: Partial<Portfo
 export function deletePortfolioItem(id: string | number) {
   return apiRequest<void>(`/portfolio/${id}`, { method: "DELETE" });
 }
+
+export function savePortfolioWithAnalysis(payload: {
+  image_url: string;
+  title: string;
+  description?: string;
+  category?: string;
+  target_style?: string;
+  target_platform?: string;
+  analysis_report: Record<string, unknown>;
+}) {
+  return apiRequest<{ item: PortfolioItem; analysis_id: number }>("/portfolio/save-with-analysis", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
