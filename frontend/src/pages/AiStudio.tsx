@@ -18,7 +18,7 @@ import type { PhotoAnalysis } from "../types";
 
 const targetStyles = ["清新自然", "日系", "胶片感", "高级灰", "复古", "高饱和", "生活记录", "商业感"];
 const targetPlatforms = ["小红书", "朋友圈", "Instagram", "作品集", "商业约拍"];
-const steps = ["上传照片", "风格参考", "确认设置", "AI 分析", "查看建议"];
+const steps = ["上传照片", "设置目标", "查看建议"];
 
 export default function AiStudio() {
   const navigate = useNavigate();
@@ -34,21 +34,17 @@ export default function AiStudio() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  function goNext() {
+  function goToSettings() {
     setError("");
-    if (step === 1 && !photoUrl) {
+    if (!photoUrl) {
       setError("请先上传待分析的照片");
       return;
     }
-    if (step === 2 && styleRefs.length === 0) {
-      setError("请至少上传 1 张风格参考图");
-      return;
-    }
-    setStep(step + 1);
+    setStep(2);
   }
 
   async function handleAnalyze() {
-    if (!photoUrl || styleRefs.length === 0) return;
+    if (!photoUrl) return;
     setLoading(true);
     setError("");
     try {
@@ -60,7 +56,7 @@ export default function AiStudio() {
       });
       setAnalysis(data);
       setSaveTitle(`AI 分析 · ${targetStyle}`);
-      setStep(5);
+      setStep(3);
     } catch (err) {
       setError(err instanceof Error ? err.message : "分析失败，请稍后重试");
     } finally {
@@ -104,7 +100,7 @@ export default function AiStudio() {
         <p className="section-eyebrow">AI Studio</p>
         <h1 className="page-title mt-2">先分析，满意再收藏</h1>
         <p className="mt-4 max-w-2xl text-muted leading-7">
-          上传你的照片和喜欢的风格参考图，AI 给出修改建议与预期效果。满意后再保存到作品集。
+          上传照片、选好目标风格，AI 给出修改建议与预期效果。想更精准，可以再补充喜欢的风格参考图。满意后保存到作品集。
         </p>
       </header>
 
@@ -147,29 +143,16 @@ export default function AiStudio() {
         <div className="space-y-5">
           {step === 1 && photoUrl && (
             <div className="card">
-              <button className="btn-primary" type="button" onClick={goNext}>下一步：上传风格参考</button>
+              <button className="btn-primary" type="button" onClick={goToSettings}>下一步：设置目标</button>
             </div>
           )}
 
           {step === 2 && (
             <div className="card animate-fade-up">
               <p className="section-eyebrow">Step 2</p>
-              <h2 className="mt-1 font-display text-2xl font-semibold">上传风格参考图</h2>
-              <p className="mt-2 text-sm text-muted">上传你喜欢的风格样片，AI 会据此识别色调与氛围。</p>
-              <div className="mt-6">
-                <StyleReferenceUpload value={styleRefs} onChange={setStyleRefs} maxFiles={3} />
-              </div>
-              <div className="mt-6 flex gap-3">
-                <button className="btn-secondary" type="button" onClick={() => setStep(1)}>上一步</button>
-                <button className="btn-primary" type="button" onClick={goNext}>下一步</button>
-              </div>
-            </div>
-          )}
+              <h2 className="mt-1 font-display text-2xl font-semibold">设置分析目标</h2>
+              <p className="mt-2 text-sm text-muted">选择你想达成的风格和发布平台，AI 会据此给出建议。</p>
 
-          {step === 3 && (
-            <div className="card animate-fade-up">
-              <p className="section-eyebrow">Step 3</p>
-              <h2 className="mt-1 font-display text-2xl font-semibold">确认分析设置</h2>
               <div className="mt-6 grid gap-4 md:grid-cols-2">
                 <div>
                   <label className="label">目标风格</label>
@@ -184,32 +167,39 @@ export default function AiStudio() {
                   </select>
                 </div>
               </div>
-              <div className="mt-6 flex gap-3">
-                <button className="btn-secondary" type="button" onClick={() => setStep(2)}>上一步</button>
-                <button className="btn-primary" type="button" onClick={goNext}>下一步</button>
-              </div>
-            </div>
-          )}
 
-          {step === 4 && (
-            <div className="card animate-fade-up">
-              <p className="section-eyebrow">Step 4</p>
-              <h2 className="mt-1 font-display text-2xl font-semibold">开始 AI 分析</h2>
-              <div className="mt-5 space-y-2 text-sm text-muted">
-                <p>目标风格：<span className="text-ink">{targetStyle}</span></p>
-                <p>发布平台：<span className="text-ink">{targetPlatform}</span></p>
-                <p>风格参考：<span className="text-ink">{styleRefs.length} 张</span></p>
+              <div className="mt-6">
+                <label className="label">风格参考图（可选）</label>
+                <p className="mb-3 text-xs text-muted">
+                  没有也能分析。若上传你喜欢的样片，AI 会更精准地对齐色调与氛围。
+                </p>
+                <StyleReferenceUpload value={styleRefs} onChange={setStyleRefs} maxFiles={3} />
               </div>
-              <div className="mt-6 flex gap-3">
-                <button className="btn-secondary" type="button" onClick={() => setStep(3)}>上一步</button>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <button className="btn-secondary" type="button" onClick={() => setStep(1)}>上一步</button>
                 <button className="btn-primary" type="button" onClick={handleAnalyze} disabled={loading}>
                   {loading ? "AI 分析中..." : "生成修改建议"}
                 </button>
               </div>
+
+              {loading && (
+                <div className="mt-6 rounded-2xl bg-blush/30 p-5">
+                  <div className="flex items-center gap-3 text-sm text-brand-deep">
+                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-brand border-t-transparent" />
+                    AI 正在对齐目标风格并生成建议，通常需要几十秒，请稍候…
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    <div className="h-3 w-3/4 animate-pulse rounded-full bg-sand" />
+                    <div className="h-3 w-1/2 animate-pulse rounded-full bg-sand" />
+                    <div className="h-3 w-2/3 animate-pulse rounded-full bg-sand" />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {step === 5 && analysis && photoUrl && (
+          {step === 3 && analysis && photoUrl && (
             <>
               <ExpectedEffectPreview
                 imageUrl={photoUrl}

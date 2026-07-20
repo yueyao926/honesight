@@ -1,6 +1,14 @@
 import { Link } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function Home() {
+  const { isAuthenticated } = useAuth();
+  // 匿名用户先注册，已登录用户直接进入对应功能，避免被鉴权重定向弹走
+  const cards = [
+    { title: "作品集", desc: "独立管理你的摄影作品，记录每一次上传与成长。", link: isAuthenticated ? "/portfolio" : "/register", cta: isAuthenticated ? "查看作品集" : "免费开始" },
+    { title: "AI 工作室", desc: "上传照片与风格参考，先获取 AI 建议，满意后再保存。", link: isAuthenticated ? "/ai" : "/register", cta: isAuthenticated ? "开始 AI 分析" : "免费开始" },
+    { title: "预期效果", desc: "修图前后对比预览，直观感受目标风格的视觉效果。", link: isAuthenticated ? "/ai" : "/register", cta: "免费开始" },
+  ];
   return (
     <main>
       <section className="container-page grid items-center gap-12 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:py-24">
@@ -15,8 +23,17 @@ export default function Home() {
             上传作品与风格参考，AI 识别你的审美偏好，给出可执行的摄影建议与预期效果预览。
           </p>
           <div className="mt-10 flex flex-wrap gap-4">
-            <Link to="/register" className="btn-primary">开始创建作品集</Link>
-            <Link to="/login" className="btn-secondary">我已有账号</Link>
+            {isAuthenticated ? (
+              <>
+                <Link to="/ai" className="btn-primary">开始 AI 分析</Link>
+                <Link to="/portfolio" className="btn-secondary">我的作品集</Link>
+              </>
+            ) : (
+              <>
+                <Link to="/register" className="btn-primary">开始创建作品集</Link>
+                <Link to="/login" className="btn-secondary">我已有账号</Link>
+              </>
+            )}
           </div>
         </div>
 
@@ -38,11 +55,7 @@ export default function Home() {
 
       <section className="container-page pb-20">
         <div className="grid gap-5 md:grid-cols-3">
-          {[
-            { title: "作品集", desc: "独立管理你的摄影作品，记录每一次上传与成长。", link: "/portfolio", cta: "查看作品集" },
-            { title: "AI 工作室", desc: "上传照片与风格参考，先获取 AI 建议，满意后再保存。", link: "/ai", cta: "开始 AI 分析" },
-            { title: "预期效果", desc: "修图前后对比预览，直观感受目标风格的视觉效果。", link: "/register", cta: "免费开始" },
-          ].map((item, i) => (
+          {cards.map((item, i) => (
             <div key={item.title} className="card-soft animate-fade-up" style={{ animationDelay: `${0.1 * i}s` }}>
               <h3 className="font-display text-2xl font-semibold">{item.title}</h3>
               <p className="mt-3 text-sm leading-7 text-muted">{item.desc}</p>

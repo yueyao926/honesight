@@ -1,20 +1,49 @@
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { analyzePhoto, getPhotoAnalysis } from "../api/analyze";
+import { getPhotoChat, sendPhotoChatMessage } from "../api/chat";
 import { getAssetUrl } from "../api/client";
 import { deletePortfolioItem, getPortfolioItem } from "../api/portfolio";
-import type { PortfolioItem } from "../types";
+import {
+  AdvicePanel,
+  BenchmarkOverview,
+  ChatPanel,
+  DimensionCards,
+  ParamsPanel,
+  PlatformPanel,
+  StylePanel,
+} from "../components/analysis/AnalysisPanels";
+import type { ChatMessage, PhotoAnalysis, PortfolioItem } from "../types";
 
 export default function PortfolioDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [item, setItem] = useState<PortfolioItem | null>(null);
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
+
+  const [analysis, setAnalysis] = useState<PhotoAnalysis | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(true);
+  const [reanalyzing, setReanalyzing] = useState(false);
+
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
 
   useEffect(() => {
     if (!id) return;
     getPortfolioItem(id)
       .then(setItem)
-      .catch((err) => setError(err.message));
+      .catch((err) => setLoadError(err instanceof Error ? err.message : "加载失败"));
+
+    getPhotoAnalysis(id)
+      .then(setAnalysis)
+      .catch(() => setAnalysis(null))
+      .finally(() => setAnalysisLoading(false));
+
+    getPhotoChat(id)
+      .then(setMessages)
+      .catch(() => setMessages([]));
   }, [id]);
 
   async function handleDelete() {
@@ -23,8 +52,78 @@ export default function PortfolioDetail() {
     navigate("/portfolio");
   }
 
+  async function handleReanalyze() {
+    if (!id || !item) return;
+    setReanalyzing(true);
+    setError("");
+    try {
+      const data = await analyzePhoto({
+        portfolio_item_id: item.id,
+        target_style: item.target_style || undefined,
+        target_platform: item.target_platform || undefined,
+      });
+      setAnalysis(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "重新分析失败");
+    } finally {
+      setReanalyzing(false);
+    }
+  }
+
+  async function handleChatSubmit(event?: FormEvent<HTMLFormElement>, preset?: string) {
+    event?.preventDefault();
+    if (!id) return;
+    const text = (preset ?? chatInput).trim();
+    if (!text || chatLoading) return;
+
+    const optimistic: ChatMessage = {
+      id: Date.now(),
+      portfolio_item_id: Number(id),
+      user_id: item?.user_id ?? 0,
+      role: "user",
+      content: text,
+      created_at: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, optimistic]);
+    setChatInput("");
+    setChatLoading(true);
+    setError("");
+    try {
+      const reply = await sendPhotoChatMessage(id, text);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 1,
+          portfolio_item_id: Number(id),
+          user_id: item?.user_id ?? 0,
+          role: "assistant",
+          content: reply.reply,
+          created_at: reply.created_at,
+        },
+      ]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "发送失败，请稍后再试");
+    } finally {
+      setChatLoading(false);
+    }
+  }
+
   if (!item) {
-    return <main className="container-page"><div className="card">{error || "加载中..."}</div></main>;
+    return (
+      <main className="container-page">
+        <div className="card mt-10 text-center">
+          {loadError ? (
+            <>
+              <h2 className="font-display text-2xl font-semibold">无法加载作品</h2>
+              <p className="mt-3 text-sm text-muted">{loadError}</p>
+              <Link className="btn-secondary mt-6 inline-block" to="/portfolio">返回作品集</Link>
+            </>
+          ) : (
+            <p className="text-sm text-muted">加载中…</p>
+          )}
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -62,19 +161,46 @@ export default function PortfolioDetail() {
             </dl>
 
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link className="btn-secondary" to="/portfolio">返回作品集</Link>
+              <button className="btn-primary" type="button" onClick={handleReanalyze} disabled={reanalyzing}>
+                {reanalyzing ? "分析中..." : analysis ? "重新分析" : "生成分析报告"}
+              </button>
               <button className="btn-secondary" type="button" onClick={handleDelete}>删除作品</button>
             </div>
           </div>
+        </div>
+      </section>
 
-          <div className="card-soft">
-            <p className="text-sm leading-7 text-muted">
-              这是已保存到作品集的作品。想分析新照片？前往
-              <Link className="mx-1 text-brand-deep" to="/ai">AI 工作室</Link>
-              上传照片和风格参考，满意后再收藏。
+      <section className="mt-8 space-y-5">
+        {analysisLoading ? (
+          <div className="card">
+            <p className="text-sm text-muted">正在加载分析结果…</p>
+          </div>
+        ) : analysis ? (
+          <>
+            <BenchmarkOverview analysis={analysis} />
+            <DimensionCards analysis={analysis} />
+            <StylePanel analysis={analysis} />
+            <AdvicePanel analysis={analysis} />
+            <ParamsPanel analysis={analysis} />
+            <PlatformPanel analysis={analysis} />
+            <ChatPanel
+              messages={messages}
+              input={chatInput}
+              setInput={setChatInput}
+              loading={chatLoading}
+              onSubmit={handleChatSubmit}
+            />
+          </>
+        ) : (
+          <div className="card-soft text-center">
+            <h2 className="font-display text-xl font-semibold">还没有分析报告</h2>
+            <p className="mt-3 text-sm text-muted">
+              点击上方「生成分析报告」，即可获得质量评分、修图参数与平台建议，并围绕这张照片继续追问。
             </p>
           </div>
-        </div>
+        )}
+
+        {error && <p className="text-sm text-red-500">{error}</p>}
       </section>
     </main>
   );

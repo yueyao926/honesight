@@ -16,7 +16,8 @@ class AnalyzeRequest(BaseModel):
 
 class PreviewAnalyzeRequest(BaseModel):
     image_url: str
-    style_reference_image_urls: list[str] = Field(min_length=1)
+    # 风格参考图为可选：无参考图时按目标风格直接分析
+    style_reference_image_urls: list[str] = Field(default_factory=list)
     target_style: str | None = None
     target_platform: str | None = None
     title: str | None = None

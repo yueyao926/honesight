@@ -9,11 +9,21 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [preference, setPreference] = useState<Preference | null>(null);
   const [items, setItems] = useState<PortfolioItem[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    getMyPreferences().then(setPreference).catch(() => setPreference(null));
-    listPortfolio().then(setItems).catch(() => setItems([]));
+    Promise.allSettled([
+      getMyPreferences().then(setPreference).catch(() => setPreference(null)),
+      listPortfolio().then(setItems).catch(() => setItems([])),
+    ]).finally(() => setLoaded(true));
   }, []);
+
+  // 根据用户当前状态，给出唯一明确的下一步
+  const nextStep = !preference
+    ? { title: "先填写摄影偏好", desc: "花 1 分钟告诉我们你的水平和目标，分析报告会更贴合你。", cta: "去填写偏好", link: "/onboarding" }
+    : items.length === 0
+      ? { title: "分析你的第一张照片", desc: "上传照片、选好目标风格，AI 立刻给出修改建议与预期效果。", cta: "开始 AI 分析", link: "/ai" }
+      : { title: "继续打磨你的作品", desc: "上传新照片获取建议，或回到作品集围绕已保存的照片继续追问。", cta: "开始 AI 分析", link: "/ai" };
 
   return (
     <main className="container-page">
@@ -22,6 +32,17 @@ export default function Dashboard() {
         <h1 className="page-title mt-2">你好，{user?.username}</h1>
         <p className="mt-4 text-muted">先上传照片获取 AI 建议，满意后再保存到作品集。</p>
       </header>
+
+      {loaded && (
+        <section className="card mt-8 animate-fade-up flex flex-col justify-between gap-5 md:flex-row md:items-center">
+          <div>
+            <p className="section-eyebrow">下一步</p>
+            <h2 className="mt-1 font-display text-2xl font-semibold">{nextStep.title}</h2>
+            <p className="mt-2 text-sm text-muted">{nextStep.desc}</p>
+          </div>
+          <Link className="btn-primary shrink-0" to={nextStep.link}>{nextStep.cta}</Link>
+        </section>
+      )}
 
       <section className="mt-10 grid gap-4 md:grid-cols-3">
         {[
