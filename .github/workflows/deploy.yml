@@ -55,11 +55,11 @@ jobs:
             curl -fsS "http://127.0.0.1:${FRONTEND_PORT}/" | grep -q 'id="root"'
 
             if command -v nginx >/dev/null 2>&1; then
-              if ! sudo -n true; then
-                echo "❌ 部署用户没有免密 sudo 权限，无法更新宿主机 Nginx"
-                exit 1
-              fi
-              sudo tee /etc/nginx/conf.d/lenscoach.conf >/dev/null <<EOF
+              # 部署用户可管理 Docker，但没有免密 sudo。使用一次性维护容器
+              # 进入宿主机命名空间，精确写入站点配置并平滑重载 Nginx。
+              docker run --rm -i --privileged --pid=host alpine:3.20 \
+                nsenter -t 1 -m -u -i -n -p -- sh -c \
+                'cat > /etc/nginx/conf.d/lenscoach.conf' <<EOF
             server {
                 listen 80;
                 server_name ${{ secrets.SERVER_HOST }};
@@ -74,8 +74,10 @@ jobs:
                 }
             }
             EOF
-              sudo nginx -t
-              sudo systemctl reload nginx
+              docker run --rm --privileged --pid=host alpine:3.20 \
+                nsenter -t 1 -m -u -i -n -p -- nginx -t
+              docker run --rm --privileged --pid=host alpine:3.20 \
+                nsenter -t 1 -m -u -i -n -p -- nginx -s reload
             fi
 
             curl -fsS -H "Host: ${{ secrets.SERVER_HOST }}" http://127.0.0.1/ | grep -q 'id="root"'
