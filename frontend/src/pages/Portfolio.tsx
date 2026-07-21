@@ -38,7 +38,9 @@ export default function Portfolio() {
         <div>
           <p className="section-eyebrow">Portfolio</p>
           <h1 className="page-title mt-2">我的作品集</h1>
-          <p className="mt-3 max-w-2xl text-muted">按自己的方式整理照片。作品集不做分类，也不展示评分和分析报告。</p>
+          <p className="mt-3 max-w-2xl text-muted leading-7">
+            以风格为名，按时间收藏，或为一段特别的经历留下一册；让不同阶段的目光各自成篇，也让摄影的成长在多样的光影里清晰可见。
+          </p>
         </div>
         <button className="btn-primary" type="button" onClick={() => setShowCreate(true)}>新建作品集</button>
       </header>
