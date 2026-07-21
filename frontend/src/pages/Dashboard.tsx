@@ -18,7 +18,6 @@ export default function Dashboard() {
     ]).finally(() => setLoaded(true));
   }, []);
 
-  const photoCount = collections.reduce((sum, collection) => sum + collection.photo_count, 0);
   const nextStep = !preference
     ? { title: "先填写摄影偏好", desc: "花 1 分钟告诉我们你的水平和目标，分析报告会更贴合你。", cta: "去填写偏好", link: "/onboarding" }
     : collections.length === 0
@@ -30,7 +29,7 @@ export default function Dashboard() {
       <header className="animate-fade-up">
         <p className="section-eyebrow">Dashboard</p>
         <h1 className="page-title mt-2">你好，{user?.username}</h1>
-        <p className="mt-4 text-muted">整理原图与获取 AI 建议是两件独立的事，按你当下的需要选择即可。</p>
+        <p className="mt-4 text-muted">让每一次快门都有迹可循，也让光影里的进步慢慢成为你的作品。</p>
       </header>
 
       {loaded && (
@@ -44,32 +43,29 @@ export default function Dashboard() {
         </section>
       )}
 
-      <section className="mt-10 grid gap-4 md:grid-cols-3">
-        {[
-          { label: "作品集", value: collections.length },
-          { label: "已保存照片", value: photoCount },
-          { label: "偏好风格", value: preference?.preferred_styles || "未设置" },
-        ].map((stat) => (
-          <div key={stat.label} className="card-soft">
-            <p className="text-xs uppercase tracking-widest text-muted">{stat.label}</p>
-            <p className="mt-2 font-display text-3xl font-semibold">{stat.value}</p>
-          </div>
-        ))}
-      </section>
-
       <section className="mt-8 flex flex-wrap gap-4">
         <Link className="btn-primary" to="/ai">开始 AI 分析</Link>
         <Link className="btn-ghost" to="/portfolio">管理作品集</Link>
       </section>
 
       <section className="mt-10 grid gap-6 lg:grid-cols-2">
-        <div className="card">
+        <div className="card lg:h-[22rem]">
           <h2 className="font-display text-xl font-semibold">摄影偏好</h2>
           {preference ? (
-            <dl className="mt-5 space-y-2 text-sm text-muted">
-              <p>水平：{preference.skill_level || "-"}</p>
-              <p>常拍：{preference.common_subjects || "-"}</p>
-              <p>目标：{preference.improvement_goals || "-"}</p>
+            <dl className="mt-5 grid grid-cols-2 gap-3 text-sm">
+              {[
+                ["摄影水平", preference.skill_level],
+                ["发布平台", preference.target_platform],
+                ["偏好风格", preference.preferred_styles],
+                ["常拍内容", preference.common_subjects],
+                ["提升方向", preference.improvement_goals],
+                ["修图工具", preference.editing_tools],
+              ].map(([label, value]) => (
+                <div key={label} className="min-w-0 rounded-2xl bg-blush/30 px-4 py-3">
+                  <dt className="text-xs text-muted">{label}</dt>
+                  <dd className="mt-1 break-words text-ink">{value || "未设置"}</dd>
+                </div>
+              ))}
             </dl>
           ) : (
             <div className="mt-5">
@@ -79,7 +75,7 @@ export default function Dashboard() {
           )}
         </div>
 
-        <div className="card">
+        <div className="card lg:h-[22rem] lg:overflow-hidden">
           <h2 className="font-display text-xl font-semibold">最近作品集</h2>
           {collections.length === 0 ? (
             <p className="mt-5 text-sm text-muted">还没有作品集，先创建一个空作品集。</p>
