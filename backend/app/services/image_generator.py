@@ -23,13 +23,13 @@ def generate_edited_image(
 ) -> dict[str, str]:
     settings = get_settings()
     if not settings.image_generation_enabled:
-        raise ImageGenerationError("·şÎñÆ÷ÉĞÎ´¿ªÆôÕæÊµÍ¼Æ¬Éú³É¹¦ÄÜ")
+        raise ImageGenerationError("æœåŠ¡å™¨å°šæœªå¼€å¯çœŸå®å›¾ç‰‡ç”ŸæˆåŠŸèƒ½")
     if not settings.resolved_image_api_key:
-        raise ImageGenerationError("·şÎñÆ÷ÉĞÎ´ÅäÖÃÍ¼Æ¬Éú³É API Key")
+        raise ImageGenerationError("æœåŠ¡å™¨å°šæœªé…ç½®å›¾ç‰‡ç”Ÿæˆ API Key")
 
     source_image = _resolve_image_input(image_url)
     if not source_image:
-        raise ImageGenerationError("ÕÒ²»µ½´ı´¦ÀíµÄÔ­Í¼")
+        raise ImageGenerationError("æ‰¾ä¸åˆ°å¾…å¤„ç†çš„åŸå›¾")
 
     images = [source_image]
     for reference_url in (reference_image_urls or [])[:3]:
@@ -63,13 +63,13 @@ def generate_edited_image(
             data = response.json()
     except httpx.HTTPStatusError as exc:
         detail = _safe_provider_error(exc.response)
-        raise ImageGenerationError(f"Í¼Æ¬Éú³É·şÎñ·µ»Ø´íÎó£º{detail}") from exc
+        raise ImageGenerationError(f"å›¾ç‰‡ç”ŸæˆæœåŠ¡è¿”å›é”™è¯¯ï¼š{detail}") from exc
     except (httpx.HTTPError, ValueError) as exc:
-        raise ImageGenerationError("ÎŞ·¨Á¬½ÓÍ¼Æ¬Éú³É·şÎñ£¬ÇëÉÔºóÖØÊÔ") from exc
+        raise ImageGenerationError("æ— æ³•è¿æ¥å›¾ç‰‡ç”ŸæˆæœåŠ¡ï¼Œè¯·ç¨åé‡è¯•") from exc
 
     generated_url = _extract_generated_url(data)
     if not generated_url:
-        raise ImageGenerationError("Í¼Æ¬Éú³É·şÎñÃ»ÓĞ·µ»Ø¿ÉÓÃÍ¼Æ¬")
+        raise ImageGenerationError("å›¾ç‰‡ç”ŸæˆæœåŠ¡æ²¡æœ‰è¿”å›å¯ç”¨å›¾ç‰‡")
 
     local_url = _download_generated_image(generated_url, user_id)
     return {
@@ -81,15 +81,15 @@ def generate_edited_image(
 
 def _build_edit_prompt(target_style: str, edit_instruction: str | None, reference_count: int) -> str:
     parts = [
-        "¶ÔµÚÒ»ÕÅÔ­Ê¼ÕÕÆ¬½øĞĞ×¨ÒµÉãÓ°ºóÆÚ´¦Àí¡£",
-        "±ØĞë±£ÁôÔ­Í¼ÈËÎïÉí·İ¡¢Îå¹Ù¡¢Ö÷Ìå¡¢×ËÊÆ¡¢³¡¾°½á¹¹ºÍ»­Ãæ¹¹Í¼£¬²»ĞÂÔö»òÉ¾³ıÖ÷Ìå¡£",
-        f"½«ÕûÌåÊÓ¾õµ÷ÕûÎª¡¸{target_style}¡¹·ç¸ñ£¬ÓÅ»¯ÆØ¹â¡¢°×Æ½ºâ¡¢É«²Ê²ã´Î¡¢·ôÉ«ºÍÖÊ¸Ğ¡£",
-        "Ğ§¹û×ÔÈ»ÕæÊµ£¬±ÜÃâ¹ı¶ÈÄ¥Æ¤¡¢ËÜÁÏ¸Ğ¡¢ÎÄ×Ö¡¢±ß¿òºÍË®Ó¡¡£",
+        "å¯¹ç¬¬ä¸€å¼ åŸå§‹ç…§ç‰‡è¿›è¡Œä¸“ä¸šæ‘„å½±åæœŸå¤„ç†ã€‚",
+        "å¿…é¡»ä¿ç•™åŸå›¾äººç‰©èº«ä»½ã€äº”å®˜ã€ä¸»ä½“ã€å§¿åŠ¿ã€åœºæ™¯ç»“æ„å’Œç”»é¢æ„å›¾ï¼Œä¸æ–°å¢æˆ–åˆ é™¤ä¸»ä½“ã€‚",
+        f"å°†æ•´ä½“è§†è§‰è°ƒæ•´ä¸ºã€Œ{target_style}ã€é£æ ¼ï¼Œä¼˜åŒ–æ›å…‰ã€ç™½å¹³è¡¡ã€è‰²å½©å±‚æ¬¡ã€è‚¤è‰²å’Œè´¨æ„Ÿã€‚",
+        "æ•ˆæœè‡ªç„¶çœŸå®ï¼Œé¿å…è¿‡åº¦ç£¨çš®ã€å¡‘æ–™æ„Ÿã€æ–‡å­—ã€è¾¹æ¡†å’Œæ°´å°ã€‚",
     ]
     if reference_count:
-        parts.append("ºóĞøÍ¼Æ¬ÊÇ·ç¸ñ²Î¿¼Í¼£¬ÇëÖ»²Î¿¼ÆäÉ«µ÷¡¢¹âÓ°ºÍ·ÕÎ§£¬²»ÒªÌæ»»Ô­Í¼Ö÷Ìå¡£")
+        parts.append("åç»­å›¾ç‰‡æ˜¯é£æ ¼å‚è€ƒå›¾ï¼Œè¯·åªå‚è€ƒå…¶è‰²è°ƒã€å…‰å½±å’Œæ°›å›´ï¼Œä¸è¦æ›¿æ¢åŸå›¾ä¸»ä½“ã€‚")
     if edit_instruction and edit_instruction.strip():
-        parts.append(f"ÓÃ»§¶îÍâÒªÇó£º{edit_instruction.strip()}")
+        parts.append(f"ç”¨æˆ·é¢å¤–è¦æ±‚ï¼š{edit_instruction.strip()}")
     return "".join(parts)
 
 
@@ -124,16 +124,16 @@ def _download_generated_image(url: str, user_id: int) -> str:
             response = client.get(url)
             response.raise_for_status()
     except httpx.HTTPError as exc:
-        raise ImageGenerationError("Í¼Æ¬ÒÑÉú³É£¬µ«ÏÂÔØ±£´æÊ§°Ü£¬ÇëÖØÊÔ") from exc
+        raise ImageGenerationError("å›¾ç‰‡å·²ç”Ÿæˆï¼Œä½†ä¸‹è½½ä¿å­˜å¤±è´¥ï¼Œè¯·é‡è¯•") from exc
 
     suffix = _detect_image_suffix(
         response.headers.get("content-type", "").split(";", 1)[0].lower(),
         response.content,
     )
     if not suffix or not response.content:
-        raise ImageGenerationError("Í¼Æ¬Éú³É·şÎñ·µ»ØÁË²»Ö§³ÖµÄÎÄ¼ş¸ñÊ½")
+        raise ImageGenerationError("å›¾ç‰‡ç”ŸæˆæœåŠ¡è¿”å›äº†ä¸æ”¯æŒçš„æ–‡ä»¶æ ¼å¼")
     if len(response.content) > 20 * 1024 * 1024:
-        raise ImageGenerationError("Éú³ÉÍ¼Æ¬³¬¹ı 20MB£¬ÎŞ·¨±£´æ")
+        raise ImageGenerationError("ç”Ÿæˆå›¾ç‰‡è¶…è¿‡ 20MBï¼Œæ— æ³•ä¿å­˜")
 
     settings.upload_path.mkdir(parents=True, exist_ok=True)
     filename = f"{user_id}_generated_{uuid4().hex}{suffix}"

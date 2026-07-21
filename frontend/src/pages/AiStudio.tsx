@@ -102,7 +102,7 @@ export default function AiStudio() {
       });
       setGeneratedImageUrl(result.image_url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "ͼƬ����ʧ�ܣ����Ժ�����");
+      setError(err instanceof Error ? err.message : "图片生成失败，请稍后重试");
     } finally {
       setGeneratingImage(false);
     }
@@ -234,23 +234,23 @@ export default function AiStudio() {
                 referenceUrls={analysis.style_reference_image_urls || styleRefs}
               />
               <div className="card-soft">
-                <p className="section-eyebrow">��ʵ AI ��ͼ</p>
-                <h2 className="mt-1 font-display text-2xl font-semibold">����һ�Ŵ��������ͼƬ</h2>
+                <p className="section-eyebrow">真实 AI 修图</p>
+                <h2 className="mt-1 font-display text-2xl font-semibold">生成一张处理后的新图片</h2>
                 <p className="mt-2 text-sm leading-6 text-muted">
-                  ��������ʵͼ��ͼģ�Ͳ����� API ��ȡ����ɽ���ᱣ�浽��������ԭͼ���ᱻ���ǡ�
+                  将调用真实图生图模型并消耗 API 额度。生成结果会保存到服务器，原图不会被覆盖。
                 </p>
                 <div className="mt-4">
-                  <label className="label">�����޸�Ҫ�󣨿�ѡ��</label>
+                  <label className="label">额外修改要求（可选）</label>
                   <textarea
                     className="input min-h-24"
                     value={editInstruction}
                     onChange={(event) => setEditInstruction(event.target.value)}
-                    placeholder="���磺���͸߹⣬������Ȼ��ɫ������һ�㽺Ƭ����"
+                    placeholder="例如：降低高光，保留自然肤色，增加一点胶片颗粒"
                     maxLength={600}
                   />
                 </div>
                 <button className="btn-primary mt-4" type="button" onClick={handleGenerateImage} disabled={generatingImage}>
-                  {generatingImage ? "AI ��������ͼƬ��������Ҫ 1�C2 ���ӡ�" : generatedImageUrl ? "��������Ч��ͼ" : "������ʵЧ��ͼ"}
+                  {generatingImage ? "AI 正在生成图片，可能需要 1–2 分钟…" : generatedImageUrl ? "重新生成效果图" : "生成真实效果图"}
                 </button>
               </div>
               <BenchmarkOverview analysis={analysis} />
