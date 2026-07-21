@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.api import analyze, auth, portfolio, preferences, upload
+from app.api import analyze, auth, image_process, portfolio, preferences, upload
 from app.core.config import get_settings
 
 
@@ -26,6 +26,7 @@ app.include_router(preferences.router)
 app.include_router(portfolio.router)
 app.include_router(upload.router)
 app.include_router(analyze.router)
+app.include_router(image_process.router)
 
 
 @app.get("/health")

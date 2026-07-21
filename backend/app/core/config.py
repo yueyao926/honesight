@@ -21,6 +21,13 @@ class Settings(BaseSettings):
     ai_base_url: str = Field(default="https://ark.cn-beijing.volces.com/api/v3", alias="AI_BASE_URL")
     ai_model: str = Field(default="doubao-seed-1-6-vision-250815", alias="AI_MODEL")
     ai_timeout_seconds: int = Field(default=45, alias="AI_TIMEOUT_SECONDS")
+    image_generation_enabled: bool = Field(default=False, alias="IMAGE_GENERATION_ENABLED")
+    image_api_key: str | None = Field(default=None, alias="IMAGE_API_KEY")
+    image_base_url: str = Field(default="https://ark.cn-beijing.volces.com/api/v3", alias="IMAGE_BASE_URL")
+    image_model: str = Field(default="doubao-seedream-5-0-260128", alias="IMAGE_MODEL")
+    image_size: str = Field(default="2K", alias="IMAGE_SIZE")
+    image_timeout_seconds: int = Field(default=120, alias="IMAGE_TIMEOUT_SECONDS")
+    image_watermark: bool = Field(default=False, alias="IMAGE_WATERMARK")
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8-sig", populate_by_name=True, extra="ignore")
 
@@ -43,6 +50,14 @@ class Settings(BaseSettings):
     @property
     def resolved_ai_model(self) -> str:
         return self.ai_model or self.ark_vision_model
+
+    @property
+    def resolved_image_api_key(self) -> str | None:
+        return self.image_api_key or self.ai_api_key or self.ark_api_key
+
+    @property
+    def resolved_image_base_url(self) -> str:
+        return self.image_base_url.rstrip("/")
 
 
 @lru_cache

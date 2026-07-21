@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { previewAnalyze } from "../api/analyze";
 import { getAssetUrl } from "../api/client";
+import { generateProcessedImage } from "../api/imageProcess";
 import { savePortfolioWithAnalysis } from "../api/portfolio";
 import {
   AdvicePanel,
@@ -33,6 +34,9 @@ export default function AiStudio() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [generatingImage, setGeneratingImage] = useState(false);
+  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
+  const [editInstruction, setEditInstruction] = useState("");
 
   function goToSettings() {
     setError("");
@@ -71,7 +75,7 @@ export default function AiStudio() {
     setError("");
     try {
       const result = await savePortfolioWithAnalysis({
-        image_url: photoUrl,
+        image_url: generatedImageUrl || photoUrl,
         title: saveTitle.trim() || "æœªå‘½åä½œå“",
         target_style: targetStyle,
         target_platform: targetPlatform,
@@ -85,11 +89,32 @@ export default function AiStudio() {
     }
   }
 
+  async function handleGenerateImage() {
+    if (!photoUrl) return;
+    setGeneratingImage(true);
+    setError("");
+    try {
+      const result = await generateProcessedImage({
+        image_url: photoUrl,
+        target_style: targetStyle,
+        edit_instruction: editInstruction.trim() || undefined,
+        reference_image_urls: styleRefs,
+      });
+      setGeneratedImageUrl(result.image_url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Í¼Æ¬Éú³ÉÊ§°Ü£¬ÇëÉÔºóÖØÊÔ");
+    } finally {
+      setGeneratingImage(false);
+    }
+  }
+
   function handleRestart() {
     setStep(1);
     setPhotoUrl(null);
     setStyleRefs([]);
     setAnalysis(null);
+    setGeneratedImageUrl(null);
+    setEditInstruction("");
     setShowSaveForm(false);
     setError("");
   }
@@ -203,10 +228,31 @@ export default function AiStudio() {
             <>
               <ExpectedEffectPreview
                 imageUrl={photoUrl}
+                generatedImageUrl={generatedImageUrl}
                 targetStyle={targetStyle}
                 description={analysis.expected_effect_description || "ä¿®å›¾åå°†æ›´æ¥è¿‘ä½ çš„ç›®æ ‡é£æ ¼ã€‚"}
                 referenceUrls={analysis.style_reference_image_urls || styleRefs}
               />
+              <div className="card-soft">
+                <p className="section-eyebrow">ÕæÊµ AI ĞŞÍ¼</p>
+                <h2 className="mt-1 font-display text-2xl font-semibold">Éú³ÉÒ»ÕÅ´¦ÀíºóµÄĞÂÍ¼Æ¬</h2>
+                <p className="mt-2 text-sm leading-6 text-muted">
+                  ½«µ÷ÓÃÕæÊµÍ¼ÉúÍ¼Ä£ĞÍ²¢ÏûºÄ API ¶î¶È¡£Éú³É½á¹û»á±£´æµ½·şÎñÆ÷£¬Ô­Í¼²»»á±»¸²¸Ç¡£
+                </p>
+                <div className="mt-4">
+                  <label className="label">¶îÍâĞŞ¸ÄÒªÇó£¨¿ÉÑ¡£©</label>
+                  <textarea
+                    className="input min-h-24"
+                    value={editInstruction}
+                    onChange={(event) => setEditInstruction(event.target.value)}
+                    placeholder="ÀıÈç£º½µµÍ¸ß¹â£¬±£Áô×ÔÈ»·ôÉ«£¬Ôö¼ÓÒ»µã½ºÆ¬¿ÅÁ£"
+                    maxLength={600}
+                  />
+                </div>
+                <button className="btn-primary mt-4" type="button" onClick={handleGenerateImage} disabled={generatingImage}>
+                  {generatingImage ? "AI ÕıÔÚÉú³ÉÍ¼Æ¬£¬¿ÉÄÜĞèÒª 1¨C2 ·ÖÖÓ¡­" : generatedImageUrl ? "ÖØĞÂÉú³ÉĞ§¹ûÍ¼" : "Éú³ÉÕæÊµĞ§¹ûÍ¼"}
+                </button>
+              </div>
               <BenchmarkOverview analysis={analysis} />
               <DimensionCards analysis={analysis} />
               <StylePanel analysis={analysis} />
