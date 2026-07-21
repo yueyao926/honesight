@@ -1,127 +1,105 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { analyzePhoto, getPhotoAnalysis } from "../api/analyze";
-import { getPhotoChat, sendPhotoChatMessage } from "../api/chat";
 import { getAssetUrl } from "../api/client";
-import { deletePortfolioItem, getPortfolioItem } from "../api/portfolio";
 import {
-  AdvicePanel,
-  BenchmarkOverview,
-  ChatPanel,
-  DimensionCards,
-  ParamsPanel,
-  PlatformPanel,
-  StylePanel,
-} from "../components/analysis/AnalysisPanels";
-import type { ChatMessage, PhotoAnalysis, PortfolioItem } from "../types";
+  addPortfolioPhoto,
+  deletePortfolio,
+  deletePortfolioPhoto,
+  getPortfolio,
+  renamePortfolio,
+} from "../api/portfolio";
+import PhotoUpload from "../components/PhotoUpload";
+import type { PortfolioCollectionDetail, PortfolioPhoto } from "../types";
 
 export default function PortfolioDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [item, setItem] = useState<PortfolioItem | null>(null);
+  const [collection, setCollection] = useState<PortfolioCollectionDetail | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<PortfolioPhoto | null>(null);
+  const [uploadUrl, setUploadUrl] = useState<string | null>(null);
+  const [managing, setManaging] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [name, setName] = useState("");
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [loadError, setLoadError] = useState("");
-
-  const [analysis, setAnalysis] = useState<PhotoAnalysis | null>(null);
-  const [analysisLoading, setAnalysisLoading] = useState(true);
-  const [reanalyzing, setReanalyzing] = useState(false);
-
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput] = useState("");
-  const [chatLoading, setChatLoading] = useState(false);
 
   useEffect(() => {
     if (!id) return;
-    getPortfolioItem(id)
-      .then(setItem)
-      .catch((err) => setLoadError(err instanceof Error ? err.message : "加载失败"));
-
-    getPhotoAnalysis(id)
-      .then(setAnalysis)
-      .catch(() => setAnalysis(null))
-      .finally(() => setAnalysisLoading(false));
-
-    getPhotoChat(id)
-      .then(setMessages)
-      .catch(() => setMessages([]));
+    getPortfolio(id)
+      .then((data) => {
+        setCollection(data);
+        setName(data.name);
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : "加载失败"));
   }, [id]);
 
-  async function handleDelete() {
-    if (!id || !window.confirm("确定删除这个作品吗？")) return;
-    await deletePortfolioItem(id);
-    navigate("/portfolio");
-  }
-
-  async function handleReanalyze() {
-    if (!id || !item) return;
-    setReanalyzing(true);
+  async function handleAddPhoto() {
+    if (!id || !uploadUrl) return;
+    setSaving(true);
     setError("");
     try {
-      const data = await analyzePhoto({
-        portfolio_item_id: item.id,
-        target_style: item.target_style || undefined,
-        target_platform: item.target_platform || undefined,
+      const photo = await addPortfolioPhoto(id, { image_url: uploadUrl });
+      setCollection((current) => current ? {
+        ...current,
+        photos: [photo, ...current.photos],
+        photo_count: current.photo_count + 1,
+        cover_image_url: photo.image_url,
+      } : current);
+      setUploadUrl(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "添加失败");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeletePhoto(photo: PortfolioPhoto) {
+    if (!id || !window.confirm("从这个作品集中删除这张照片？")) return;
+    setError("");
+    try {
+      await deletePortfolioPhoto(id, photo.id);
+      setCollection((current) => {
+        if (!current) return current;
+        const photos = current.photos.filter((item) => item.id !== photo.id);
+        return { ...current, photos, photo_count: photos.length, cover_image_url: photos[0]?.image_url || null };
       });
-      setAnalysis(data);
+      if (selectedPhoto?.id === photo.id) setSelectedPhoto(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "重新分析失败");
-    } finally {
-      setReanalyzing(false);
+      setError(err instanceof Error ? err.message : "删除失败");
     }
   }
 
-  async function handleChatSubmit(event?: FormEvent<HTMLFormElement>, preset?: string) {
-    event?.preventDefault();
-    if (!id) return;
-    const text = (preset ?? chatInput).trim();
-    if (!text || chatLoading) return;
-
-    const optimistic: ChatMessage = {
-      id: Date.now(),
-      portfolio_item_id: Number(id),
-      user_id: item?.user_id ?? 0,
-      role: "user",
-      content: text,
-      created_at: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, optimistic]);
-    setChatInput("");
-    setChatLoading(true);
+  async function handleRename(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!id || !name.trim()) return;
+    setSaving(true);
     setError("");
     try {
-      const reply = await sendPhotoChatMessage(id, text);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now() + 1,
-          portfolio_item_id: Number(id),
-          user_id: item?.user_id ?? 0,
-          role: "assistant",
-          content: reply.reply,
-          created_at: reply.created_at,
-        },
-      ]);
+      const updated = await renamePortfolio(id, name.trim());
+      setCollection((current) => current ? { ...current, ...updated, photos: current.photos } : current);
+      setRenaming(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "发送失败，请稍后再试");
+      setError(err instanceof Error ? err.message : "重命名失败");
     } finally {
-      setChatLoading(false);
+      setSaving(false);
     }
   }
 
-  if (!item) {
+  async function handleDeleteCollection() {
+    if (!id || !collection || !window.confirm(`删除作品集“${collection.name}”及其中全部照片记录？`)) return;
+    try {
+      await deletePortfolio(id);
+      navigate("/portfolio");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "删除失败");
+    }
+  }
+
+  if (!collection) {
     return (
       <main className="container-page">
-        <div className="card mt-10 text-center">
-          {loadError ? (
-            <>
-              <h2 className="font-display text-2xl font-semibold">无法加载作品</h2>
-              <p className="mt-3 text-sm text-muted">{loadError}</p>
-              <Link className="btn-secondary mt-6 inline-block" to="/portfolio">返回作品集</Link>
-            </>
-          ) : (
-            <p className="text-sm text-muted">加载中…</p>
-          )}
-        </div>
+        <Link className="text-sm text-brand-deep" to="/portfolio">← 返回作品集</Link>
+        <div className="card mt-8 text-center text-sm text-muted">{error || "加载中…"}</div>
       </main>
     );
   }
@@ -130,78 +108,85 @@ export default function PortfolioDetail() {
     <main className="container-page">
       <Link className="text-sm text-brand-deep" to="/portfolio">← 返回作品集</Link>
 
-      <section className="mt-6 grid gap-8 lg:grid-cols-2">
-        <div className="photo-frame animate-fade-up">
-          <img className="w-full object-cover" src={getAssetUrl(item.image_url)} alt={item.title} />
+      <header className="mt-6 flex flex-col justify-between gap-5 md:flex-row md:items-end">
+        <div>
+          <p className="section-eyebrow">Portfolio</p>
+          <h1 className="page-title mt-2">{collection.name}</h1>
+          <p className="mt-3 text-sm text-muted">{collection.photo_count} 张照片</p>
         </div>
+        <button className={managing ? "btn-primary" : "btn-secondary"} type="button" onClick={() => setManaging((value) => !value)}>
+          {managing ? "完成管理" : "管理作品集"}
+        </button>
+      </header>
 
-        <div className="space-y-5">
-          <div className="card animate-fade-up">
-            <p className="section-eyebrow">Portfolio</p>
-            <h1 className="mt-1 font-display text-4xl font-semibold">{item.title}</h1>
-            <p className="mt-4 text-sm leading-7 text-muted">{item.description || "暂无描述"}</p>
-
-            <dl className="mt-6 grid gap-3 text-sm">
-              <div className="flex justify-between border-b border-sand/60 py-2">
-                <dt className="text-muted">分类</dt>
-                <dd className="text-ink">{item.category || "未分类"}</dd>
-              </div>
-              <div className="flex justify-between border-b border-sand/60 py-2">
-                <dt className="text-muted">目标风格</dt>
-                <dd className="text-ink">{item.target_style || "未设置"}</dd>
-              </div>
-              <div className="flex justify-between border-b border-sand/60 py-2">
-                <dt className="text-muted">目标平台</dt>
-                <dd className="text-ink">{item.target_platform || "未设置"}</dd>
-              </div>
-              <div className="flex justify-between py-2">
-                <dt className="text-muted">创建时间</dt>
-                <dd className="text-ink">{new Date(item.created_at).toLocaleString()}</dd>
-              </div>
-            </dl>
-
-            <div className="mt-8 flex flex-wrap gap-3">
-              <button className="btn-primary" type="button" onClick={handleReanalyze} disabled={reanalyzing}>
-                {reanalyzing ? "分析中..." : analysis ? "重新分析" : "生成分析报告"}
-              </button>
-              <button className="btn-secondary" type="button" onClick={handleDelete}>删除作品</button>
+      {managing && (
+        <section className="card mt-8 space-y-7">
+          <div>
+            <h2 className="font-display text-2xl font-semibold">添加照片</h2>
+            <p className="mt-2 text-sm text-muted">直接上传原图。AI 生成或处理后的效果图不能加入作品集。</p>
+            <div className="mt-5 max-w-xl">
+              <PhotoUpload value={uploadUrl} onChange={setUploadUrl} label="选择要加入的原图" />
             </div>
+            {uploadUrl && <button className="btn-primary mt-4" type="button" onClick={handleAddPhoto} disabled={saving}>{saving ? "添加中…" : "加入作品集"}</button>}
           </div>
+
+          <div className="border-t border-sand/60 pt-6">
+            {!renaming ? (
+              <div className="flex flex-wrap gap-3">
+                <button className="btn-secondary" type="button" onClick={() => setRenaming(true)}>重命名</button>
+                <button className="btn-ghost text-red-500" type="button" onClick={handleDeleteCollection}>删除作品集</button>
+              </div>
+            ) : (
+              <form className="flex max-w-xl flex-col gap-3 sm:flex-row" onSubmit={handleRename}>
+                <input className="input" value={name} onChange={(event) => setName(event.target.value)} maxLength={120} required />
+                <button className="btn-primary shrink-0" type="submit" disabled={saving}>保存名称</button>
+                <button className="btn-secondary shrink-0" type="button" onClick={() => setRenaming(false)}>取消</button>
+              </form>
+            )}
+          </div>
+        </section>
+      )}
+
+      {error && <p className="mt-5 text-sm text-red-500">{error}</p>}
+
+      {collection.photos.length === 0 ? (
+        <div className="card mt-10 text-center">
+          <h2 className="font-display text-2xl font-semibold">这个作品集还是空的</h2>
+          <p className="mt-3 text-sm text-muted">打开管理功能上传原图，或在 AI 工作室分析后保存原图。</p>
+          {!managing && <button className="btn-primary mt-6" type="button" onClick={() => setManaging(true)}>添加照片</button>}
         </div>
-      </section>
+      ) : (
+        <div className="ins-grid mt-10">
+          {collection.photos.map((photo) => (
+            <div key={photo.id} className="group relative overflow-hidden rounded-3xl bg-white shadow-card">
+              <button className="block w-full" type="button" onClick={() => !managing && setSelectedPhoto(photo)}>
+                <img className="h-72 w-full object-cover transition group-hover:scale-[1.02]" src={getAssetUrl(photo.image_url)} alt="作品照片" />
+              </button>
+              {managing && (
+                <button
+                  className="absolute right-3 top-3 rounded-full bg-ink/80 px-4 py-2 text-xs text-white"
+                  type="button"
+                  onClick={() => handleDeletePhoto(photo)}
+                >
+                  删除
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
-      <section className="mt-8 space-y-5">
-        {analysisLoading ? (
-          <div className="card">
-            <p className="text-sm text-muted">正在加载分析结果…</p>
-          </div>
-        ) : analysis ? (
-          <>
-            <BenchmarkOverview analysis={analysis} />
-            <DimensionCards analysis={analysis} />
-            <StylePanel analysis={analysis} />
-            <AdvicePanel analysis={analysis} />
-            <ParamsPanel analysis={analysis} />
-            <PlatformPanel analysis={analysis} />
-            <ChatPanel
-              messages={messages}
-              input={chatInput}
-              setInput={setChatInput}
-              loading={chatLoading}
-              onSubmit={handleChatSubmit}
-            />
-          </>
-        ) : (
-          <div className="card-soft text-center">
-            <h2 className="font-display text-xl font-semibold">还没有分析报告</h2>
-            <p className="mt-3 text-sm text-muted">
-              点击上方「生成分析报告」，即可获得质量评分、修图参数与平台建议，并围绕这张照片继续追问。
-            </p>
-          </div>
-        )}
-
-        {error && <p className="text-sm text-red-500">{error}</p>}
-      </section>
+      {selectedPhoto && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-ink/90 p-4" role="dialog" aria-modal="true" onClick={() => setSelectedPhoto(null)}>
+          <button className="absolute right-5 top-5 rounded-full bg-white/15 px-4 py-2 text-sm text-white" type="button" onClick={() => setSelectedPhoto(null)}>关闭</button>
+          <img
+            className="max-h-[92vh] max-w-[94vw] object-contain"
+            src={getAssetUrl(selectedPhoto.image_url)}
+            alt="放大的作品照片"
+            onClick={(event) => event.stopPropagation()}
+          />
+        </div>
+      )}
     </main>
   );
 }

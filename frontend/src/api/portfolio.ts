@@ -1,51 +1,51 @@
 import { apiRequest } from "./client";
-import type { PortfolioItem } from "../types";
-
-export type PortfolioPayload = {
-  title: string;
-  description?: string;
-  image_url: string;
-  category?: string;
-  target_style?: string;
-  target_platform?: string;
-};
+import type { PhotoTag, PortfolioCollection, PortfolioCollectionDetail, PortfolioPhoto } from "../types";
 
 export function listPortfolio() {
-  return apiRequest<PortfolioItem[]>("/portfolio");
+  return apiRequest<PortfolioCollection[]>("/portfolio");
 }
 
-export function createPortfolioItem(payload: PortfolioPayload) {
-  return apiRequest<PortfolioItem>("/portfolio", {
+export function createPortfolio(name: string) {
+  return apiRequest<PortfolioCollection>("/portfolio", {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function getPortfolio(id: string | number) {
+  return apiRequest<PortfolioCollectionDetail>(`/portfolio/${id}`);
+}
+
+export function renamePortfolio(id: string | number, name: string) {
+  return apiRequest<PortfolioCollection>(`/portfolio/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function deletePortfolio(id: string | number) {
+  return apiRequest<void>(`/portfolio/${id}`, { method: "DELETE" });
+}
+
+export function addPortfolioPhoto(id: string | number, payload: { image_url: string; title?: string; tags?: PhotoTag[] }) {
+  return apiRequest<PortfolioPhoto>(`/portfolio/${id}/photos`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
-export function getPortfolioItem(id: string | number) {
-  return apiRequest<PortfolioItem>(`/portfolio/${id}`);
+export function deletePortfolioPhoto(collectionId: string | number, photoId: string | number) {
+  return apiRequest<void>(`/portfolio/${collectionId}/photos/${photoId}`, { method: "DELETE" });
 }
 
-export function updatePortfolioItem(id: string | number, payload: Partial<PortfolioPayload>) {
-  return apiRequest<PortfolioItem>(`/portfolio/${id}`, {
-    method: "PUT",
-    body: JSON.stringify(payload),
-  });
-}
-
-export function deletePortfolioItem(id: string | number) {
-  return apiRequest<void>(`/portfolio/${id}`, { method: "DELETE" });
-}
-
-export function savePortfolioWithAnalysis(payload: {
+export function saveOriginalToPortfolio(payload: {
   image_url: string;
-  title: string;
-  description?: string;
-  category?: string;
-  target_style?: string;
-  target_platform?: string;
-  analysis_report: Record<string, unknown>;
+  title?: string;
+  collection_id?: number;
+  collection_name?: string;
+  tags?: PhotoTag[];
 }) {
-  return apiRequest<{ item: PortfolioItem; analysis_id: number }>("/portfolio/save-with-analysis", {
+  return apiRequest<{ collection: PortfolioCollection; photo: PortfolioPhoto }>("/portfolio/save-original", {
     method: "POST",
     body: JSON.stringify(payload),
   });

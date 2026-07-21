@@ -1,9 +1,8 @@
-import { FormEvent, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { FormEvent, useEffect, useState } from "react";
 import { previewAnalyze } from "../api/analyze";
 import { getAssetUrl } from "../api/client";
 import { generateProcessedImage } from "../api/imageProcess";
-import { savePortfolioWithAnalysis } from "../api/portfolio";
+import { listPortfolio, saveOriginalToPortfolio } from "../api/portfolio";
 import {
   AdvicePanel,
   BenchmarkOverview,
@@ -15,28 +14,39 @@ import {
 import ExpectedEffectPreview from "../components/ExpectedEffectPreview";
 import PhotoUpload from "../components/PhotoUpload";
 import StyleReferenceUpload from "../components/StyleReferenceUpload";
-import type { PhotoAnalysis } from "../types";
+import type { PhotoAnalysis, PhotoTag, PortfolioCollection } from "../types";
 
 const targetStyles = ["清新自然", "日系", "胶片感", "高级灰", "复古", "高饱和", "生活记录", "商业感"];
 const targetPlatforms = ["小红书", "朋友圈", "Instagram", "作品集", "商业约拍"];
 const steps = ["上传照片", "设置目标", "查看建议"];
 
 export default function AiStudio() {
-  const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [styleRefs, setStyleRefs] = useState<string[]>([]);
   const [targetStyle, setTargetStyle] = useState("清新自然");
   const [targetPlatform, setTargetPlatform] = useState("小红书");
   const [analysis, setAnalysis] = useState<PhotoAnalysis | null>(null);
-  const [saveTitle, setSaveTitle] = useState("");
   const [showSaveForm, setShowSaveForm] = useState(false);
+  const [collections, setCollections] = useState<PortfolioCollection[]>([]);
+  const [collectionChoice, setCollectionChoice] = useState("");
+  const [newCollectionName, setNewCollectionName] = useState("");
+  const [saveSuccess, setSaveSuccess] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [generatingImage, setGeneratingImage] = useState(false);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [editInstruction, setEditInstruction] = useState("");
+
+  useEffect(() => {
+    listPortfolio()
+      .then((data) => {
+        setCollections(data);
+        if (data[0]) setCollectionChoice(String(data[0].id));
+      })
+      .catch(() => setCollections([]));
+  }, []);
 
   function goToSettings() {
     setError("");
@@ -59,7 +69,7 @@ export default function AiStudio() {
         target_platform: targetPlatform,
       });
       setAnalysis(data);
-      setSaveTitle(`AI 分析 · ${targetStyle}`);
+      setSaveSuccess("");
       setStep(3);
     } catch (err) {
       setError(err instanceof Error ? err.message : "分析失败，请稍后重试");
@@ -70,18 +80,48 @@ export default function AiStudio() {
 
   async function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!photoUrl || !analysis?.analysis_report) return;
+    if (!photoUrl || !analysis) return;
+    if (collectionChoice === "new" && !newCollectionName.trim()) {
+      setError("请填写新作品集名称");
+      return;
+    }
+    if (!collectionChoice) {
+      setError("请选择一个作品集");
+      return;
+    }
     setSaving(true);
     setError("");
     try {
-      const result = await savePortfolioWithAnalysis({
-        image_url: generatedImageUrl || photoUrl,
-        title: saveTitle.trim() || "未命名作品",
-        target_style: targetStyle,
-        target_platform: targetPlatform,
-        analysis_report: analysis.analysis_report,
+      const tags: PhotoTag[] = [
+        {
+          tag_type: "content",
+          name: analysis.photo_type,
+          confidence: 1,
+          source: "ai_analysis",
+          model_version: analysis.model_used,
+        },
+        {
+          tag_type: "style",
+          name: analysis.detected_style,
+          confidence: analysis.style_confidence,
+          source: "ai_analysis",
+          model_version: analysis.model_used,
+        },
+      ].filter((tag) => Boolean(tag.name));
+      const result = await saveOriginalToPortfolio({
+        image_url: photoUrl,
+        title: "AI 分析原图",
+        collection_id: collectionChoice === "new" ? undefined : Number(collectionChoice),
+        collection_name: collectionChoice === "new" ? newCollectionName.trim() : undefined,
+        tags,
       });
-      navigate(`/portfolio/${result.item.id}`);
+      if (collectionChoice === "new") {
+        setCollections((current) => [result.collection, ...current]);
+        setCollectionChoice(String(result.collection.id));
+        setNewCollectionName("");
+      }
+      setShowSaveForm(false);
+      setSaveSuccess(`原图已保存到“${result.collection.name}”`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "保存失败");
     } finally {
@@ -131,6 +171,7 @@ export default function AiStudio() {
     setGeneratedImageUrl(null);
     setEditInstruction("");
     setShowSaveForm(false);
+    setSaveSuccess("");
     setError("");
   }
 
@@ -138,9 +179,9 @@ export default function AiStudio() {
     <main className="container-page">
       <header className="animate-fade-up">
         <p className="section-eyebrow">AI Studio</p>
-        <h1 className="page-title mt-2">先分析，满意再收藏</h1>
+        <h1 className="page-title mt-2">先分析，再决定是否收藏原图</h1>
         <p className="mt-4 max-w-2xl text-muted leading-7">
-          上传照片、选好目标风格，AI 给出修改建议与预期效果。想更精准，可以再补充喜欢的风格参考图。满意后保存到作品集。
+          上传照片、选好目标风格，AI 给出修改建议与预期效果。作品集只保存你上传的原图和图片标签，不保存分析报告或 AI 效果图。
         </p>
       </header>
 
@@ -260,6 +301,7 @@ export default function AiStudio() {
                 <p className="mt-2 text-sm leading-6 text-muted">
                   将调用真实图生图模型并消耗 API 额度。生成结果会保存到服务器，原图不会被覆盖。
                 </p>
+                <p className="mt-2 text-xs text-brand-deep">效果图仅供预览，不可直接加入作品集。</p>
                 <div className="mt-4">
                   <label className="label">额外修改要求（可选）</label>
                   <textarea
@@ -285,18 +327,39 @@ export default function AiStudio() {
                 {!showSaveForm ? (
                   <div className="flex flex-wrap gap-3">
                     <button className="btn-primary" type="button" onClick={() => setShowSaveForm(true)}>
-                      满意，保存到作品集
+                      保存原图到作品集
                     </button>
                     <button className="btn-secondary" type="button" onClick={handleRestart}>重新分析</button>
-                    <Link className="btn-ghost" to="/portfolio">暂不保存，查看作品集</Link>
                   </div>
                 ) : (
                   <form onSubmit={handleSave} className="space-y-4">
-                    <p className="font-display text-xl font-semibold">保存到作品集</p>
                     <div>
-                      <label className="label">作品标题</label>
-                      <input className="input" value={saveTitle} onChange={(e) => setSaveTitle(e.target.value)} required />
+                      <p className="font-display text-xl font-semibold">保存原图到作品集</p>
+                      <p className="mt-2 text-sm text-muted">将保存原图和识别出的类型、风格标签，不保存评分、建议或 AI 效果图。</p>
                     </div>
+                    <div>
+                      <label className="label">选择作品集</label>
+                      <select className="input" value={collectionChoice} onChange={(event) => setCollectionChoice(event.target.value)} required>
+                        <option value="" disabled>请选择</option>
+                        {collections.map((collection) => (
+                          <option key={collection.id} value={collection.id}>{collection.name}（{collection.photo_count} 张）</option>
+                        ))}
+                        <option value="new">＋ 新建作品集</option>
+                      </select>
+                    </div>
+                    {collectionChoice === "new" && (
+                      <div>
+                        <label className="label">新作品集名称</label>
+                        <input
+                          className="input"
+                          value={newCollectionName}
+                          onChange={(event) => setNewCollectionName(event.target.value)}
+                          placeholder="例如：夏日街拍"
+                          maxLength={120}
+                          required
+                        />
+                      </div>
+                    )}
                     <div className="flex gap-3">
                       <button className="btn-primary" type="submit" disabled={saving}>
                         {saving ? "保存中..." : "确认保存"}
@@ -305,6 +368,7 @@ export default function AiStudio() {
                     </div>
                   </form>
                 )}
+                {saveSuccess && <p className="mt-4 text-sm text-brand-deep">{saveSuccess}</p>}
               </div>
             </>
           )}

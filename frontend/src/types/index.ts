@@ -20,18 +20,44 @@ export type Preference = {
   updated_at: string;
 };
 
-export type PortfolioItem = {
+export type PhotoTag = {
+  id?: number;
+  tag_type: string;
+  name: string;
+  confidence?: number | null;
+  source?: string;
+  model_version?: string | null;
+  created_at?: string;
+};
+
+export type PortfolioPhoto = {
   id: number;
   user_id: number;
+  collection_id: number;
   title: string;
-  description?: string | null;
   image_url: string;
-  category?: string | null;
-  target_style?: string | null;
-  target_platform?: string | null;
+  source: "direct_upload" | "ai_original" | "legacy" | string;
+  tags: PhotoTag[];
   created_at: string;
   updated_at: string;
 };
+
+export type PortfolioCollection = {
+  id: number;
+  user_id: number;
+  name: string;
+  cover_image_url?: string | null;
+  photo_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PortfolioCollectionDetail = PortfolioCollection & {
+  photos: PortfolioPhoto[];
+};
+
+/** @deprecated Use PortfolioPhoto. Kept for older analysis API typings. */
+export type PortfolioItem = PortfolioPhoto;
 
 export type BenchmarkDimension = {
   score: number;

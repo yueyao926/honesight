@@ -1,50 +1,90 @@
 from datetime import datetime
-from typing import Any
 
-from pydantic import BaseModel, Field
-
-
-class PortfolioBase(BaseModel):
-    title: str = Field(min_length=1, max_length=160)
-    description: str | None = None
-    image_url: str
-    category: str | None = None
-    target_style: str | None = None
-    target_platform: str | None = None
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
-class PortfolioCreate(PortfolioBase):
-    pass
+class PhotoTagCreate(BaseModel):
+    tag_type: str = Field(min_length=1, max_length=40)
+    name: str = Field(min_length=1, max_length=100)
+    confidence: float | None = Field(default=None, ge=0, le=1)
+    source: str = Field(default="ai_analysis", max_length=40)
+    model_version: str | None = Field(default=None, max_length=120)
+
+    @field_validator("tag_type", "name", "source", "model_version")
+    @classmethod
+    def strip_text(cls, value: str | None) -> str | None:
+        return value.strip() if value is not None else value
 
 
-class PortfolioUpdate(BaseModel):
-    title: str | None = Field(default=None, min_length=1, max_length=160)
-    description: str | None = None
-    image_url: str | None = None
-    category: str | None = None
-    target_style: str | None = None
-    target_platform: str | None = None
+class PhotoTagRead(PhotoTagCreate):
+    id: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
-class PortfolioRead(PortfolioBase):
+class PortfolioPhotoRead(BaseModel):
     id: int
     user_id: int
+    collection_id: int
+    title: str
+    image_url: str
+    source: str
+    tags: list[PhotoTagRead] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
 
 
-class SavePortfolioWithAnalysisRequest(BaseModel):
-    image_url: str
-    title: str = Field(min_length=1, max_length=160)
-    description: str | None = None
-    category: str | None = None
-    target_style: str | None = None
-    target_platform: str | None = None
-    analysis_report: dict[str, Any]
+class PortfolioCollectionCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+
+    @field_validator("name")
+    @classmethod
+    def strip_name(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("作品集名称不能为空")
+        return value.strip()
 
 
-class SavePortfolioWithAnalysisResponse(BaseModel):
-    item: PortfolioRead
-    analysis_id: int
+class PortfolioCollectionUpdate(PortfolioCollectionCreate):
+    pass
+
+
+class PortfolioCollectionRead(BaseModel):
+    id: int
+    user_id: int
+    name: str
+    cover_image_url: str | None = None
+    photo_count: int = 0
+    created_at: datetime
+    updated_at: datetime
+
+
+class PortfolioCollectionDetail(PortfolioCollectionRead):
+    photos: list[PortfolioPhotoRead] = Field(default_factory=list)
+
+
+class AddPortfolioPhotoRequest(BaseModel):
+    image_url: str = Field(min_length=1, max_length=500)
+    title: str | None = Field(default=None, max_length=160)
+    tags: list[PhotoTagCreate] = Field(default_factory=list, max_length=30)
+
+
+class SaveOriginalToPortfolioRequest(AddPortfolioPhotoRequest):
+    collection_id: int | None = None
+    collection_name: str | None = Field(default=None, max_length=120)
+
+    @model_validator(mode="after")
+    def choose_collection(self) -> "SaveOriginalToPortfolioRequest":
+        if bool(self.collection_id) == bool(self.collection_name and self.collection_name.strip()):
+            raise ValueError("请选择已有作品集或输入新作品集名称")
+        if self.collection_name:
+            self.collection_name = self.collection_name.strip()
+        return self
+
+
+class SaveOriginalToPortfolioResponse(BaseModel):
+    collection: PortfolioCollectionRead
+    photo: PortfolioPhotoRead
