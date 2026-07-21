@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { getMyPreferences } from "../api/preferences";
 import { listPortfolio } from "../api/portfolio";
 import { useAuth } from "../contexts/AuthContext";
+import DailyInspirationSection from "../components/DailyInspirationSection";
 import type { PortfolioCollection, Preference } from "../types";
 
 export default function Dashboard() {
@@ -18,12 +19,15 @@ export default function Dashboard() {
   }, []);
 
   return (
+    <>
     <main className="container-page">
       <header className="animate-fade-up">
         <p className="section-eyebrow">Dashboard</p>
         <h1 className="page-title mt-2">你好，{user?.username}</h1>
         <p className="mt-4 text-muted">让每一次快门都有迹可循，也让光影里的进步慢慢成为你的作品。</p>
       </header>
+
+      <DailyInspirationSection embedded />
 
       <section className="card mt-8 animate-fade-up flex flex-col justify-between gap-5 md:flex-row md:items-center">
         <div className="max-w-3xl">
@@ -82,5 +86,6 @@ export default function Dashboard() {
         </div>
       </section>
     </main>
+    </>
   );
 }

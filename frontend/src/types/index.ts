@@ -115,3 +115,14 @@ export type ChatMessage = {
   content: string;
   created_at: string;
 };
+
+export type Inspiration = {
+  id: number; source_type: string; title: string; description?: string | null;
+  poetic_caption: string; appreciation_summary: string; composition_analysis: string;
+  light_analysis: string; color_analysis: string; emotion_analysis: string; learning_tip: string;
+  image_url: string; thumbnail_url: string; width?: number | null; height?: number | null;
+  orientation?: string | null; photographer_name: string; photographer_url: string;
+  source_name: string; source_page_url: string; license_code?: string | null;
+  license_name?: string | null; license_url?: string | null; attribution_text: string;
+  tags: string[]; is_favorite: boolean; recommendation_reason?: string | null;
+};
