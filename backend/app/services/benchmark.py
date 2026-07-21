@@ -66,7 +66,7 @@ def _clamp_int(value: object) -> int:
     try:
         number = int(round(float(value)))
     except (TypeError, ValueError):
-        number = 70
+        number = 0
     return max(0, min(100, number))
 
 

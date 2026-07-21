@@ -45,7 +45,11 @@ def analyze_photo_context(
 
     photo_type = str(model_result.get("photo_type") or category or "general")
     benchmark = build_benchmark(model_result, photo_type, style, platform, use_fallbacks=analysis_mode == "mock")
-    style_result = detect_style(model_result, f"{style} {description or ''}")
+    style_result = detect_style(
+        model_result,
+        f"{style} {description or ''}",
+        use_fallbacks=analysis_mode == "mock",
+    )
     if analysis_mode == "api":
         raw_platform_suggestions = model_result.get("platform_suggestions")
         platform_suggestions = raw_platform_suggestions if isinstance(raw_platform_suggestions, dict) else {}
@@ -103,7 +107,7 @@ def analyze_photo_context(
         "composition_weight": str(weights["composition"]),
         "color_weight": str(weights["color"]),
         "overall_score": benchmark["overall_score"],
-        "target_style_match_score": _clamp_score(target_match.get("score", 72)),
+        "target_style_match_score": _clamp_score(target_match.get("score")),
         "summary": summary,
         "benchmark_detail_json": json.dumps(
             {
@@ -153,7 +157,7 @@ def _clamp_score(value: object) -> int:
     try:
         number = int(round(float(value)))
     except (TypeError, ValueError):
-        number = 72
+        number = 0
     return max(0, min(100, number))
 
 
