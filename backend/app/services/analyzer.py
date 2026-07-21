@@ -26,34 +26,71 @@ def analyze_photo_context(
     style = target_style or (preference.preferred_styles if preference else None) or "清新自然"
     platform = target_platform or (preference.target_platform if preference else None) or "作品集"
 
-    model_result = call_vision_model(
-        image_url=image_url,
-        title=title,
-        description=description,
-        category=category,
-        preference=preference,
-        target_style=style,
-        target_platform=platform,
-        style_reference_urls=style_reference_urls,
-    )
-    analysis_mode = "api"
-    if not model_result:
+    settings = get_settings()
+    if settings.ai_analysis_mode.strip().lower() == "mock":
         model_result = build_mock_vision_result(category or "general", style, platform)
         analysis_mode = "mock"
+    else:
+        model_result = call_vision_model(
+            image_url=image_url,
+            title=title,
+            description=description,
+            category=category,
+            preference=preference,
+            target_style=style,
+            target_platform=platform,
+            style_reference_urls=style_reference_urls,
+        )
+        analysis_mode = "api"
 
     photo_type = str(model_result.get("photo_type") or category or "general")
-    benchmark = build_benchmark(model_result, photo_type, style, platform)
-    style_result = detect_style(model_result, f"{style} {description or ''}")
-    platform_suggestions = build_platform_suggestions(platform, style, model_result)
+    benchmark = build_benchmark(model_result, photo_type, style, platform, use_fallbacks=analysis_mode == "mock")
+    style_result = detect_style(
+        model_result,
+        f"{style} {description or ''}",
+        use_fallbacks=analysis_mode == "mock",
+    )
+    if analysis_mode == "api":
+        raw_platform_suggestions = model_result.get("platform_suggestions")
+        platform_suggestions = raw_platform_suggestions if isinstance(raw_platform_suggestions, dict) else {}
+    else:
+        platform_suggestions = build_platform_suggestions(platform, style, model_result)
     target_match = model_result.get("target_style_match") if isinstance(model_result.get("target_style_match"), dict) else {}
     editing_params = model_result.get("editing_params") if isinstance(model_result.get("editing_params"), dict) else {}
     expected_effect = model_result.get("expected_effect") if isinstance(model_result.get("expected_effect"), dict) else {}
-    expected_effect_description = str(
-        expected_effect.get("description")
-        or _build_expected_effect_fallback(style, style_reference_urls)
-    )
     detail = benchmark["benchmark_detail"]
     weights = benchmark["weights"]
+    if analysis_mode == "api":
+        expected_effect_description = str(expected_effect.get("description") or "")
+        summary = str(model_result.get("summary") or "")
+        composition_advice = str(model_result.get("composition_advice") or "")
+        lighting_advice = str(model_result.get("lighting_advice") or "")
+        color_advice = str(model_result.get("color_advice") or "")
+        shooting_tips = str(model_result.get("shooting_tips") or "")
+        next_step = str(model_result.get("next_step") or "")
+    else:
+        expected_effect_description = str(
+            expected_effect.get("description")
+            or _build_expected_effect_fallback(style, style_reference_urls)
+        )
+        summary = str(model_result.get("summary") or benchmark["benchmark_summary"])
+        composition_advice = str(
+            model_result.get("composition_advice") or detail["composition"]["suggestions"][0]
+        )
+        lighting_advice = str(
+            model_result.get("lighting_advice") or detail["exposure"]["suggestions"][0]
+        )
+        color_advice = str(
+            model_result.get("color_advice") or detail["color"]["suggestions"][0]
+        )
+        shooting_tips = str(
+            model_result.get("shooting_tips")
+            or "下一次拍摄时先明确主体，再根据目标风格控制光线和色彩。"
+        )
+        next_step = str(
+            model_result.get("next_step")
+            or "先完成一次基础裁切和调色，再继续向 AI 追问更具体参数。"
+        )
     settings = get_settings()
 
     return {
@@ -70,8 +107,8 @@ def analyze_photo_context(
         "composition_weight": str(weights["composition"]),
         "color_weight": str(weights["color"]),
         "overall_score": benchmark["overall_score"],
-        "target_style_match_score": _clamp_score(target_match.get("score", 72)),
-        "summary": str(model_result.get("summary") or benchmark["benchmark_summary"]),
+        "target_style_match_score": _clamp_score(target_match.get("score")),
+        "summary": summary,
         "benchmark_detail_json": json.dumps(
             {
                 **detail,
@@ -83,14 +120,14 @@ def analyze_photo_context(
             },
             ensure_ascii=False,
         ),
-        "composition_advice": str(model_result.get("composition_advice") or detail["composition"]["suggestions"][0]),
-        "lighting_advice": str(model_result.get("lighting_advice") or detail["exposure"]["suggestions"][0]),
-        "color_advice": str(model_result.get("color_advice") or detail["color"]["suggestions"][0]),
+        "composition_advice": composition_advice,
+        "lighting_advice": lighting_advice,
+        "color_advice": color_advice,
         "editing_params": json.dumps(editing_params, ensure_ascii=False),
         "editing_params_json": json.dumps(editing_params, ensure_ascii=False),
         "platform_suggestions_json": json.dumps(platform_suggestions, ensure_ascii=False),
-        "shooting_tips": str(model_result.get("shooting_tips") or "下一次拍摄时先明确主体，再根据目标风格控制光线和色彩。"),
-        "next_step": str(model_result.get("next_step") or "先完成一次基础裁切和调色，再继续向 AI 追问更具体参数。"),
+        "shooting_tips": shooting_tips,
+        "next_step": next_step,
         "raw_response": str(model_result.get("_raw_response") or "")[:12000],
         "analysis_mode": analysis_mode,
         "model_used": settings.resolved_ai_model if analysis_mode == "api" else "mock-analyzer-v1",
@@ -120,7 +157,7 @@ def _clamp_score(value: object) -> int:
     try:
         number = int(round(float(value)))
     except (TypeError, ValueError):
-        number = 72
+        number = 0
     return max(0, min(100, number))
 
 

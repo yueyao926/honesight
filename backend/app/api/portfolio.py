@@ -1,153 +1,223 @@
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import desc, select
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import get_current_user
+from app.core.config import get_settings
 from app.database import get_db
-from app.models.analysis import AnalysisResult, PhotoChatMessage
-from app.models.portfolio import PortfolioItem
+from app.models.portfolio import PhotoTag, PortfolioCollection, PortfolioItem
 from app.models.user import User
-from app.schemas.analysis import AnalysisRead, ChatMessageRead, ChatReply, ChatRequest, analysis_to_read_dict
 from app.schemas.portfolio import (
-    PortfolioCreate,
-    PortfolioRead,
-    PortfolioUpdate,
-    SavePortfolioWithAnalysisRequest,
-    SavePortfolioWithAnalysisResponse,
+    AddPortfolioPhotoRequest,
+    PortfolioCollectionCreate,
+    PortfolioCollectionDetail,
+    PortfolioCollectionRead,
+    PortfolioCollectionUpdate,
+    PortfolioPhotoRead,
+    SaveOriginalToPortfolioRequest,
+    SaveOriginalToPortfolioResponse,
 )
-from app.services.ai_chat import build_chat_reply
 
 
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
 
 
-def _get_owned_item(item_id: int, user_id: int, db: Session) -> PortfolioItem:
-    item = db.scalar(select(PortfolioItem).where(PortfolioItem.id == item_id, PortfolioItem.user_id == user_id))
-    if not item:
-        raise HTTPException(status_code=404, detail="Portfolio item not found")
-    return item
-
-
-@router.get("", response_model=list[PortfolioRead])
-def list_portfolio(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[PortfolioItem]:
-    return list(db.scalars(select(PortfolioItem).where(PortfolioItem.user_id == current_user.id).order_by(desc(PortfolioItem.created_at))))
-
-
-@router.post("", response_model=PortfolioRead, status_code=status.HTTP_201_CREATED)
-def create_portfolio_item(
-    payload: PortfolioCreate,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> PortfolioItem:
-    item = PortfolioItem(user_id=current_user.id, **payload.model_dump())
-    db.add(item)
-    db.commit()
-    db.refresh(item)
-    return item
-
-
-@router.post("/save-with-analysis", response_model=SavePortfolioWithAnalysisResponse, status_code=status.HTTP_201_CREATED)
-def save_portfolio_with_analysis(
-    payload: SavePortfolioWithAnalysisRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> SavePortfolioWithAnalysisResponse:
-    item = PortfolioItem(
-        user_id=current_user.id,
-        image_url=payload.image_url,
-        title=payload.title,
-        description=payload.description,
-        category=payload.category,
-        target_style=payload.target_style,
-        target_platform=payload.target_platform,
+def _collection_query():
+    return select(PortfolioCollection).options(
+        selectinload(PortfolioCollection.photos).selectinload(PortfolioItem.tags)
     )
-    db.add(item)
-    db.flush()
-
-    report = dict(payload.analysis_report)
-    analysis = AnalysisResult(
-        portfolio_item_id=item.id,
-        user_id=current_user.id,
-        **report,
-    )
-    db.add(analysis)
-    db.commit()
-    db.refresh(item)
-    db.refresh(analysis)
-    return SavePortfolioWithAnalysisResponse(item=item, analysis_id=analysis.id)
 
 
-@router.get("/{item_id}", response_model=PortfolioRead)
-def get_portfolio_item(item_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> PortfolioItem:
-    return _get_owned_item(item_id, current_user.id, db)
-
-
-@router.put("/{item_id}", response_model=PortfolioRead)
-def update_portfolio_item(
-    item_id: int,
-    payload: PortfolioUpdate,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> PortfolioItem:
-    item = _get_owned_item(item_id, current_user.id, db)
-    for key, value in payload.model_dump(exclude_unset=True).items():
-        setattr(item, key, value)
-    db.commit()
-    db.refresh(item)
-    return item
-
-
-@router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_portfolio_item(item_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> None:
-    item = _get_owned_item(item_id, current_user.id, db)
-    db.delete(item)
-    db.commit()
-
-
-@router.get("/{item_id}/analysis", response_model=AnalysisRead)
-def get_latest_analysis(item_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> AnalysisResult:
-    _get_owned_item(item_id, current_user.id, db)
-    analysis = db.scalar(
-        select(AnalysisResult)
-        .where(AnalysisResult.portfolio_item_id == item_id, AnalysisResult.user_id == current_user.id)
-        .order_by(desc(AnalysisResult.created_at))
-    )
-    if not analysis:
-        raise HTTPException(status_code=404, detail="Analysis not found")
-    return analysis_to_read_dict(analysis)
-
-
-@router.get("/{item_id}/chat", response_model=list[ChatMessageRead])
-def get_photo_chat(item_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[PhotoChatMessage]:
-    _get_owned_item(item_id, current_user.id, db)
-    return list(
-        db.scalars(
-            select(PhotoChatMessage)
-            .where(PhotoChatMessage.portfolio_item_id == item_id, PhotoChatMessage.user_id == current_user.id)
-            .order_by(PhotoChatMessage.created_at)
+def _get_owned_collection(collection_id: int, user_id: int, db: Session) -> PortfolioCollection:
+    collection = db.scalar(
+        _collection_query().where(
+            PortfolioCollection.id == collection_id,
+            PortfolioCollection.user_id == user_id,
         )
     )
+    if not collection:
+        raise HTTPException(status_code=404, detail="作品集不存在")
+    return collection
 
 
-@router.post("/{item_id}/chat", response_model=ChatReply)
-def post_photo_chat(
-    item_id: int,
-    payload: ChatRequest,
+def _collection_dict(collection: PortfolioCollection, *, include_photos: bool = False) -> dict:
+    photos = list(collection.photos)
+    result = {
+        "id": collection.id,
+        "user_id": collection.user_id,
+        "name": collection.name,
+        "cover_image_url": photos[0].image_url if photos else None,
+        "photo_count": len(photos),
+        "created_at": collection.created_at,
+        "updated_at": collection.updated_at,
+    }
+    if include_photos:
+        result["photos"] = photos
+    return result
+
+
+def _validate_original_image(image_url: str, user_id: int) -> None:
+    """Only accept this user's uploaded originals; generated files are never eligible."""
+    if not image_url.startswith("/uploads/"):
+        raise HTTPException(status_code=400, detail="只能保存已上传的原始照片")
+    filename = Path(image_url).name
+    if "_generated_" in filename or not filename.startswith(f"{user_id}_"):
+        raise HTTPException(status_code=400, detail="AI 处理后的图片不能加入作品集")
+    image_path = (get_settings().upload_path / filename).resolve()
+    upload_root = get_settings().upload_path.resolve()
+    if upload_root not in image_path.parents or not image_path.is_file():
+        raise HTTPException(status_code=400, detail="找不到这张原始照片，请重新上传")
+
+
+def _append_photo(
+    collection: PortfolioCollection,
+    payload: AddPortfolioPhotoRequest,
+    user_id: int,
+    source: str,
+    db: Session,
+) -> PortfolioItem:
+    _validate_original_image(payload.image_url, user_id)
+    photo = PortfolioItem(
+        user_id=user_id,
+        collection_id=collection.id,
+        image_url=payload.image_url,
+        title=(payload.title or "照片").strip() or "照片",
+        source=source,
+    )
+    seen: set[tuple[str, str]] = set()
+    for tag in payload.tags:
+        key = (tag.tag_type.lower(), tag.name.lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        photo.tags.append(PhotoTag(**tag.model_dump()))
+    db.add(photo)
+    db.commit()
+    db.refresh(photo)
+    return photo
+
+
+def _create_collection(name: str, user_id: int, db: Session) -> PortfolioCollection:
+    collection = PortfolioCollection(user_id=user_id, name=name)
+    db.add(collection)
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="已经有同名作品集") from exc
+    db.refresh(collection)
+    return collection
+
+
+@router.get("", response_model=list[PortfolioCollectionRead])
+def list_portfolios(
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> list[dict]:
+    collections = db.scalars(
+        _collection_query()
+        .where(PortfolioCollection.user_id == current_user.id)
+        .order_by(PortfolioCollection.updated_at.desc(), PortfolioCollection.created_at.desc())
+    ).all()
+    return [_collection_dict(collection) for collection in collections]
+
+
+@router.post("", response_model=PortfolioCollectionRead, status_code=status.HTTP_201_CREATED)
+def create_portfolio(
+    payload: PortfolioCollectionCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> ChatReply:
-    item = _get_owned_item(item_id, current_user.id, db)
-    analysis = db.scalar(
-        select(AnalysisResult)
-        .where(AnalysisResult.portfolio_item_id == item_id, AnalysisResult.user_id == current_user.id)
-        .order_by(desc(AnalysisResult.created_at))
+) -> dict:
+    collection = _create_collection(payload.name, current_user.id, db)
+    return _collection_dict(collection)
+
+
+@router.post("/save-original", response_model=SaveOriginalToPortfolioResponse, status_code=status.HTTP_201_CREATED)
+def save_original_to_portfolio(
+    payload: SaveOriginalToPortfolioRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    # Validate before creating an inline collection so a rejected generated image
+    # cannot leave an unintended empty collection behind.
+    _validate_original_image(payload.image_url, current_user.id)
+    if payload.collection_id:
+        collection = _get_owned_collection(payload.collection_id, current_user.id, db)
+    else:
+        collection = _create_collection(payload.collection_name or "未命名作品集", current_user.id, db)
+    photo = _append_photo(collection, payload, current_user.id, "ai_original", db)
+    collection = _get_owned_collection(collection.id, current_user.id, db)
+    return {"collection": _collection_dict(collection), "photo": photo}
+
+
+@router.get("/{collection_id}", response_model=PortfolioCollectionDetail)
+def get_portfolio(
+    collection_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    return _collection_dict(
+        _get_owned_collection(collection_id, current_user.id, db), include_photos=True
     )
-    user_message = PhotoChatMessage(portfolio_item_id=item_id, user_id=current_user.id, role="user", content=payload.message)
-    db.add(user_message)
-    db.flush()
-    reply = build_chat_reply(item, analysis, payload.message)
-    assistant_message = PhotoChatMessage(portfolio_item_id=item_id, user_id=current_user.id, role="assistant", content=reply)
-    db.add(assistant_message)
+
+
+@router.patch("/{collection_id}", response_model=PortfolioCollectionRead)
+def rename_portfolio(
+    collection_id: int,
+    payload: PortfolioCollectionUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    collection = _get_owned_collection(collection_id, current_user.id, db)
+    collection.name = payload.name
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="已经有同名作品集") from exc
+    db.refresh(collection)
+    return _collection_dict(collection)
+
+
+@router.delete("/{collection_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_portfolio(
+    collection_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> None:
+    collection = _get_owned_collection(collection_id, current_user.id, db)
+    db.delete(collection)
     db.commit()
-    db.refresh(assistant_message)
-    return ChatReply(reply=assistant_message.content, created_at=assistant_message.created_at)
+
+
+@router.post("/{collection_id}/photos", response_model=PortfolioPhotoRead, status_code=status.HTTP_201_CREATED)
+def add_portfolio_photo(
+    collection_id: int,
+    payload: AddPortfolioPhotoRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> PortfolioItem:
+    collection = _get_owned_collection(collection_id, current_user.id, db)
+    return _append_photo(collection, payload, current_user.id, "direct_upload", db)
+
+
+@router.delete("/{collection_id}/photos/{photo_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_portfolio_photo(
+    collection_id: int,
+    photo_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> None:
+    photo = db.scalar(
+        select(PortfolioItem).where(
+            PortfolioItem.id == photo_id,
+            PortfolioItem.collection_id == collection_id,
+            PortfolioItem.user_id == current_user.id,
+        )
+    )
+    if not photo:
+        raise HTTPException(status_code=404, detail="照片不存在")
+    db.delete(photo)
+    db.commit()

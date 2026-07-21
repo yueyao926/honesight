@@ -20,13 +20,13 @@ function resolveFilter(targetStyle: string): string {
 
 type Props = {
   imageUrl: string;
+  generatedImageUrl?: string | null;
   targetStyle: string;
   description: string;
   referenceUrls?: string[];
 };
 
-export default function ExpectedEffectPreview({ imageUrl, targetStyle, description, referenceUrls = [] }: Props) {
-  const filter = resolveFilter(targetStyle);
+export default function ExpectedEffectPreview({ imageUrl, generatedImageUrl, targetStyle, description, referenceUrls = [] }: Props) {
 
   return (
     <div className="card-soft">
@@ -35,7 +35,11 @@ export default function ExpectedEffectPreview({ imageUrl, targetStyle, descripti
           <p className="section-eyebrow">预期效果</p>
           <h2 className="mt-1 font-display text-2xl font-semibold text-ink">修图后视觉预览</h2>
         </div>
-        <span className="rounded-full bg-white/80 px-3 py-1 text-xs text-muted">模拟预览 · 非最终成片</span>
+        {generatedImageUrl ? (
+          <span className="rounded-full bg-white/80 px-3 py-1 text-xs text-muted">AI generated image</span>
+        ) : (
+          <span className="rounded-full bg-white/80 px-3 py-1 text-xs text-muted">模拟预览 · 非最终成片</span>
+        )}
       </div>
 
       <div className="mt-6 grid gap-5 md:grid-cols-2">
@@ -48,12 +52,19 @@ export default function ExpectedEffectPreview({ imageUrl, targetStyle, descripti
         <div>
           <p className="mb-2 text-xs uppercase tracking-widest text-brand-deep">预期效果</p>
           <div className="photo-frame relative overflow-hidden">
+            {!generatedImageUrl && (
+              <div className="flex aspect-[4/5] items-center justify-center bg-white/60 p-6 text-center text-sm leading-6 text-muted">
+                {"\u5c1a\u672a\u751f\u6210\u771f\u5b9e AI \u56fe\u7247\uff0c\u8bf7\u70b9\u51fb\u4e0b\u65b9\u7684\u201c\u751f\u6210\u771f\u5b9e\u6548\u679c\u56fe\u201d\u3002"}
+              </div>
+            )}
+            {generatedImageUrl && (
+
             <img
               className="aspect-[4/5] w-full object-cover"
-              src={getAssetUrl(imageUrl)}
+              src={getAssetUrl(generatedImageUrl || imageUrl)}
               alt="预期效果"
-              style={{ filter }}
             />
+            )}
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-rose/20 via-transparent to-blush/10" />
           </div>
         </div>

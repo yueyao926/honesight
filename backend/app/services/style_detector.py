@@ -3,10 +3,21 @@ from __future__ import annotations
 STYLE_OPTIONS = ["清新自然", "日系", "胶片感", "高级灰", "复古", "高饱和", "生活记录", "商业感", "其他"]
 
 
-def detect_style(model_result: dict, text_hint: str = "") -> dict:
+def detect_style(
+    model_result: dict,
+    text_hint: str = "",
+    *,
+    use_fallbacks: bool = True,
+) -> dict:
     detected = str(model_result.get("detected_style") or "")
     reasoning = str(model_result.get("style_reasoning") or "")
     confidence = _float_confidence(model_result.get("style_confidence"))
+    if detected or not use_fallbacks:
+        return {
+            "detected_style": detected,
+            "style_confidence": confidence,
+            "style_reasoning": reasoning,
+        }
 
     combined = f"{detected} {reasoning} {text_hint}"
     if detected not in STYLE_OPTIONS:
