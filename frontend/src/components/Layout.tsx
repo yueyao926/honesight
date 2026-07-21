@@ -15,8 +15,9 @@ export default function Layout() {
             LensCoach
           </Link>
           <div className="flex items-center gap-1 md:gap-2">
-            {isAuthenticated && <NavLink to="/dashboard" className={navClass}>控制台</NavLink>}
+            {isAuthenticated && <NavLink to="/dashboard" className={navClass}>首页</NavLink>}
             {isAuthenticated && <NavLink to="/portfolio" className={navClass}>作品集</NavLink>}
+            {isAuthenticated && <NavLink to="/community" className={navClass}>社区</NavLink>}
             {isAuthenticated && <NavLink to="/ai" className={navClass}>AI 工作室</NavLink>}
             {isAuthenticated && <NavLink to="/settings" className={navClass}>偏好</NavLink>}
             {!isAuthenticated ? (

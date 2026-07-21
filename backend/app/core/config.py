@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     ai_base_url: str = Field(default="https://ark.cn-beijing.volces.com/api/v3", alias="AI_BASE_URL")
     ai_model: str = Field(default="doubao-seed-1-6-vision-250815", alias="AI_MODEL")
     ai_timeout_seconds: int = Field(default=45, alias="AI_TIMEOUT_SECONDS")
+    unsplash_access_key: str | None = Field(default=None, alias="UNSPLASH_ACCESS_KEY")
+    openverse_client_id: str | None = Field(default=None, alias="OPENVERSE_CLIENT_ID")
+    openverse_client_secret: str | None = Field(default=None, alias="OPENVERSE_CLIENT_SECRET")
+    inspiration_daily_count: int = Field(default=4, alias="INSPIRATION_DAILY_COUNT")
+    inspiration_recent_exclusion_days: int = Field(default=14, alias="INSPIRATION_RECENT_EXCLUSION_DAYS")
+    inspiration_admin_emails: str = Field(default="", alias="INSPIRATION_ADMIN_EMAILS")
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8-sig", populate_by_name=True, extra="ignore")
 

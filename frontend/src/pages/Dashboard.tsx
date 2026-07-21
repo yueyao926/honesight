@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { getMyPreferences } from "../api/preferences";
 import { listPortfolio } from "../api/portfolio";
 import { useAuth } from "../contexts/AuthContext";
+import DailyInspirationSection from "../components/DailyInspirationSection";
 import type { PortfolioItem, Preference } from "../types";
 
 export default function Dashboard() {
@@ -26,12 +27,15 @@ export default function Dashboard() {
       : { title: "继续打磨你的作品", desc: "上传新照片获取建议，或回到作品集围绕已保存的照片继续追问。", cta: "开始 AI 分析", link: "/ai" };
 
   return (
+    <>
     <main className="container-page">
       <header className="animate-fade-up">
         <p className="section-eyebrow">Dashboard</p>
         <h1 className="page-title mt-2">你好，{user?.username}</h1>
         <p className="mt-4 text-muted">先上传照片获取 AI 建议，满意后再保存到作品集。</p>
       </header>
+
+      <DailyInspirationSection embedded />
 
       {loaded && (
         <section className="card mt-8 animate-fade-up flex flex-col justify-between gap-5 md:flex-row md:items-center">
@@ -99,5 +103,6 @@ export default function Dashboard() {
         </div>
       </section>
     </main>
+    </>
   );
 }

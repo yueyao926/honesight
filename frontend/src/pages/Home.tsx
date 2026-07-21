@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import DailyInspirationSection from "../components/DailyInspirationSection";
 
 export default function Home() {
   const { isAuthenticated } = useAuth();
@@ -52,6 +53,8 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <DailyInspirationSection />
 
       <section className="container-page pb-20">
         <div className="grid gap-5 md:grid-cols-3">

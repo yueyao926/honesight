@@ -265,3 +265,35 @@ AI_ANALYSIS_MODE=mock
 - 加入更细粒度的风格 preset 和平台化发布建议。
 - 将偏好字段升级为 JSON 或独立标签表。
 - 如果要训练真正的评分模型，优先替换 `backend/app/services/benchmark.py`，并保留 `analyzer.py` 作为统一编排入口。
+
+## 每日摄影灵感
+
+首页“今日摄影灵感”每天返回 3～4 张合规摄影作品。同一用户同一天的结果写入数据库，因此刷新后顺序不变；近 14 天作品优先排除。匿名访客共享当天公共推荐，登录用户会结合摄影偏好评分并可收藏。
+
+在 `backend/.env` 中配置（缺少 Key 时应用仍可正常启动，只展示数据库已有内容）：
+
+```env
+UNSPLASH_ACCESS_KEY=
+OPENVERSE_CLIENT_ID=
+OPENVERSE_CLIENT_SECRET=
+INSPIRATION_DAILY_COUNT=4
+INSPIRATION_RECENT_EXCLUSION_DAYS=14
+INSPIRATION_ADMIN_EMAILS=admin@example.com
+```
+
+Unsplash Access Key 可在 Unsplash Developers 创建应用后获取。Openverse 凭据可选；未认证公共 API 仍可调用，但需遵守其限流策略。任何真实 Key 都只能写入 `backend/.env`，不得提交。
+
+先执行迁移：
+
+```bash
+cd backend
+alembic upgrade head
+```
+
+使用 `INSPIRATION_ADMIN_EMAILS` 中的账号登录，在 Swagger (`/docs`) 为请求填写 Bearer Token 后调用：
+
+- `POST /inspirations/admin/sync/unsplash`：同步 Unsplash，来源信息完整的作品直接合规入池。
+- `POST /inspirations/admin/sync/openverse`：同步 CC0、PDM、CC BY、CC BY-SA 候选；新数据一律为待审核。
+- `PATCH /inspirations/admin/{photo_id}/moderation`：人工确认许可证并批准或拒绝 Openverse 作品。
+
+用户接口包括 `GET /inspirations/today`、`GET /inspirations/{id}`、`PUT/DELETE /inspirations/{id}/favorite` 和 `GET /inspirations/favorites`。Openverse 只有 `license_verified=true`、`moderation_status=approved` 且许可证在允许列表中才会推荐；社区作品还必须公开、明确同意推荐且授权未撤回。

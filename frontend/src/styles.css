@@ -17,6 +17,21 @@ body {
 }
 
 @layer components {
+  .inspiration-stage { @apply relative grid overflow-hidden rounded-3xl bg-[#302e2b] text-white md:grid-cols-[1.6fr_0.8fr]; box-shadow: 0 18px 60px rgba(40,35,31,.16); }
+  .inspiration-image { @apply block h-[360px] w-full overflow-hidden bg-neutral-900 text-left md:h-[560px]; }
+  .inspiration-image img { @apply h-full w-full object-cover transition duration-500 hover:scale-[1.01]; }
+  .inspiration-copy { @apply flex flex-col justify-center bg-[#f4eee6] p-7 text-ink md:p-10; }
+  .carousel-arrow { @apply absolute top-[180px] flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-lg text-white backdrop-blur transition hover:bg-black/70 md:top-1/2; }
+  .carousel-dot { @apply h-2 w-2 rounded-full bg-brand/30 transition focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2; }
+  .carousel-dot-active { @apply w-8 bg-brand; }
+  .inspiration-skeleton { @apply h-[460px] animate-pulse rounded-3xl bg-sand/70; }
+  .inspiration-dialog-backdrop { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 backdrop-blur-sm md:p-8; }
+  .inspiration-dialog { @apply relative grid max-h-[94vh] w-full max-w-6xl overflow-hidden rounded-3xl bg-[#f8f4ee] shadow-2xl md:grid-cols-[1.45fr_0.75fr]; }
+  .dialog-close { @apply absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-2xl text-white; }
+  .community-folder { @apply flex items-center justify-between gap-5 rounded-3xl border border-white/70 bg-blush/55 p-7 md:p-9; box-shadow: 0 8px 32px rgba(61, 53, 48, 0.06); }
+}
+
+@layer components {
   .container-page {
     @apply mx-auto w-full max-w-6xl px-5 py-10 md:px-8;
   }
