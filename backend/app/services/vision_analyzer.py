@@ -11,6 +11,10 @@ import httpx
 from app.core.config import get_settings
 from app.models.preference import Preference
 
+class VisionAnalysisError(RuntimeError):
+    pass
+
+
 
 def call_vision_model(
     image_url: str,
@@ -21,14 +25,16 @@ def call_vision_model(
     target_style: str,
     target_platform: str,
     style_reference_urls: list[str] | None = None,
-) -> dict | None:
+) -> dict:
     settings = get_settings()
-    if not settings.ai_analysis_enabled or settings.ai_analysis_mode == "mock" or not settings.resolved_ai_api_key:
-        return None
+    if not settings.ai_analysis_enabled:
+        raise VisionAnalysisError("AI analysis is disabled on the server")
+    if not settings.resolved_ai_api_key:
+        raise VisionAnalysisError("AI analysis API key is not configured")
 
     image_input = _resolve_image_input(image_url)
     if not image_input:
-        return None
+        raise VisionAnalysisError("The uploaded image could not be read")
 
     user_content: list[dict[str, Any]] = [
         {"type": "input_image", "image_url": image_input},
@@ -70,13 +76,18 @@ def call_vision_model(
             )
             response.raise_for_status()
             data = response.json()
-    except Exception:
-        return None
+    except httpx.HTTPStatusError as exc:
+        raise VisionAnalysisError(f"Vision API request failed: {_safe_provider_error(exc.response)}") from exc
+    except httpx.HTTPError as exc:
+        raise VisionAnalysisError("Could not connect to the vision API") from exc
+    except ValueError as exc:
+        raise VisionAnalysisError("Vision API returned invalid JSON") from exc
 
     text = _extract_response_text(data)
     parsed = _parse_json_object(text)
     if not parsed:
-        return None
+        raise VisionAnalysisError("Vision API did not return a valid analysis object")
+    _validate_model_result(parsed)
     parsed["_raw_response"] = text[:12000]
     return parsed
 
@@ -125,6 +136,10 @@ expected_effect, confidence。
 benchmark 内必须包含 exposure/focus/composition/color，每项包含 score/reason/problems/suggestions。
 expected_effect 必须包含 description（用中文描述修图后的预期视觉效果，80-150字）和 style_keywords（3-5个风格关键词数组）。
 所有 score 都是 0-100 整数，confidence 是 0-1 小数。
+platform_suggestions must be a non-empty JSON object keyed by the selected target platform.
+editing_params must be a non-empty JSON object with concrete adjustment values.
+Every required text field, benchmark reason, problems, and suggestions must be non-empty.
+
 不要说你不能看图，只返回 JSON。
 """.strip()
 
@@ -168,3 +183,81 @@ def _parse_json_object(text: str) -> dict[str, Any] | None:
     except json.JSONDecodeError:
         return None
     return parsed if isinstance(parsed, dict) else None
+def _safe_provider_error(response: httpx.Response) -> str:
+    try:
+        data = response.json()
+    except ValueError:
+        return f"HTTP {response.status_code}"
+    if isinstance(data, dict):
+        error = data.get("error")
+        if isinstance(error, dict) and isinstance(error.get("message"), str):
+            return error["message"][:300]
+        if isinstance(data.get("message"), str):
+            return data["message"][:300]
+    return f"HTTP {response.status_code}"
+
+
+_REQUIRED_FIELDS = {
+    "photo_type",
+    "detected_style",
+    "style_confidence",
+    "style_reasoning",
+    "benchmark",
+    "summary",
+    "target_style_match",
+    "composition_advice",
+    "lighting_advice",
+    "color_advice",
+    "editing_params",
+    "platform_suggestions",
+    "shooting_tips",
+    "next_step",
+    "expected_effect",
+}
+
+
+def _validate_model_result(result: dict[str, Any]) -> None:
+    missing = sorted(field for field in _REQUIRED_FIELDS if field not in result)
+    if missing:
+        raise VisionAnalysisError(f"Vision API response is missing fields: {', '.join(missing)}")
+    for field in ("photo_type", "detected_style", "style_reasoning", "summary", "composition_advice", "lighting_advice", "color_advice", "shooting_tips", "next_step"):
+        if not isinstance(result.get(field), str) or not result[field].strip():
+            raise VisionAnalysisError(f"Vision API response has an empty {field}")
+
+
+
+    benchmark = result.get("benchmark")
+    if not isinstance(benchmark, dict):
+        raise VisionAnalysisError("Vision API response has an invalid benchmark")
+    for dimension in ("exposure", "focus", "composition", "color"):
+        value = benchmark.get(dimension)
+        if not isinstance(value, dict):
+            raise VisionAnalysisError(f"Vision API response is missing benchmark.{dimension}")
+        dimension_missing = [
+            field for field in ("score", "reason", "problems", "suggestions") if field not in value
+        ]
+        if dimension_missing:
+            raise VisionAnalysisError(
+                f"Vision API response is missing benchmark.{dimension}: {', '.join(dimension_missing)}"
+            )
+        if not isinstance(value.get("reason"), str) or not value["reason"].strip():
+            raise VisionAnalysisError(f"Vision API response has an empty benchmark.{dimension}.reason")
+        for field in ("problems", "suggestions"):
+            if not isinstance(value.get(field), list) or not value[field]:
+                raise VisionAnalysisError(f"Vision API response has an empty benchmark.{dimension}.{field}")
+
+
+    for field in ("target_style_match", "editing_params", "platform_suggestions", "expected_effect"):
+        if not isinstance(result.get(field), dict):
+            raise VisionAnalysisError(f"Vision API response has an invalid {field}")
+    target_match = result["target_style_match"]
+    if "score" not in target_match or not isinstance(target_match.get("reason"), str) or not target_match["reason"].strip():
+        raise VisionAnalysisError("Vision API response has an invalid target_style_match")
+
+    for field in ("editing_params", "platform_suggestions"):
+        if not result[field]:
+            raise VisionAnalysisError(f"Vision API response has an empty {field}")
+
+    expected_effect = result["expected_effect"]
+    if not isinstance(expected_effect.get("description"), str) or not expected_effect["description"].strip():
+        raise VisionAnalysisError("Vision API response has an invalid expected_effect.description")

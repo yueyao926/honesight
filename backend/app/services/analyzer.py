@@ -26,25 +26,31 @@ def analyze_photo_context(
     style = target_style or (preference.preferred_styles if preference else None) or "清新自然"
     platform = target_platform or (preference.target_platform if preference else None) or "作品集"
 
-    model_result = call_vision_model(
-        image_url=image_url,
-        title=title,
-        description=description,
-        category=category,
-        preference=preference,
-        target_style=style,
-        target_platform=platform,
-        style_reference_urls=style_reference_urls,
-    )
-    analysis_mode = "api"
-    if not model_result:
+    settings = get_settings()
+    if settings.ai_analysis_mode.strip().lower() == "mock":
         model_result = build_mock_vision_result(category or "general", style, platform)
         analysis_mode = "mock"
+    else:
+        model_result = call_vision_model(
+            image_url=image_url,
+            title=title,
+            description=description,
+            category=category,
+            preference=preference,
+            target_style=style,
+            target_platform=platform,
+            style_reference_urls=style_reference_urls,
+        )
+        analysis_mode = "api"
 
     photo_type = str(model_result.get("photo_type") or category or "general")
     benchmark = build_benchmark(model_result, photo_type, style, platform)
     style_result = detect_style(model_result, f"{style} {description or ''}")
-    platform_suggestions = build_platform_suggestions(platform, style, model_result)
+    if analysis_mode == "api":
+        raw_platform_suggestions = model_result.get("platform_suggestions")
+        platform_suggestions = raw_platform_suggestions if isinstance(raw_platform_suggestions, dict) else {}
+    else:
+        platform_suggestions = build_platform_suggestions(platform, style, model_result)
     target_match = model_result.get("target_style_match") if isinstance(model_result.get("target_style_match"), dict) else {}
     editing_params = model_result.get("editing_params") if isinstance(model_result.get("editing_params"), dict) else {}
     expected_effect = model_result.get("expected_effect") if isinstance(model_result.get("expected_effect"), dict) else {}

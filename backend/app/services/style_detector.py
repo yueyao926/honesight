@@ -5,6 +5,13 @@ STYLE_OPTIONS = ["清新自然", "日系", "胶片感", "高级灰", "复古", "
 
 def detect_style(model_result: dict, text_hint: str = "") -> dict:
     detected = str(model_result.get("detected_style") or "")
+    if detected:
+        return {
+            "detected_style": detected,
+            "style_confidence": _float_confidence(model_result.get("style_confidence")),
+            "style_reasoning": str(model_result.get("style_reasoning") or "Model-provided visual style analysis."),
+        }
+
     reasoning = str(model_result.get("style_reasoning") or "")
     confidence = _float_confidence(model_result.get("style_confidence"))
 

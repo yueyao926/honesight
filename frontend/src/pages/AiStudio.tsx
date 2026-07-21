@@ -226,6 +226,12 @@ export default function AiStudio() {
 
           {step === 3 && analysis && photoUrl && (
             <>
+              <div className="rounded-2xl bg-white/80 px-4 py-3 text-sm text-muted">
+                {analysis.analysis_mode === "api"
+                  ? `\u771f\u5b9e AI \u5206\u6790 \u00b7 ${analysis.model_used}`
+                  : "\u6a21\u62df\u5206\u6790\uff08\u4ec5\u5f00\u53d1\u6a21\u5f0f\uff09"}
+              </div>
+
               <ExpectedEffectPreview
                 imageUrl={photoUrl}
                 generatedImageUrl={generatedImageUrl}

@@ -1,15 +1,22 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 
 from app.api import analyze, auth, image_process, portfolio, preferences, upload
 from app.core.config import get_settings
+from app.services.vision_analyzer import VisionAnalysisError
 
 
 settings = get_settings()
 settings.upload_path.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="LensCoach API", version="0.1.0")
+
+@app.exception_handler(VisionAnalysisError)
+async def handle_vision_analysis_error(_request: Request, exc: VisionAnalysisError) -> JSONResponse:
+    return JSONResponse(status_code=502, content={"detail": str(exc)})
+
 
 app.add_middleware(
     CORSMiddleware,
