@@ -9,20 +9,13 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [preference, setPreference] = useState<Preference | null>(null);
   const [collections, setCollections] = useState<PortfolioCollection[]>([]);
-  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     Promise.allSettled([
       getMyPreferences().then(setPreference).catch(() => setPreference(null)),
       listPortfolio().then(setCollections).catch(() => setCollections([])),
-    ]).finally(() => setLoaded(true));
+    ]);
   }, []);
-
-  const nextStep = !preference
-    ? { title: "先填写摄影偏好", desc: "花 1 分钟告诉我们你的水平和目标，分析报告会更贴合你。", cta: "去填写偏好", link: "/onboarding" }
-    : collections.length === 0
-      ? { title: "创建第一个作品集", desc: "只需要取一个名字，就能开始整理自己的照片。", cta: "创建作品集", link: "/portfolio" }
-      : { title: "继续整理或分析照片", desc: "直接上传原图到作品集，或让 AI 先给出建议再决定是否收藏原图。", cta: "开始 AI 分析", link: "/ai" };
 
   return (
     <main className="container-page">
@@ -32,20 +25,14 @@ export default function Dashboard() {
         <p className="mt-4 text-muted">让每一次快门都有迹可循，也让光影里的进步慢慢成为你的作品。</p>
       </header>
 
-      {loaded && (
-        <section className="card mt-8 animate-fade-up flex flex-col justify-between gap-5 md:flex-row md:items-center">
-          <div>
-            <p className="section-eyebrow">下一步</p>
-            <h2 className="mt-1 font-display text-2xl font-semibold">{nextStep.title}</h2>
-            <p className="mt-2 text-sm text-muted">{nextStep.desc}</p>
-          </div>
-          <Link className="btn-primary shrink-0" to={nextStep.link}>{nextStep.cta}</Link>
-        </section>
-      )}
-
-      <section className="mt-8 flex flex-wrap gap-4">
-        <Link className="btn-primary" to="/ai">开始 AI 分析</Link>
-        <Link className="btn-ghost" to="/portfolio">管理作品集</Link>
+      <section className="card mt-8 animate-fade-up flex flex-col justify-between gap-5 md:flex-row md:items-center">
+        <div className="max-w-3xl">
+          <h2 className="font-display text-2xl font-semibold">让照片更接近你想要的样子</h2>
+          <p className="mt-3 text-sm leading-7 text-muted">
+            设定目标风格和发布平台，AI 会结合画面内容与个人偏好，分析构图、光线、色彩和风格匹配，并给出清晰可执行的调整建议。
+          </p>
+        </div>
+        <Link className="btn-primary shrink-0" to="/ai">开始 AI 分析</Link>
       </section>
 
       <section className="mt-10 grid gap-6 lg:grid-cols-2">
