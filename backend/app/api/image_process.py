@@ -12,6 +12,8 @@ router = APIRouter(prefix="/image-process", tags=["image-process"])
 class ImageProcessRequest(BaseModel):
     image_url: str = Field(max_length=600)
     target_style: str = Field(min_length=1, max_length=80)
+    target_platform: str = Field(min_length=1, max_length=80)
+    analysis_guidance: str | None = Field(default=None, max_length=8000)
     edit_instruction: str | None = Field(default=None, max_length=600)
     reference_image_urls: list[str] = Field(default_factory=list, max_length=3)
 
@@ -32,6 +34,8 @@ def process_image(
             image_url=payload.image_url,
             user_id=current_user.id,
             target_style=payload.target_style,
+            target_platform=payload.target_platform,
+            analysis_guidance=payload.analysis_guidance,
             edit_instruction=payload.edit_instruction,
             reference_image_urls=payload.reference_image_urls,
         )

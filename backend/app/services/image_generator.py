@@ -18,6 +18,8 @@ def generate_edited_image(
     image_url: str,
     user_id: int,
     target_style: str,
+    target_platform: str,
+    analysis_guidance: str | None = None,
     edit_instruction: str | None = None,
     reference_image_urls: list[str] | None = None,
 ) -> dict[str, str]:
@@ -37,7 +39,13 @@ def generate_edited_image(
         if resolved:
             images.append(resolved)
 
-    prompt = _build_edit_prompt(target_style, edit_instruction, len(images) - 1)
+    prompt = _build_edit_prompt(
+        target_style,
+        target_platform,
+        edit_instruction,
+        analysis_guidance,
+        len(images) - 1,
+    )
     payload = {
         "model": settings.image_model,
         "prompt": prompt,
@@ -79,7 +87,13 @@ def generate_edited_image(
     }
 
 
-def _build_edit_prompt(target_style: str, edit_instruction: str | None, reference_count: int) -> str:
+def _build_edit_prompt(
+    target_style: str,
+    target_platform: str,
+    edit_instruction: str | None,
+    analysis_guidance: str | None,
+    reference_count: int,
+) -> str:
     parts = [
         "对第一张原始照片进行专业摄影后期处理。",
         "必须保留原图人物身份、五官、主体、姿势、场景结构和画面构图，不新增或删除主体。",
@@ -88,6 +102,15 @@ def _build_edit_prompt(target_style: str, edit_instruction: str | None, referenc
     ]
     if reference_count:
         parts.append("后续图片是风格参考图，请只参考其色调、光影和氛围，不要替换原图主体。")
+    parts.append(
+        f"Selected publishing platform: {target_platform}. "
+        "Adapt tonal balance, subject emphasis, visual rhythm, and finish for this platform. "
+        "Do not add text, logos, borders, or watermarks."
+    )
+    if analysis_guidance and analysis_guidance.strip():
+        parts.append(
+            f"Vision analysis guidance for this exact photo: {analysis_guidance.strip()}"
+        )
     if edit_instruction and edit_instruction.strip():
         parts.append(f"用户额外要求：{edit_instruction.strip()}")
     return "".join(parts)

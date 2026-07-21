@@ -54,12 +54,39 @@ def analyze_photo_context(
     target_match = model_result.get("target_style_match") if isinstance(model_result.get("target_style_match"), dict) else {}
     editing_params = model_result.get("editing_params") if isinstance(model_result.get("editing_params"), dict) else {}
     expected_effect = model_result.get("expected_effect") if isinstance(model_result.get("expected_effect"), dict) else {}
-    expected_effect_description = str(
-        expected_effect.get("description")
-        or _build_expected_effect_fallback(style, style_reference_urls)
-    )
     detail = benchmark["benchmark_detail"]
     weights = benchmark["weights"]
+    if analysis_mode == "api":
+        expected_effect_description = str(expected_effect.get("description") or "")
+        summary = str(model_result.get("summary") or "")
+        composition_advice = str(model_result.get("composition_advice") or "")
+        lighting_advice = str(model_result.get("lighting_advice") or "")
+        color_advice = str(model_result.get("color_advice") or "")
+        shooting_tips = str(model_result.get("shooting_tips") or "")
+        next_step = str(model_result.get("next_step") or "")
+    else:
+        expected_effect_description = str(
+            expected_effect.get("description")
+            or _build_expected_effect_fallback(style, style_reference_urls)
+        )
+        summary = str(model_result.get("summary") or benchmark["benchmark_summary"])
+        composition_advice = str(
+            model_result.get("composition_advice") or detail["composition"]["suggestions"][0]
+        )
+        lighting_advice = str(
+            model_result.get("lighting_advice") or detail["exposure"]["suggestions"][0]
+        )
+        color_advice = str(
+            model_result.get("color_advice") or detail["color"]["suggestions"][0]
+        )
+        shooting_tips = str(
+            model_result.get("shooting_tips")
+            or "下一次拍摄时先明确主体，再根据目标风格控制光线和色彩。"
+        )
+        next_step = str(
+            model_result.get("next_step")
+            or "先完成一次基础裁切和调色，再继续向 AI 追问更具体参数。"
+        )
     settings = get_settings()
 
     return {
@@ -77,7 +104,7 @@ def analyze_photo_context(
         "color_weight": str(weights["color"]),
         "overall_score": benchmark["overall_score"],
         "target_style_match_score": _clamp_score(target_match.get("score", 72)),
-        "summary": str(model_result.get("summary") or benchmark["benchmark_summary"]),
+        "summary": summary,
         "benchmark_detail_json": json.dumps(
             {
                 **detail,
@@ -89,14 +116,14 @@ def analyze_photo_context(
             },
             ensure_ascii=False,
         ),
-        "composition_advice": str(model_result.get("composition_advice") or detail["composition"]["suggestions"][0]),
-        "lighting_advice": str(model_result.get("lighting_advice") or detail["exposure"]["suggestions"][0]),
-        "color_advice": str(model_result.get("color_advice") or detail["color"]["suggestions"][0]),
+        "composition_advice": composition_advice,
+        "lighting_advice": lighting_advice,
+        "color_advice": color_advice,
         "editing_params": json.dumps(editing_params, ensure_ascii=False),
         "editing_params_json": json.dumps(editing_params, ensure_ascii=False),
         "platform_suggestions_json": json.dumps(platform_suggestions, ensure_ascii=False),
-        "shooting_tips": str(model_result.get("shooting_tips") or "下一次拍摄时先明确主体，再根据目标风格控制光线和色彩。"),
-        "next_step": str(model_result.get("next_step") or "先完成一次基础裁切和调色，再继续向 AI 追问更具体参数。"),
+        "shooting_tips": shooting_tips,
+        "next_step": next_step,
         "raw_response": str(model_result.get("_raw_response") or "")[:12000],
         "analysis_mode": analysis_mode,
         "model_used": settings.resolved_ai_model if analysis_mode == "api" else "mock-analyzer-v1",

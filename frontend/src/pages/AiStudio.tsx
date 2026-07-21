@@ -97,6 +97,21 @@ export default function AiStudio() {
       const result = await generateProcessedImage({
         image_url: photoUrl,
         target_style: targetStyle,
+        target_platform: targetPlatform,
+        analysis_guidance: [
+          analysis?.summary,
+          analysis?.composition_advice,
+          analysis?.lighting_advice,
+          analysis?.color_advice,
+          analysis?.editing_params
+            ? `Editing parameters: ${JSON.stringify(analysis.editing_params)}`
+            : "",
+          analysis?.platform_suggestions
+            ? `Platform suggestions: ${JSON.stringify(analysis.platform_suggestions)}`
+            : "",
+        ]
+          .filter(Boolean)
+          .join("\n"),
         edit_instruction: editInstruction.trim() || undefined,
         reference_image_urls: styleRefs,
       });
@@ -236,7 +251,7 @@ export default function AiStudio() {
                 imageUrl={photoUrl}
                 generatedImageUrl={generatedImageUrl}
                 targetStyle={targetStyle}
-                description={analysis.expected_effect_description || "修图后将更接近你的目标风格。"}
+                description={analysis.expected_effect_description || ""}
                 referenceUrls={analysis.style_reference_image_urls || styleRefs}
               />
               <div className="card-soft">

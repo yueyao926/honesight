@@ -3,6 +3,8 @@ import { apiRequest } from "./client";
 export type ImageProcessPayload = {
   image_url: string;
   target_style: string;
+  target_platform: string;
+  analysis_guidance?: string;
   edit_instruction?: string;
   reference_image_urls?: string[];
 };

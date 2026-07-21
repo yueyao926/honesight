@@ -136,6 +136,7 @@ expected_effect, confidence。
 benchmark 内必须包含 exposure/focus/composition/color，每项包含 score/reason/problems/suggestions。
 expected_effect 必须包含 description（用中文描述修图后的预期视觉效果，80-150字）和 style_keywords（3-5个风格关键词数组）。
 所有 score 都是 0-100 整数，confidence 是 0-1 小数。
+All recommendations must explicitly optimize the source photo for both the selected target_style and target_platform.
 platform_suggestions must be a non-empty JSON object keyed by the selected target platform.
 editing_params must be a non-empty JSON object with concrete adjustment values.
 Benchmark problems and suggestions must be JSON arrays and may be empty when no issue is found.
@@ -220,9 +221,20 @@ def _validate_model_result(result: dict[str, Any]) -> None:
     missing = sorted(field for field in _REQUIRED_FIELDS if field not in result)
     if missing:
         raise VisionAnalysisError(f"Vision API response is missing fields: {', '.join(missing)}")
-    for field in ("photo_type", "detected_style", "style_reasoning", "summary", "composition_advice", "lighting_advice", "color_advice", "shooting_tips", "next_step"):
+    for field in ("photo_type", "detected_style"):
         if not isinstance(result.get(field), str) or not result[field].strip():
             raise VisionAnalysisError(f"Vision API response has an empty {field}")
+    for field in (
+        "style_reasoning",
+        "summary",
+        "composition_advice",
+        "lighting_advice",
+        "color_advice",
+        "shooting_tips",
+        "next_step",
+    ):
+        if not isinstance(result.get(field), str):
+            raise VisionAnalysisError(f"Vision API response has an invalid {field}")
 
 
 
@@ -240,8 +252,8 @@ def _validate_model_result(result: dict[str, Any]) -> None:
             raise VisionAnalysisError(
                 f"Vision API response is missing benchmark.{dimension}: {', '.join(dimension_missing)}"
             )
-        if not isinstance(value.get("reason"), str) or not value["reason"].strip():
-            raise VisionAnalysisError(f"Vision API response has an empty benchmark.{dimension}.reason")
+        if not isinstance(value.get("reason"), str):
+            raise VisionAnalysisError(f"Vision API response has an invalid benchmark.{dimension}.reason")
         for field in ("problems", "suggestions"):
             if not isinstance(value.get(field), list):
                 raise VisionAnalysisError(f"Vision API response has an empty benchmark.{dimension}.{field}")
@@ -251,13 +263,9 @@ def _validate_model_result(result: dict[str, Any]) -> None:
         if not isinstance(result.get(field), dict):
             raise VisionAnalysisError(f"Vision API response has an invalid {field}")
     target_match = result["target_style_match"]
-    if "score" not in target_match or not isinstance(target_match.get("reason"), str) or not target_match["reason"].strip():
+    if "score" not in target_match or not isinstance(target_match.get("reason"), str):
         raise VisionAnalysisError("Vision API response has an invalid target_style_match")
 
-    for field in ("editing_params", "platform_suggestions"):
-        if not result[field]:
-            raise VisionAnalysisError(f"Vision API response has an empty {field}")
-
     expected_effect = result["expected_effect"]
-    if not isinstance(expected_effect.get("description"), str) or not expected_effect["description"].strip():
+    if not isinstance(expected_effect.get("description"), str):
         raise VisionAnalysisError("Vision API response has an invalid expected_effect.description")
