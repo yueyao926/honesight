@@ -30,8 +30,7 @@ export default function Home() {
               </>
             ) : (
               <>
-                <Link to="/register" className="btn-primary">开始创建作品集</Link>
-                <Link to="/login" className="btn-secondary">我已有账号</Link>
+                <Link to="/portfolio" className="btn-primary">开始创建作品集</Link>
               </>
             )}
           </div>
