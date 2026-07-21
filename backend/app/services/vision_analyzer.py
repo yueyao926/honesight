@@ -138,7 +138,7 @@ expected_effect 必须包含 description（用中文描述修图后的预期视�
 所有 score 都是 0-100 整数，confidence 是 0-1 小数。
 platform_suggestions must be a non-empty JSON object keyed by the selected target platform.
 editing_params must be a non-empty JSON object with concrete adjustment values.
-Every required text field, benchmark reason, problems, and suggestions must be non-empty.
+Benchmark problems and suggestions must be JSON arrays and may be empty when no issue is found.
 
 不要说你不能看图，只返回 JSON。
 """.strip()
@@ -243,7 +243,7 @@ def _validate_model_result(result: dict[str, Any]) -> None:
         if not isinstance(value.get("reason"), str) or not value["reason"].strip():
             raise VisionAnalysisError(f"Vision API response has an empty benchmark.{dimension}.reason")
         for field in ("problems", "suggestions"):
-            if not isinstance(value.get(field), list) or not value[field]:
+            if not isinstance(value.get(field), list):
                 raise VisionAnalysisError(f"Vision API response has an empty benchmark.{dimension}.{field}")
 
 

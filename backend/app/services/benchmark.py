@@ -25,19 +25,28 @@ WEIGHT_REASONS = {
 }
 
 
-def build_benchmark(model_result: dict, photo_type: str, target_style: str, target_platform: str) -> dict:
+def build_benchmark(model_result: dict, photo_type: str, target_style: str, target_platform: str, *, use_fallbacks: bool = True) -> dict:
     normalized_type = photo_type if photo_type in PHOTO_TYPE_WEIGHTS else "general"
     benchmark = model_result.get("benchmark") if isinstance(model_result.get("benchmark"), dict) else {}
     detail = {}
 
     for key in DIMENSIONS:
         source = benchmark.get(key) if isinstance(benchmark.get(key), dict) else {}
-        score = _clamp_int(source.get("score", _fallback_score(key, target_style, target_platform)))
+        score_value = source.get("score")
+        if score_value is None and use_fallbacks:
+            score_value = _fallback_score(key, target_style, target_platform)
+        reason = str(source.get("reason") or "")
+        problems = _list_of_strings(source.get("problems"))
+        suggestions = _list_of_strings(source.get("suggestions"))
+        if use_fallbacks:
+            reason = reason or _fallback_reason(key, target_style)
+            problems = problems or [_fallback_problem(key)]
+            suggestions = suggestions or [_fallback_suggestion(key)]
         detail[key] = {
-            "score": score,
-            "reason": str(source.get("reason") or _fallback_reason(key, target_style)),
-            "problems": _list_of_strings(source.get("problems")) or [_fallback_problem(key)],
-            "suggestions": _list_of_strings(source.get("suggestions")) or [_fallback_suggestion(key)],
+            "score": _clamp_int(score_value),
+            "reason": reason,
+            "problems": problems,
+            "suggestions": suggestions,
         }
 
     weights = PHOTO_TYPE_WEIGHTS[normalized_type]

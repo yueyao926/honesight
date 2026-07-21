@@ -44,7 +44,7 @@ def analyze_photo_context(
         analysis_mode = "api"
 
     photo_type = str(model_result.get("photo_type") or category or "general")
-    benchmark = build_benchmark(model_result, photo_type, style, platform)
+    benchmark = build_benchmark(model_result, photo_type, style, platform, use_fallbacks=analysis_mode == "mock")
     style_result = detect_style(model_result, f"{style} {description or ''}")
     if analysis_mode == "api":
         raw_platform_suggestions = model_result.get("platform_suggestions")
