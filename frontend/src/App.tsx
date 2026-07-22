@@ -11,6 +11,7 @@ import PortfolioDetail from "./pages/PortfolioDetail";
 import Register from "./pages/Register";
 import Settings from "./pages/Settings";
 import Community from "./pages/Community";
+import Profile from "./pages/Profile";
 
 export default function App() {
   return (
@@ -22,6 +23,8 @@ export default function App() {
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/users/:userId" element={<Profile />} />
         <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
         <Route path="/portfolio/:id" element={<ProtectedRoute><PortfolioDetail /></ProtectedRoute>} />
         <Route path="/ai" element={<ProtectedRoute><AiStudio /></ProtectedRoute>} />

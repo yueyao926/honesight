@@ -1,5 +1,6 @@
 import { NavLink, Link, Outlet } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { getAssetUrl } from "../api/client";
 
 function navClass({ isActive }: { isActive: boolean }) {
   return isActive ? "nav-link nav-link-active" : "nav-link";
@@ -19,16 +20,16 @@ export default function Layout() {
             {isAuthenticated && <NavLink to="/portfolio" className={navClass}>作品集</NavLink>}
             {isAuthenticated && <NavLink to="/community" className={navClass}>社区</NavLink>}
             {isAuthenticated && <NavLink to="/ai" className={navClass}>AI 工作室</NavLink>}
-            {isAuthenticated && <NavLink to="/settings" className={navClass}>偏好</NavLink>}
+            {isAuthenticated && <NavLink to="/profile" className={navClass}>个人</NavLink>}
             {!isAuthenticated ? (
               <>
                 <NavLink to="/login" className={navClass}>登录</NavLink>
                 <Link to="/register" className="btn-primary ml-2 py-2 text-xs md:text-sm">注册</Link>
               </>
             ) : (
-              <button className="btn-ghost ml-2" onClick={logout}>
-                退出 · {user?.username}
-              </button>
+              <Link className="ml-2 flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-blush text-sm font-medium text-brand-deep" to="/profile" aria-label="个人主页">
+                {user?.avatar_url ? <img className="h-full w-full object-cover" src={getAssetUrl(user.avatar_url)} alt="" /> : user?.username?.slice(0, 1).toUpperCase()}
+              </Link>
             )}
           </div>
         </nav>

@@ -30,11 +30,33 @@ class PortfolioPhotoRead(BaseModel):
     title: str
     image_url: str
     source: str
+    description: str | None = None
+    visibility: str = "private"
+    allow_favorite: bool = True
+    is_published_to_community: bool = False
+    allow_comments: bool = True
+    favorite_count: int = 0
+    view_count: int = 0
+    is_favorited: bool = False
     tags: list[PhotoTagRead] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class PortfolioPhotoUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=160)
+    description: str | None = Field(default=None, max_length=1000)
+    visibility: str | None = None
+    allow_favorite: bool | None = None
+
+    @field_validator("visibility")
+    @classmethod
+    def validate_visibility(cls, value: str | None) -> str | None:
+        if value is not None and value not in {"public", "private"}:
+            raise ValueError("visibility must be public or private")
+        return value
 
 
 class PortfolioCollectionCreate(BaseModel):

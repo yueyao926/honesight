@@ -7,6 +7,19 @@ export type User = {
   updated_at: string;
 };
 
+export type Profile = {
+  id: number; username: string; avatar_url?: string | null; signature?: string | null;
+  bio?: string | null; location?: string | null; photography_level?: string | null;
+  equipment?: string | null; created_at: string; work_count: number; following_count: number;
+  follower_count: number; is_following: boolean; is_self: boolean; email?: string | null;
+  email_verified?: boolean | null; favorite_count?: number | null;
+};
+
+export type PrivacySettings = {
+  show_following: boolean; show_followers: boolean; allow_work_favorites: boolean;
+  discoverable_by_username: boolean; allow_follow_notifications: boolean;
+};
+
 export type Preference = {
   id: number;
   user_id: number;
@@ -16,6 +29,16 @@ export type Preference = {
   common_subjects?: string | null;
   improvement_goals?: string | null;
   editing_tools?: string | null;
+  photography_categories: string[];
+  aesthetic_styles: string[];
+  editing_software: string[];
+  shooting_devices: string[];
+  daily_recommendation_enabled: boolean;
+  daily_recommendation_count: number;
+  use_favorite_behavior: boolean;
+  use_browsing_behavior: boolean;
+  prioritize_following: boolean;
+  show_tutorial_content: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -37,6 +60,12 @@ export type PortfolioPhoto = {
   title: string;
   image_url: string;
   source: "direct_upload" | "ai_original" | "legacy" | string;
+  description?: string | null;
+  visibility: "public" | "private";
+  allow_favorite: boolean;
+  favorite_count: number;
+  view_count: number;
+  is_favorited: boolean;
   tags: PhotoTag[];
   created_at: string;
   updated_at: string;

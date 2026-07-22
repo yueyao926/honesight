@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -45,6 +45,11 @@ class PortfolioItem(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     image_url: Mapped[str] = mapped_column(String(500), nullable=False)
     source: Mapped[str] = mapped_column(String(40), nullable=False, default="direct_upload")
+    visibility: Mapped[str] = mapped_column(String(20), nullable=False, default="private", server_default="private")
+    allow_favorite: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    is_published_to_community: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    allow_comments: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    view_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     category: Mapped[str | None] = mapped_column(String(80), nullable=True)
     target_style: Mapped[str | None] = mapped_column(String(120), nullable=True)
     target_platform: Mapped[str | None] = mapped_column(String(120), nullable=True)
@@ -55,6 +60,18 @@ class PortfolioItem(Base):
     collection = relationship("PortfolioCollection", back_populates="photos")
     tags = relationship("PhotoTag", back_populates="photo", cascade="all, delete-orphan")
     analysis_results = relationship("AnalysisResult", back_populates="portfolio_item", cascade="all, delete-orphan")
+    favorites = relationship("PortfolioFavorite", back_populates="work", cascade="all, delete-orphan")
+
+
+class PortfolioFavorite(Base):
+    __tablename__ = "portfolio_favorites"
+    __table_args__ = (UniqueConstraint("user_id", "work_id", name="uq_portfolio_favorites_user_work"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    work_id: Mapped[int] = mapped_column(ForeignKey("portfolio_items.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    work = relationship("PortfolioItem", back_populates="favorites")
 
 
 class PhotoTag(Base):
