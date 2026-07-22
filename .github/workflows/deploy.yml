@@ -73,6 +73,13 @@ jobs:
                     proxy_set_header X-Forwarded-Proto \$scheme;
                 }
             }
+
+            server {
+                listen 8080;
+                server_name ${{ secrets.SERVER_HOST }};
+
+                return 308 http://${{ secrets.SERVER_HOST }}\$request_uri;
+            }
             EOF
               docker run --rm --privileged --pid=host alpine:3.20 \
                 nsenter -t 1 -m -u -i -n -p -- nginx -t
@@ -81,5 +88,10 @@ jobs:
             fi
 
             curl -fsS -H "Host: ${{ secrets.SERVER_HOST }}" http://127.0.0.1/ | grep -q 'id="root"'
+            REDIRECT_RESULT="$(curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' -H "Host: ${{ secrets.SERVER_HOST }}:8080" http://127.0.0.1:8080/)"
+            if [ "$REDIRECT_RESULT" != "308 http://${{ secrets.SERVER_HOST }}/" ]; then
+              echo "Unexpected :8080 redirect: $REDIRECT_RESULT"
+              exit 1
+            fi
             docker compose -f docker-compose.deploy.yml ps
             docker image prune -f
