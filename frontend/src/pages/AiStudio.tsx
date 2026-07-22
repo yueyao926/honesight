@@ -464,6 +464,11 @@ export default function AiStudio() {
                   generatedImageUrls={generatedImageUrls}
                   selectedGeneratedImageUrl={selectedGeneratedImageUrl}
                   onSelectGeneratedImage={setSelectedGeneratedImageUrl}
+                  onSaveOriginal={() => openSaveCandidate({
+                    imageUrl: photoUrl,
+                    source: "ai_original",
+                    title: "原图",
+                  })}
                   onSaveQuickPreview={handleSaveQuickPreview}
                   savingQuickPreview={savingQuickPreview}
                   onSaveAiResult={(imageUrl) => openSaveCandidate({

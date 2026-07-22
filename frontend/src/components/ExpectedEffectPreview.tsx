@@ -49,9 +49,9 @@ export default function ExpectedEffectPreview({
         {isAiResult && <span className="rounded-full bg-white/80 px-3 py-1 text-xs text-muted">AI 精修图</span>}
       </div>
 
-      {(compact || isAiResult) && (
+      {(onSaveOriginal || (!isAiResult && onSaveQuickPreview) || (isAiResult && onSaveAiResult)) && (
         <div className="mt-4 flex flex-wrap gap-2">
-          {compact && onSaveOriginal && (
+          {onSaveOriginal && (
             <button className="btn-secondary px-4 py-2 text-xs" type="button" onClick={onSaveOriginal}>保存原图</button>
           )}
           {!isAiResult && onSaveQuickPreview && (

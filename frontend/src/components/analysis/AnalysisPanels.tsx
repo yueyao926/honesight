@@ -43,9 +43,10 @@ export function BenchmarkOverview({ analysis, targetPlatform }: { analysis: Phot
         <Metric label="照片类型" value={analysis.photo_type} small />
         <Metric label="识别风格" value={analysis.detected_style} small />
       </div>
-      <p className="mt-5 text-sm leading-7 text-muted">
-        {[analysis.summary, publishingAdvice].filter(Boolean).join(" ")}
-      </p>
+      <p className="mt-5 text-sm leading-7 text-muted">{analysis.summary}</p>
+      {publishingAdvice && (
+        <p className="mt-3 text-sm leading-7 text-muted">{publishingAdvice}</p>
+      )}
     </div>
   );
 }
