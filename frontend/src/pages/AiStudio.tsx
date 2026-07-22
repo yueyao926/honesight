@@ -17,8 +17,48 @@ import PhotoUpload from "../components/PhotoUpload";
 import StyleReferenceUpload from "../components/StyleReferenceUpload";
 import type { PhotoAnalysis, PhotoTag, PortfolioCollection } from "../types";
 
-const targetStyles = ["清新自然", "日系", "胶片感", "高级灰", "复古", "高饱和", "生活记录", "商业感"];
-const targetPlatforms = ["小红书", "朋友圈", "Instagram", "作品集", "商业约拍"];
+const targetStyles = [
+  "清新自然",
+  "明亮通透",
+  "日系清透",
+  "韩系柔光",
+  "胶片质感",
+  "电影感",
+  "复古怀旧",
+  "港风",
+  "法式浪漫",
+  "森系",
+  "莫兰迪",
+  "高级灰",
+  "低饱和",
+  "高饱和",
+  "暗调情绪",
+  "黑白纪实",
+  "纪实街拍",
+  "人像写真",
+  "生活记录",
+  "商业质感",
+  "赛博朋克",
+  "极简主义",
+];
+const targetPlatforms = [
+  "小红书",
+  "微信朋友圈",
+  "抖音",
+  "微博",
+  "微信公众号",
+  "哔哩哔哩",
+  "知乎",
+  "豆瓣",
+  "Instagram",
+  "TikTok",
+  "Pinterest",
+  "Behance",
+  "作品集",
+  "个人网站",
+  "商业约拍",
+  "印刷与展览",
+];
 const steps = ["上传照片", "设置目标", "查看建议"];
 
 function scrollToStep(ref: RefObject<HTMLElement>) {
@@ -253,39 +293,20 @@ export default function AiStudio() {
                 <img className="h-20 w-20 shrink-0 rounded-2xl object-cover ring-4 ring-white" src={getAssetUrl(photoUrl)} alt="已上传照片" />
               </div>
 
-              <fieldset className="mt-7">
-                <legend className="label">目标风格</legend>
-                <div className="choice-grid">
-                  {targetStyles.map((style) => (
-                    <button
-                      key={style}
-                      className={`choice-chip ${targetStyle === style ? "choice-chip-active" : ""}`}
-                      type="button"
-                      aria-pressed={targetStyle === style}
-                      onClick={() => setTargetStyle(style)}
-                    >
-                      {style}
-                    </button>
-                  ))}
-                </div>
-              </fieldset>
-
-              <fieldset className="mt-7">
-                <legend className="label">发布平台</legend>
-                <div className="choice-grid">
-                  {targetPlatforms.map((platform) => (
-                    <button
-                      key={platform}
-                      className={`choice-chip ${targetPlatform === platform ? "choice-chip-active" : ""}`}
-                      type="button"
-                      aria-pressed={targetPlatform === platform}
-                      onClick={() => setTargetPlatform(platform)}
-                    >
-                      {platform}
-                    </button>
-                  ))}
-                </div>
-              </fieldset>
+              <div className="mt-7 grid gap-4 md:grid-cols-2">
+                <label>
+                  <span className="label">目标风格</span>
+                  <select className="input" value={targetStyle} onChange={(event) => setTargetStyle(event.target.value)}>
+                    {targetStyles.map((style) => <option key={style} value={style}>{style}</option>)}
+                  </select>
+                </label>
+                <label>
+                  <span className="label">发布平台</span>
+                  <select className="input" value={targetPlatform} onChange={(event) => setTargetPlatform(event.target.value)}>
+                    {targetPlatforms.map((platform) => <option key={platform} value={platform}>{platform}</option>)}
+                  </select>
+                </label>
+              </div>
 
               <div className="mt-7 border-t border-sand/70 pt-6">
                 <div className="mb-4">
