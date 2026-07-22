@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import DailyInspirationSection from "../components/DailyInspirationSection";
 import { useAuth } from "../contexts/AuthContext";
-import Dashboard from "./Dashboard";
 
 const productSteps = [
   {
@@ -30,7 +29,7 @@ const productSteps = [
   },
 ];
 
-function GuestHero() {
+function GuestHero({ isAuthenticated }: { isAuthenticated: boolean }) {
   return (
     <section className="container-page grid items-center gap-12 py-16 lg:grid-cols-[1.05fr_0.95fr] lg:py-24">
       <div className="min-w-0 animate-fade-up">
@@ -51,7 +50,7 @@ function GuestHero() {
         </div>
 
         <div className="mt-10 flex flex-wrap gap-4">
-          <Link to="/register" className="btn-primary">开始创作</Link>
+          <Link to={isAuthenticated ? "/ai" : "/register"} className="btn-primary">开始创作</Link>
           <a href="#how-it-works" className="btn-secondary">看看如何完成一张作品</a>
         </div>
       </div>
@@ -101,7 +100,7 @@ function GuestHero() {
   );
 }
 
-function ProductJourney() {
+function ProductJourney({ isAuthenticated }: { isAuthenticated: boolean }) {
   return (
     <section id="how-it-works" className="container-page scroll-mt-24 pb-20 pt-4 lg:pb-28">
       <div className="max-w-2xl">
@@ -128,7 +127,7 @@ function ProductJourney() {
           <p className="font-display text-2xl font-semibold">下一张照片，不必一个人琢磨。</p>
           <p className="mt-2 text-sm text-white/65">带上照片和你想抵达的方向，剩下的我们一起看。</p>
         </div>
-        <Link to="/register" className="inline-flex rounded-full bg-white px-6 py-3 text-sm font-medium text-ink transition hover:bg-blush">
+        <Link to={isAuthenticated ? "/ai" : "/register"} className="inline-flex rounded-full bg-white px-6 py-3 text-sm font-medium text-ink transition hover:bg-blush">
           开始创作
         </Link>
       </div>
@@ -136,18 +135,19 @@ function ProductJourney() {
   );
 }
 
-export default function Home() {
-  const { isAuthenticated } = useAuth();
-
-  if (isAuthenticated) return <Dashboard />;
-
+export function LandingHome({ isAuthenticated }: { isAuthenticated: boolean }) {
   return (
     <main>
-      <GuestHero />
-      <ProductJourney />
+      <GuestHero isAuthenticated={isAuthenticated} />
+      <ProductJourney isAuthenticated={isAuthenticated} />
       <div id="daily-inspiration" className="scroll-mt-20">
         <DailyInspirationSection />
       </div>
     </main>
   );
+}
+
+export default function Home() {
+  const { isAuthenticated } = useAuth();
+  return <LandingHome isAuthenticated={isAuthenticated} />;
 }
