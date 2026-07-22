@@ -11,6 +11,9 @@ import PortfolioDetail from "./pages/PortfolioDetail";
 import Register from "./pages/Register";
 import Settings from "./pages/Settings";
 import Community from "./pages/Community";
+import CommunityEditor from "./pages/CommunityEditor";
+import CommunityPostDetail from "./pages/CommunityPostDetail";
+import CommunityNotifications from "./pages/CommunityNotifications";
 import Profile from "./pages/Profile";
 
 export default function App() {
@@ -28,7 +31,11 @@ export default function App() {
         <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
         <Route path="/portfolio/:id" element={<ProtectedRoute><PortfolioDetail /></ProtectedRoute>} />
         <Route path="/ai" element={<ProtectedRoute><AiStudio /></ProtectedRoute>} />
-        <Route path="/community" element={<ProtectedRoute><Community /></ProtectedRoute>} />
+        <Route path="/community" element={<Community />} />
+        <Route path="/community/post/create" element={<ProtectedRoute><CommunityEditor /></ProtectedRoute>} />
+        <Route path="/community/post/:id/edit" element={<ProtectedRoute><CommunityEditor /></ProtectedRoute>} />
+        <Route path="/community/post/:id" element={<CommunityPostDetail />} />
+        <Route path="/community/notifications" element={<ProtectedRoute><CommunityNotifications /></ProtectedRoute>} />
       </Route>
     </Routes>
   );

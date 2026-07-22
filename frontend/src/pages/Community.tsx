@@ -1,46 +1,11 @@
-import { useEffect, useState } from "react";
-import { getFavoriteInspirations, unfavoriteInspiration } from "../api/inspirations";
-import type { Inspiration } from "../types";
+import {useEffect,useState} from "react";
+import {Link} from "react-router-dom";
+import {getFeed,type CommunityPost} from "../api/community";
+import PostCard from "../components/community/PostCard";
 
-export default function Community() {
-  const [favorites, setFavorites] = useState<Inspiration[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    getFavoriteInspirations().then(setFavorites).catch((e) => setError(e.message)).finally(() => setLoading(false));
-  }, []);
-
-  async function remove(photo: Inspiration) {
-    const previous = favorites;
-    setFavorites((items) => items.filter((item) => item.id !== photo.id));
-    try { await unfavoriteInspiration(photo.id); }
-    catch (e) { setFavorites(previous); setError(e instanceof Error ? e.message : "取消收藏失败"); }
-  }
-
-  return <main className="container-page">
-    <header className="animate-fade-up">
-      <p className="section-eyebrow">My Community</p>
-      <h1 className="page-title mt-2">我的社区</h1>
-      <p className="mt-3 text-muted">集中整理收藏与关注，慢慢建立属于你的摄影灵感网络。</p>
-    </header>
-
-    <nav className="mt-8 flex gap-2 border-b border-sand pb-3" aria-label="社区个人内容分类">
-      <a className="rounded-full bg-brand px-5 py-2 text-sm text-white" href="#favorites">我的收藏</a>
-      <a className="btn-ghost" href="#following">我的关注</a>
-    </nav>
-
-    <section id="favorites" className="pt-10">
-      <div className="community-folder">
-        <div><p className="text-xs uppercase tracking-[.18em] text-muted">Collection</p><h2 className="mt-2 font-display text-3xl font-semibold">首页灵感收藏夹</h2><p className="mt-2 text-sm text-muted">你在首页个性化推荐中收藏的摄影作品。</p></div>
-        <strong className="font-display text-4xl text-brand-deep">{favorites.length}</strong>
-      </div>
-      {loading ? <div className="inspiration-skeleton mt-8 !h-64" aria-label="正在加载收藏" /> : error && favorites.length === 0 ? <p className="mt-8 rounded-3xl bg-white/60 p-7 text-sm text-muted">{error}</p> : favorites.length === 0 ? <div className="card mt-8 text-center"><h3 className="font-display text-2xl font-semibold">收藏夹还是空的</h3><p className="mt-3 text-sm text-muted">在首页灵感模块点击“收藏”，作品就会出现在这里。</p></div> : <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">{favorites.map((photo) => <article key={photo.id} className="group overflow-hidden rounded-3xl bg-white/80 shadow-card"><a href={photo.source_page_url} target="_blank" rel="noopener noreferrer" aria-label={`查看 ${photo.title} 的原始页面`}><img className="h-72 w-full object-cover transition duration-500 group-hover:scale-[1.02]" src={photo.image_url} alt={`${photo.title}，摄影：${photo.photographer_name}`} width={photo.width || 1200} height={photo.height || 800} loading="lazy" decoding="async" /></a><div className="p-5"><h3 className="line-clamp-1 font-display text-xl font-semibold">{photo.title}</h3><p className="mt-2 text-xs text-muted">摄影：{photo.photographer_name} · {photo.source_name}</p><div className="mt-5 flex items-center justify-between"><span className="text-xs text-muted">{photo.license_code || "来源授权见原页面"}</span><button className="btn-ghost !px-3 !py-1.5" onClick={() => remove(photo)}>取消收藏</button></div></div></article>)}</div>}
-    </section>
-
-    <section id="following" className="mt-16 border-t border-sand pt-10">
-      <p className="section-eyebrow">Following</p><h2 className="mt-2 font-display text-3xl font-semibold">我的关注</h2>
-      <div className="mt-6 rounded-3xl border border-dashed border-brand/40 bg-white/40 p-8 text-sm leading-7 text-muted">社区作者、专题和摄影师关注将在社区内容发布功能上线后接入。当前先保留清晰入口，不创建虚假的关注数据。</div>
-    </section>
-  </main>;
+export default function Community(){
+  const [kind,setKind]=useState('recommended');const [posts,setPosts]=useState<CommunityPost[]>([]);const [cursor,setCursor]=useState<number|null>();const [loading,setLoading]=useState(true);const [error,setError]=useState('');
+  async function load(){setLoading(true);try{const r=await getFeed(kind,cursor||undefined);setPosts(x=>[...x,...r.items.filter(p=>!x.some(a=>a.id===p.id))]);setCursor(r.next_cursor)}catch(e){setError(e instanceof Error?e.message:'加载失败')}finally{setLoading(false)}}
+  useEffect(()=>{setPosts([]);setCursor(undefined);getFeed(kind).then(r=>{setPosts(r.items);setCursor(r.next_cursor)}).catch(e=>setError(e.message)).finally(()=>setLoading(false))},[kind]);
+  return <main className="container-page"><header className="flex flex-col justify-between gap-6 md:flex-row md:items-end"><div><p className="section-eyebrow">LensCoach Community</p><h1 className="page-title mt-2">看见作品，也看见成长</h1><p className="mt-3 text-muted">分享摄影作品、参数与后期思路，获得真实反馈。</p></div><div className="flex gap-2"><Link className="btn-secondary" to="/community/notifications">通知</Link><Link className="btn-primary" to="/community/post/create">发布</Link></div></header><nav className="my-8 flex gap-2 overflow-auto border-b border-sand pb-3">{[['recommended','推荐'],['following','关注'],['latest','最新'],['hot','热门']].map(([v,l])=><button key={v} className={kind===v?'rounded-full bg-brand px-5 py-2 text-sm text-white':'btn-ghost'} onClick={()=>setKind(v)}>{l}</button>)}</nav>{error&&<p className="mb-5 rounded-2xl bg-red-50 p-4 text-sm text-red-700">{error}</p>}{loading&&!posts.length?<div className="columns-2 gap-4 lg:columns-3">{[1,2,3,4,5,6].map(n=><div key={n} className="mb-4 h-72 animate-pulse break-inside-avoid rounded-3xl bg-sand/60"/>)}</div>:posts.length?<><div className="columns-2 gap-4 lg:columns-3">{posts.map(p=><PostCard key={p.id} post={p} onChange={next=>setPosts(x=>x.map(a=>a.id===next.id?next:a))}/>)}</div>{cursor?<button className="btn-secondary mx-auto mt-6 block" disabled={loading} onClick={load}>{loading?'加载中…':'加载更多'}</button>:<p className="py-8 text-center text-sm text-muted">已经看到这里了</p>}</>:<div className="card text-center"><h2 className="font-display text-2xl">还没有摄影帖</h2><p className="mt-2 text-muted">成为第一个分享作品的人吧。</p></div>}</main>
 }
