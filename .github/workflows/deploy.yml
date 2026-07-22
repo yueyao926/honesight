@@ -67,11 +67,17 @@ jobs:
                 location / {
                     proxy_pass http://127.0.0.1:${FRONTEND_PORT};
                     proxy_http_version 1.1;
+                    proxy_connect_timeout 30s;
+                    proxy_send_timeout 360s;
+                    proxy_read_timeout 360s;
+                    send_timeout 360s;
                     proxy_set_header Host \$host;
                     proxy_set_header X-Real-IP \$remote_addr;
                     proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
                     proxy_set_header X-Forwarded-Proto \$scheme;
                 }
+
+                client_max_body_size 10m;
             }
 
             server {
@@ -88,6 +94,8 @@ jobs:
             fi
 
             curl -fsS -H "Host: ${{ secrets.SERVER_HOST }}" http://127.0.0.1/ | grep -q 'id="root"'
+            docker compose -f docker-compose.deploy.yml exec -T backend python -c \
+              'from app.core.config import get_settings; s = get_settings(); print({"image_generation_enabled": s.image_generation_enabled, "image_api_key_configured": bool(s.resolved_image_api_key), "image_model": s.image_model, "image_timeout_seconds": s.image_timeout_seconds})'
             REDIRECT_RESULT="$(curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' -H "Host: ${{ secrets.SERVER_HOST }}:8080" http://127.0.0.1:8080/)"
             if [ "$REDIRECT_RESULT" != "308 http://${{ secrets.SERVER_HOST }}/" ]; then
               echo "Unexpected :8080 redirect: $REDIRECT_RESULT"

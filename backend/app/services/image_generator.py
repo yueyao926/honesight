@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import base64
+import logging
 import mimetypes
 from uuid import uuid4
 
 import httpx
 
 from app.core.config import get_settings
+
+
+logger = logging.getLogger(__name__)
 
 
 class ImageGenerationError(RuntimeError):
@@ -71,8 +75,31 @@ def generate_edited_image(
             data = response.json()
     except httpx.HTTPStatusError as exc:
         detail = _safe_provider_error(exc.response)
-        raise ImageGenerationError(f"图片生成服务返回错误：{detail}") from exc
+        request_id = _provider_request_id(exc.response)
+        logger.warning(
+            "Image provider rejected request: status=%s request_id=%s model=%s detail=%s",
+            exc.response.status_code,
+            request_id or "unknown",
+            settings.image_model,
+            detail,
+        )
+        request_suffix = f"，请求 ID：{request_id}" if request_id else ""
+        raise ImageGenerationError(
+            f"图片生成服务返回错误（HTTP {exc.response.status_code}{request_suffix}）：{detail}"
+        ) from exc
+    except httpx.TimeoutException as exc:
+        logger.warning(
+            "Image provider timed out: model=%s timeout_seconds=%s",
+            settings.image_model,
+            settings.image_timeout_seconds,
+        )
+        raise ImageGenerationError("图片生成服务响应超时，请重试") from exc
     except (httpx.HTTPError, ValueError) as exc:
+        logger.warning(
+            "Image provider connection failed: model=%s error_type=%s",
+            settings.image_model,
+            type(exc).__name__,
+        )
         raise ImageGenerationError("无法连接图片生成服务，请稍后重试") from exc
 
     generated_url = _extract_generated_url(data)
@@ -189,3 +216,22 @@ def _safe_provider_error(response: httpx.Response) -> str:
         if isinstance(data.get("message"), str):
             return data["message"][:300]
     return f"HTTP {response.status_code}"
+
+
+def _provider_request_id(response: httpx.Response) -> str | None:
+    for header in ("x-request-id", "x-tt-logid", "x-volc-request-id"):
+        value = response.headers.get(header)
+        if value:
+            return value[:120]
+    try:
+        data = response.json()
+    except ValueError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    metadata = data.get("ResponseMetadata")
+    if isinstance(metadata, dict):
+        value = metadata.get("RequestId")
+        if isinstance(value, str):
+            return value[:120]
+    return None

@@ -69,11 +69,22 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   }
 
   if (!response.ok) {
-    const data = await response.json().catch(() => null);
+    const responseText = await response.text().catch(() => "");
+    let data: { detail?: unknown } | null = null;
+    if (responseText) {
+      try {
+        data = JSON.parse(responseText) as { detail?: unknown };
+      } catch {
+        data = null;
+      }
+    }
     if (response.status === 500 && !data?.detail) {
       throw new Error("服务器内部错误，请检查数据库是否已启动");
     }
-    throw new Error(formatApiError(data?.detail, "请求失败，请稍后重试"));
+    const fallback = response.status === 504
+      ? "AI 处理超时（HTTP 504），请重试"
+      : `请求失败（HTTP ${response.status}），请稍后重试`;
+    throw new Error(formatApiError(data?.detail, fallback));
   }
 
   if (response.status === 204) {
