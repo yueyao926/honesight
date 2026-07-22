@@ -57,7 +57,8 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers,
-  }).catch(() => {
+  }).catch((error: unknown) => {
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
     throw new Error("无法连接后端服务，请确认后端已启动：uvicorn app.main:app --reload");
   });
 

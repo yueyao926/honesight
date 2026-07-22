@@ -127,6 +127,8 @@ export default function AiStudio() {
   const stepTwoRef = useRef<HTMLElement>(null);
   const stepThreeRef = useRef<HTMLElement>(null);
   const aiPreviewRef = useRef<HTMLDivElement>(null);
+  const analysisControllerRef = useRef<AbortController | null>(null);
+  const analysisRequestIdRef = useRef(0);
 
   useEffect(() => {
     listPortfolio()
@@ -135,9 +137,21 @@ export default function AiStudio() {
         setCollectionChoice(data[0] ? String(data[0].id) : "new");
       })
       .catch(() => setCollections([]));
+
+    return () => {
+      analysisControllerRef.current?.abort();
+    };
   }, []);
 
+  function cancelAnalysis() {
+    analysisRequestIdRef.current += 1;
+    analysisControllerRef.current?.abort();
+    analysisControllerRef.current = null;
+    setLoading(false);
+  }
+
   function handlePhotoChange(url: string | null) {
+    cancelAnalysis();
     setPhotoUrl(url);
     setError("");
     if (!url) {
@@ -172,6 +186,7 @@ export default function AiStudio() {
   }
 
   function invalidateAnalysis() {
+    cancelAnalysis();
     if (analysis) setStep(2);
     setAnalysis(null);
     setGeneratedImageUrls([]);
@@ -183,6 +198,10 @@ export default function AiStudio() {
 
   async function handleAnalyze() {
     if (!photoUrl) return;
+    analysisControllerRef.current?.abort();
+    const controller = new AbortController();
+    const requestId = ++analysisRequestIdRef.current;
+    analysisControllerRef.current = controller;
     setLoading(true);
     setError("");
     try {
@@ -191,15 +210,21 @@ export default function AiStudio() {
         style_reference_image_urls: styleRefs,
         target_style: targetStyle,
         target_platform: targetPlatform,
-      });
+      }, controller.signal);
+      if (requestId !== analysisRequestIdRef.current) return;
       setAnalysis(data);
       setSaveSuccess("");
       setStep(3);
       scrollToStep(stepThreeRef);
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      if (requestId !== analysisRequestIdRef.current) return;
       setError(err instanceof Error ? err.message : "分析失败，请稍后重试");
     } finally {
-      setLoading(false);
+      if (requestId === analysisRequestIdRef.current) {
+        analysisControllerRef.current = null;
+        setLoading(false);
+      }
     }
   }
 
@@ -343,6 +368,7 @@ export default function AiStudio() {
   }
 
   function handleAnotherPhoto() {
+    cancelAnalysis();
     setStep(1);
     setPhotoUrl(null);
     setStyleRefs([]);
@@ -434,7 +460,7 @@ export default function AiStudio() {
                 <button className="btn-primary" type="button" onClick={handleAnalyze} disabled={loading}>
                   {loading ? "正在分析…" : analysis ? "重新分析" : "开始分析"}
                 </button>
-                <button className="btn-ghost" type="button" onClick={() => scrollToStep(stepOneRef)}>更换照片</button>
+                <button className="btn-ghost" type="button" onClick={() => handlePhotoChange(null)}>更换照片</button>
               </div>
 
               {loading && (

@@ -18,10 +18,11 @@ export type PreviewAnalyzePayload = {
   category?: string;
 };
 
-export function previewAnalyze(payload: PreviewAnalyzePayload) {
+export function previewAnalyze(payload: PreviewAnalyzePayload, signal?: AbortSignal) {
   return apiRequest<PhotoAnalysis>("/analyze/preview", {
     method: "POST",
     body: JSON.stringify(payload),
+    signal,
   });
 }
 
