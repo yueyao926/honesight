@@ -50,3 +50,19 @@ export function saveOriginalToPortfolio(payload: {
     body: JSON.stringify(payload),
   });
 }
+
+export type PortfolioPhotoSource = "ai_original" | "quick_preview" | "ai_refined" | "user_improved";
+
+export function savePhotoToPortfolio(payload: {
+  image_url: string;
+  source: PortfolioPhotoSource;
+  title?: string;
+  collection_id?: number;
+  collection_name?: string;
+  tags?: PhotoTag[];
+}) {
+  return apiRequest<{ collection: PortfolioCollection; photo: PortfolioPhoto }>("/portfolio/save-photo", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}

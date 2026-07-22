@@ -11,6 +11,14 @@ import {
 import PhotoUpload from "../components/PhotoUpload";
 import type { PortfolioCollectionDetail, PortfolioPhoto } from "../types";
 
+const sourceLabels: Record<string, string> = {
+  direct_upload: "直接上传",
+  ai_original: "原图",
+  quick_preview: "快速预览",
+  ai_refined: "AI 精修",
+  user_improved: "自主改进",
+};
+
 export default function PortfolioDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -123,7 +131,7 @@ export default function PortfolioDetail() {
         <section className="card mt-8 space-y-7">
           <div>
             <h2 className="font-display text-2xl font-semibold">添加照片</h2>
-            <p className="mt-2 text-sm text-muted">直接上传原图。AI 生成或处理后的效果图不能加入作品集。</p>
+            <p className="mt-2 text-sm text-muted">可上传原图，或你根据建议自行调整后的作品。</p>
             <div className="mt-5 max-w-xl">
               <PhotoUpload value={uploadUrl} onChange={setUploadUrl} label="选择要加入的原图" />
             </div>
@@ -152,7 +160,7 @@ export default function PortfolioDetail() {
       {collection.photos.length === 0 ? (
         <div className="card mt-10 text-center">
           <h2 className="font-display text-2xl font-semibold">这个作品集还是空的</h2>
-          <p className="mt-3 text-sm text-muted">打开管理功能上传原图，或在 AI 工作室分析后保存原图。</p>
+          <p className="mt-3 text-sm text-muted">打开管理功能上传作品，或从 AI 工作室保存原图、快速预览和 AI 精修版本。</p>
           {!managing && <button className="btn-primary mt-6" type="button" onClick={() => setManaging(true)}>添加照片</button>}
         </div>
       ) : (
@@ -162,6 +170,9 @@ export default function PortfolioDetail() {
               <button className="block w-full" type="button" onClick={() => !managing && setSelectedPhoto(photo)}>
                 <img className="h-72 w-full object-cover transition group-hover:scale-[1.02]" src={getAssetUrl(photo.image_url)} alt="作品照片" />
               </button>
+              <span className="absolute bottom-3 left-3 rounded-full bg-ink/75 px-3 py-1 text-xs text-white">
+                {sourceLabels[photo.source] || "作品"}
+              </span>
               {managing && (
                 <button
                   className="absolute right-3 top-3 rounded-full bg-ink/80 px-4 py-2 text-xs text-white"

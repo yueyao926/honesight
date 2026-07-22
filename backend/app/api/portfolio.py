@@ -17,6 +17,7 @@ from app.schemas.portfolio import (
     PortfolioCollectionRead,
     PortfolioCollectionUpdate,
     PortfolioPhotoRead,
+    SavePhotoToPortfolioRequest,
     SaveOriginalToPortfolioRequest,
     SaveOriginalToPortfolioResponse,
 )
@@ -59,13 +60,18 @@ def _collection_dict(collection: PortfolioCollection, *, include_photos: bool = 
     return result
 
 
-def _validate_original_image(image_url: str, user_id: int) -> None:
-    """Only accept this user's uploaded originals; generated files are never eligible."""
+def _validate_portfolio_image(image_url: str, user_id: int, source: str) -> None:
+    """Accept only files owned by this user and keep generated-file provenance honest."""
     if not image_url.startswith("/uploads/"):
-        raise HTTPException(status_code=400, detail="只能保存已上传的原始照片")
+        raise HTTPException(status_code=400, detail="只能保存已上传或生成的站内图片")
     filename = Path(image_url).name
-    if "_generated_" in filename or not filename.startswith(f"{user_id}_"):
-        raise HTTPException(status_code=400, detail="AI 处理后的图片不能加入作品集")
+    is_generated = "_generated_" in filename
+    if not filename.startswith(f"{user_id}_"):
+        raise HTTPException(status_code=400, detail="不能保存其他用户的图片")
+    if source == "ai_refined" and not is_generated:
+        raise HTTPException(status_code=400, detail="找不到对应的 AI 精修图")
+    if source != "ai_refined" and is_generated:
+        raise HTTPException(status_code=400, detail="AI 精修图必须使用正确的来源标记")
     image_path = (get_settings().upload_path / filename).resolve()
     upload_root = get_settings().upload_path.resolve()
     if upload_root not in image_path.parents or not image_path.is_file():
@@ -79,7 +85,7 @@ def _append_photo(
     source: str,
     db: Session,
 ) -> PortfolioItem:
-    _validate_original_image(payload.image_url, user_id)
+    _validate_portfolio_image(payload.image_url, user_id, source)
     photo = PortfolioItem(
         user_id=user_id,
         collection_id=collection.id,
@@ -140,14 +146,28 @@ def save_original_to_portfolio(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    # Validate before creating an inline collection so a rejected generated image
-    # cannot leave an unintended empty collection behind.
-    _validate_original_image(payload.image_url, current_user.id)
+    _validate_portfolio_image(payload.image_url, current_user.id, "ai_original")
     if payload.collection_id:
         collection = _get_owned_collection(payload.collection_id, current_user.id, db)
     else:
         collection = _create_collection(payload.collection_name or "未命名作品集", current_user.id, db)
     photo = _append_photo(collection, payload, current_user.id, "ai_original", db)
+    collection = _get_owned_collection(collection.id, current_user.id, db)
+    return {"collection": _collection_dict(collection), "photo": photo}
+
+
+@router.post("/save-photo", response_model=SaveOriginalToPortfolioResponse, status_code=status.HTTP_201_CREATED)
+def save_photo_to_portfolio(
+    payload: SavePhotoToPortfolioRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    _validate_portfolio_image(payload.image_url, current_user.id, payload.source)
+    if payload.collection_id:
+        collection = _get_owned_collection(payload.collection_id, current_user.id, db)
+    else:
+        collection = _create_collection(payload.collection_name or "未命名作品集", current_user.id, db)
+    photo = _append_photo(collection, payload, current_user.id, payload.source, db)
     collection = _get_owned_collection(collection.id, current_user.id, db)
     return {"collection": _collection_dict(collection), "photo": photo}
 

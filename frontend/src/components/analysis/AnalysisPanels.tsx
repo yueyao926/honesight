@@ -16,6 +16,36 @@ const quickQuestions = [
   "帮我生成一段小红书文案。",
 ];
 
+const platformFieldLabels: Record<string, string> = {
+  aspect_ratio: "画面比例",
+  aspectRatio: "画面比例",
+  ratio: "画面比例",
+  crop: "裁切建议",
+  crop_suggestion: "裁切建议",
+  caption: "文案方向",
+  caption_style: "文案方向",
+  hashtags: "话题标签",
+  posting_time: "发布时间",
+  publish_time: "发布时间",
+  color_strategy: "色彩策略",
+  audience: "目标受众",
+  layout: "版式建议",
+  resolution: "分辨率",
+  format: "文件格式",
+  cover: "封面建议",
+  cover_advice: "封面建议",
+  caption_advice: "文案建议",
+  editing_focus: "修图重点",
+  recommended_ratio: "推荐比例",
+  selection_advice: "选片建议",
+  series_advice: "系列建议",
+};
+
+function getPlatformFieldLabel(key: string) {
+  if (platformFieldLabels[key]) return platformFieldLabels[key];
+  return /[\u4e00-\u9fff]/.test(key) ? key : "补充建议";
+}
+
 export function BenchmarkOverview({ analysis }: { analysis: PhotoAnalysis }) {
   return (
     <div className="card">
@@ -157,7 +187,7 @@ export function PlatformPanel({ analysis }: { analysis: PhotoAnalysis }) {
             <h3 className="font-medium">{platform}</h3>
             <div className="mt-3 space-y-2 text-sm text-muted">
               {Object.entries(suggestion as Record<string, string>).map(([key, value]) => (
-                <p key={key}><span className="text-ink">{key}：</span>{value}</p>
+                <p key={key}><span className="text-ink">{getPlatformFieldLabel(key)}：</span>{value}</p>
               ))}
             </div>
           </div>

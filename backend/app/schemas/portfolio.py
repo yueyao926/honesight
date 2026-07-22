@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -105,6 +106,10 @@ class SaveOriginalToPortfolioRequest(AddPortfolioPhotoRequest):
         if self.collection_name:
             self.collection_name = self.collection_name.strip()
         return self
+
+
+class SavePhotoToPortfolioRequest(SaveOriginalToPortfolioRequest):
+    source: Literal["ai_original", "quick_preview", "ai_refined", "user_improved"]
 
 
 class SaveOriginalToPortfolioResponse(BaseModel):
