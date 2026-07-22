@@ -1,5 +1,6 @@
 import { FormEvent, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import BackHomeLink from "../components/BackHomeLink";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function Login() {
@@ -30,7 +31,8 @@ export default function Login() {
   return (
     <main className="container-page flex min-h-[70vh] items-center justify-center">
       <div className="card w-full max-w-md animate-fade-up">
-        <p className="section-eyebrow">Welcome back</p>
+        <BackHomeLink />
+        <p className="section-eyebrow mt-6">Welcome back</p>
         <h1 className="mt-2 font-display text-4xl font-semibold">登录</h1>
         <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
           <div>

@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import DailyInspirationSection from "../components/DailyInspirationSection";
+import ContactSection from "../components/ContactSection";
 import { useAuth } from "../contexts/AuthContext";
 
 const productSteps = [
@@ -143,6 +144,7 @@ export function LandingHome({ isAuthenticated }: { isAuthenticated: boolean }) {
       <div id="daily-inspiration" className="scroll-mt-20">
         <DailyInspirationSection />
       </div>
+      <ContactSection />
     </main>
   );
 }

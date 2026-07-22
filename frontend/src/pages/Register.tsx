@@ -1,6 +1,7 @@
 import { FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { register } from "../api/auth";
+import BackHomeLink from "../components/BackHomeLink";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function Register() {
@@ -35,7 +36,8 @@ export default function Register() {
   return (
     <main className="container-page flex min-h-[70vh] items-center justify-center">
       <div className="card w-full max-w-md animate-fade-up">
-        <p className="section-eyebrow">Join us</p>
+        <BackHomeLink />
+        <p className="section-eyebrow mt-6">Join us</p>
         <h1 className="mt-2 font-display text-4xl font-semibold">创建账号</h1>
         <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
           <div><label className="label">用户名</label><input className="input" name="username" required /></div>

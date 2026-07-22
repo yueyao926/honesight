@@ -36,7 +36,7 @@ export default function Layout() {
       </header>
       <Outlet />
       <footer className="border-t border-sand/50 py-8 text-center text-xs text-muted">
-        LensCoach · 陪你建立稳定的摄影成长路径
+        LensCoach · 陪你建立稳定的摄影成长路径 · <a className="transition hover:text-ink" href="/#contact">联系我们</a>
       </footer>
     </div>
   );
