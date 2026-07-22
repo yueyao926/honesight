@@ -2,7 +2,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -11,6 +11,7 @@ from app.core.config import get_settings
 from app.database import get_db
 from app.models.portfolio import PortfolioFavorite, PortfolioItem
 from app.models.profile import UserFollow, UserPrivacySetting
+from app.models.community import Notification, UserBlock
 from app.models.user import User
 from app.schemas.portfolio import PortfolioPhotoRead, PortfolioPhotoUpdate
 from app.schemas.profile import PrivacyPayload, ProfileRead, ProfileUpdate
@@ -159,7 +160,16 @@ def unfavorite(work_id: int, current_user: User = Depends(get_current_user), db:
 @router.post("/users/{user_id}/follow", status_code=status.HTTP_201_CREATED)
 def follow(user_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
     if user_id == current_user.id: raise HTTPException(status_code=400, detail="不能关注自己")
-    _active_user(user_id, db); db.add(UserFollow(follower_id=current_user.id, following_id=user_id))
+    _active_user(user_id, db)
+    if db.scalar(select(UserBlock.id).where(or_(
+        (UserBlock.blocker_id == current_user.id) & (UserBlock.blocked_id == user_id),
+        (UserBlock.blocker_id == user_id) & (UserBlock.blocked_id == current_user.id),
+    ))):
+        raise HTTPException(status_code=403, detail="拉黑关系下不能关注")
+    db.add(UserFollow(follower_id=current_user.id, following_id=user_id))
+    privacy = db.scalar(select(UserPrivacySetting).where(UserPrivacySetting.user_id == user_id))
+    if not privacy or privacy.allow_follow_notifications:
+        db.add(Notification(recipient_id=user_id, actor_id=current_user.id, notification_type="follow"))
     try: db.commit()
     except IntegrityError: db.rollback()
     return {"following": True}

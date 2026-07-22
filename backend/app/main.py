@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 
-from app.api import analyze, auth, image_process, inspiration, portfolio, preferences, profile, upload
+from app.api import analyze, auth, community, image_process, inspiration, messages, portfolio, preferences, profile, search, upload
 from app.core.config import get_settings
 from app.services.vision_analyzer import VisionAnalysisError
 
@@ -36,6 +36,9 @@ app.include_router(profile.router)
 app.include_router(analyze.router)
 app.include_router(inspiration.router)
 app.include_router(image_process.router)
+app.include_router(community.router)
+app.include_router(messages.router)
+app.include_router(search.router)
 
 
 @app.get("/health")
