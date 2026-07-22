@@ -101,11 +101,14 @@ export default function AiStudio() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [generatingImage, setGeneratingImage] = useState(false);
-  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
+  const [generatedImageUrls, setGeneratedImageUrls] = useState<string[]>([]);
+  const [selectedGeneratedImageUrl, setSelectedGeneratedImageUrl] = useState<string | null>(null);
+  const [refinementInstructions, setRefinementInstructions] = useState<string[]>([]);
   const [editInstruction, setEditInstruction] = useState("");
   const stepOneRef = useRef<HTMLElement>(null);
   const stepTwoRef = useRef<HTMLElement>(null);
   const stepThreeRef = useRef<HTMLElement>(null);
+  const aiPreviewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     listPortfolio()
@@ -122,13 +125,42 @@ export default function AiStudio() {
     if (!url) {
       setStep(1);
       setAnalysis(null);
-      setGeneratedImageUrl(null);
+      setGeneratedImageUrls([]);
+      setSelectedGeneratedImageUrl(null);
+      setRefinementInstructions([]);
       return;
     }
     setStep(2);
     setAnalysis(null);
-    setGeneratedImageUrl(null);
+    setGeneratedImageUrls([]);
+    setSelectedGeneratedImageUrl(null);
+    setRefinementInstructions([]);
     scrollToStep(stepTwoRef);
+  }
+
+  function handleTargetStyleChange(value: string) {
+    setTargetStyle(value);
+    invalidateAnalysis();
+  }
+
+  function handleTargetPlatformChange(value: string) {
+    setTargetPlatform(value);
+    invalidateAnalysis();
+  }
+
+  function handleStyleRefsChange(urls: string[]) {
+    setStyleRefs(urls);
+    invalidateAnalysis();
+  }
+
+  function invalidateAnalysis() {
+    if (analysis) setStep(2);
+    setAnalysis(null);
+    setGeneratedImageUrls([]);
+    setSelectedGeneratedImageUrl(null);
+    setRefinementInstructions([]);
+    setEditInstruction("");
+    setError("");
   }
 
   async function handleAnalyze() {
@@ -206,6 +238,8 @@ export default function AiStudio() {
 
   async function handleGenerateImage() {
     if (!photoUrl) return;
+    const currentInstruction = editInstruction.trim();
+    if (generatedImageUrls.length > 0 && !currentInstruction) return;
     setGeneratingImage(true);
     setError("");
     try {
@@ -227,10 +261,16 @@ export default function AiStudio() {
         ]
           .filter(Boolean)
           .join("\n"),
-        edit_instruction: editInstruction.trim() || undefined,
+        edit_instruction: [...refinementInstructions, currentInstruction].filter(Boolean).join("；") || undefined,
         reference_image_urls: styleRefs,
       });
-      setGeneratedImageUrl(result.image_url);
+      setGeneratedImageUrls((current) => [...current, result.image_url]);
+      setSelectedGeneratedImageUrl(result.image_url);
+      if (currentInstruction) {
+        setRefinementInstructions((current) => [...current, currentInstruction]);
+      }
+      setEditInstruction("");
+      scrollToStep(aiPreviewRef);
     } catch (err) {
       setError(err instanceof Error ? err.message : "图片生成失败，请稍后重试");
     } finally {
@@ -243,7 +283,9 @@ export default function AiStudio() {
     setPhotoUrl(null);
     setStyleRefs([]);
     setAnalysis(null);
-    setGeneratedImageUrl(null);
+    setGeneratedImageUrls([]);
+    setSelectedGeneratedImageUrl(null);
+    setRefinementInstructions([]);
     setEditInstruction("");
     setShowSaveForm(false);
     setSaveSuccess("");
@@ -288,24 +330,31 @@ export default function AiStudio() {
               <div className="mt-7 grid gap-4 md:grid-cols-2">
                 <label>
                   <span className="label">目标风格</span>
-                  <select className="input" value={targetStyle} onChange={(event) => setTargetStyle(event.target.value)}>
+                  <select className="input" value={targetStyle} onChange={(event) => handleTargetStyleChange(event.target.value)}>
                     {targetStyles.map((style) => <option key={style} value={style}>{style}</option>)}
                   </select>
                 </label>
                 <label>
                   <span className="label">发布平台</span>
-                  <select className="input" value={targetPlatform} onChange={(event) => setTargetPlatform(event.target.value)}>
+                  <select className="input" value={targetPlatform} onChange={(event) => handleTargetPlatformChange(event.target.value)}>
                     {targetPlatforms.map((platform) => <option key={platform} value={platform}>{platform}</option>)}
                   </select>
                 </label>
               </div>
+
+              <ExpectedEffectPreview
+                compact
+                imageUrl={photoUrl}
+                targetStyle={targetStyle}
+                targetPlatform={targetPlatform}
+              />
 
               <div className="mt-7 border-t border-sand/70 pt-6">
                 <div className="mb-4">
                   <p className="label mb-1">参考图（可选）</p>
                   <p className="text-xs text-muted">添加喜欢的样片，让建议更接近你的目标。</p>
                 </div>
-                <StyleReferenceUpload value={styleRefs} onChange={setStyleRefs} maxFiles={3} />
+                <StyleReferenceUpload value={styleRefs} onChange={handleStyleRefsChange} maxFiles={3} />
               </div>
 
               <div className="mt-7 flex flex-wrap items-center gap-3">
@@ -332,34 +381,68 @@ export default function AiStudio() {
           {analysis && photoUrl ? (
             <div className="space-y-5 animate-fade-up">
               <BenchmarkOverview analysis={analysis} />
-              <ExpectedEffectPreview
-                imageUrl={photoUrl}
-                generatedImageUrl={generatedImageUrl}
-                targetStyle={targetStyle}
-                description={analysis.expected_effect_description || ""}
-                referenceUrls={analysis.style_reference_image_urls || styleRefs}
-              />
+              <div ref={aiPreviewRef} className="scroll-mt-24">
+                <ExpectedEffectPreview
+                  imageUrl={photoUrl}
+                  targetStyle={targetStyle}
+                  targetPlatform={targetPlatform}
+                  description={analysis.expected_effect_description || ""}
+                  referenceUrls={analysis.style_reference_image_urls || styleRefs}
+                  generatedImageUrls={generatedImageUrls}
+                  selectedGeneratedImageUrl={selectedGeneratedImageUrl}
+                  onSelectGeneratedImage={setSelectedGeneratedImageUrl}
+                />
+              </div>
               <DimensionCards analysis={analysis} />
               <AdvicePanel analysis={analysis} />
               <ParamsPanel analysis={analysis} />
               <StylePanel analysis={analysis} />
               <PlatformPanel analysis={analysis} />
               <div className="card-soft">
-                <p className="section-eyebrow">生成效果图</p>
-                <h2 className="mt-1 font-display text-2xl font-semibold">看看调整后的样子</h2>
+                <p className="section-eyebrow">AI 精修</p>
+                <h2 className="mt-1 font-display text-2xl font-semibold">
+                  {generatedImageUrls.length ? "继续告诉 AI 你想怎么改" : "让 AI 完成细节处理"}
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-muted">
+                  {generatedImageUrls.length
+                    ? "新的要求会与之前的要求一起应用，并保留已有版本。"
+                    : "AI 会结合目标风格、平台和分析建议完成第一次精修。"}
+                </p>
                 <div className="mt-4">
-                  <label className="label">补充要求（可选）</label>
+                  <label className="label">{generatedImageUrls.length ? "新的修改要求" : "补充要求（可选）"}</label>
                   <textarea
                     className="input min-h-24"
                     value={editInstruction}
                     onChange={(event) => setEditInstruction(event.target.value)}
-                    placeholder="例如：降低高光，保留自然肤色，增加一点胶片颗粒"
+                    placeholder={generatedImageUrls.length
+                      ? "例如：再降低一点高光，让肤色更自然"
+                      : "例如：降低高光，保留自然肤色，增加一点胶片颗粒"}
                     maxLength={600}
                   />
                 </div>
-                <button className="btn-primary mt-4" type="button" onClick={handleGenerateImage} disabled={generatingImage}>
-                  {generatingImage ? "正在生成，可能需要 1–2 分钟…" : generatedImageUrl ? "重新生成" : "生成效果图"}
+                {refinementInstructions.length > 0 && (
+                  <div className="mt-4 rounded-2xl bg-white/55 p-4">
+                    <p className="text-xs font-medium text-muted">已应用的要求</p>
+                    <ol className="mt-2 space-y-1 text-sm text-ink">
+                      {refinementInstructions.map((instruction, index) => (
+                        <li key={`${instruction}-${index}`}>{index + 1}. {instruction}</li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+                <button
+                  className="btn-primary mt-4"
+                  type="button"
+                  onClick={handleGenerateImage}
+                  disabled={generatingImage || (generatedImageUrls.length > 0 && !editInstruction.trim())}
+                >
+                  {generatingImage
+                    ? "AI 正在精修，可能需要 1–5 分钟…"
+                    : generatedImageUrls.length ? "生成新版本" : "开始 AI 精修"}
                 </button>
+                {generatedImageUrls.length > 0 && !editInstruction.trim() && (
+                  <p className="mt-2 text-xs text-muted">写下新的修改要求后即可继续精修。</p>
+                )}
               </div>
 
               <div className="card-soft">

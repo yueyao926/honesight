@@ -46,8 +46,9 @@ export function DimensionCards({ analysis }: { analysis: PhotoAnalysis }) {
   return (
     <section>
       <div className="mb-4">
-        <p className="section-eyebrow">四维评分</p>
+        <p className="section-eyebrow">AI 四维评分</p>
         <h2 className="mt-1 font-display text-2xl font-semibold">曝光、对焦、构图、色彩</h2>
+        <p className="mt-2 text-xs text-muted">各维度由 AI 根据原图评估，综合分按照片类型加权计算。</p>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         {dimensions.map(([key, label]) => {
