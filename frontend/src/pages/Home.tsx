@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import DailyInspirationSection from "../components/DailyInspirationSection";
 import { useAuth } from "../contexts/AuthContext";
+import Dashboard from "./Dashboard";
 
 const productSteps = [
   {
@@ -100,72 +101,6 @@ function GuestHero() {
   );
 }
 
-function MemberHome({ username }: { username: string }) {
-  return (
-    <section className="container-page py-12 lg:py-20">
-      <header className="animate-fade-up max-w-3xl">
-        <p className="section-eyebrow">欢迎回来，{username}</p>
-        <h1 className="mt-3 font-display text-5xl font-semibold leading-[1.08] sm:text-6xl">今天，想从哪张照片开始？</h1>
-        <p className="mt-5 text-base leading-8 text-muted">选一条顺手的路径，让新的想法自然发生。</p>
-      </header>
-
-      <div className="mt-10 grid gap-5 lg:grid-cols-[1.35fr_0.65fr] lg:grid-rows-2">
-        <Link
-          to="/ai"
-          className="group relative min-h-[32rem] overflow-hidden rounded-[2rem] bg-ink text-white shadow-card lg:row-span-2"
-        >
-          <img
-            className="absolute inset-0 h-full w-full object-cover opacity-75 transition duration-700 group-hover:scale-[1.03] group-hover:opacity-85"
-            src="/images/ai-goal-analysis-rainy-night.jpg"
-            alt="进入 AI 工作室"
-            width="900"
-            height="1125"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/15 to-black/20" />
-          <div className="relative flex h-full min-h-[32rem] flex-col justify-between p-7 sm:p-10">
-            <div className="flex flex-wrap gap-2 text-xs text-white/75">
-              <span className="rounded-full border border-white/25 bg-black/15 px-3 py-1.5 backdrop-blur">设置目标</span>
-              <span className="rounded-full border border-white/25 bg-black/15 px-3 py-1.5 backdrop-blur">四维分析</span>
-              <span className="rounded-full border border-white/25 bg-black/15 px-3 py-1.5 backdrop-blur">AI 精修</span>
-            </div>
-            <div className="max-w-xl">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/60">AI Studio</p>
-              <h2 className="mt-3 font-display text-4xl font-semibold leading-tight sm:text-5xl">带上一张照片，<br />把脑海里的画面做出来。</h2>
-              <div className="mt-6 inline-flex items-center gap-3 rounded-full bg-white px-5 py-3 text-sm font-medium text-ink transition group-hover:gap-5">
-                开始创作 <span aria-hidden="true">→</span>
-              </div>
-            </div>
-          </div>
-        </Link>
-
-        <Link
-          to="/portfolio"
-          className="group card relative flex min-h-60 flex-col overflow-hidden bg-blush/65 transition duration-300 hover:-translate-y-1"
-        >
-          <div className="absolute -right-8 -top-10 font-display text-[9rem] font-semibold leading-none text-white/55">01</div>
-          <div className="relative mt-auto">
-            <p className="section-eyebrow">我的作品集</p>
-            <h2 className="mt-2 font-display text-3xl font-semibold">回到喜欢的版本，看看自己走了多远。</h2>
-            <p className="mt-4 text-sm font-medium text-brand-deep transition group-hover:translate-x-1">打开作品集 →</p>
-          </div>
-        </Link>
-
-        <a
-          href="#daily-inspiration"
-          className="group card relative flex min-h-60 flex-col overflow-hidden bg-sand/70 transition duration-300 hover:-translate-y-1"
-        >
-          <div className="absolute -right-8 -top-10 font-display text-[9rem] font-semibold leading-none text-white/70">02</div>
-          <div className="relative mt-auto">
-            <p className="section-eyebrow">今日灵感</p>
-            <h2 className="mt-2 font-display text-3xl font-semibold">暂时不想修图，也可以先看一张好照片。</h2>
-            <p className="mt-4 text-sm font-medium text-brand-deep transition group-hover:translate-x-1">向下看看 →</p>
-          </div>
-        </a>
-      </div>
-    </section>
-  );
-}
-
 function ProductJourney() {
   return (
     <section id="how-it-works" className="container-page scroll-mt-24 pb-20 pt-4 lg:pb-28">
@@ -202,12 +137,14 @@ function ProductJourney() {
 }
 
 export default function Home() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
+
+  if (isAuthenticated) return <Dashboard />;
 
   return (
     <main>
-      {isAuthenticated ? <MemberHome username={user?.username || "摄影师"} /> : <GuestHero />}
-      {!isAuthenticated && <ProductJourney />}
+      <GuestHero />
+      <ProductJourney />
       <div id="daily-inspiration" className="scroll-mt-20">
         <DailyInspirationSection />
       </div>

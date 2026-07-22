@@ -23,6 +23,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
           script: |
+            set -euo pipefail
             BRANCH="${{ github.event.inputs.branch || 'main' }}"
 
             # 首次部署：如果目录不存在则克隆
@@ -52,7 +53,18 @@ jobs:
               exit 1
             fi
 
-            curl -fsS "http://127.0.0.1:${FRONTEND_PORT}/" | grep -q 'id="root"'
+            FRONTEND_READY=0
+            for ATTEMPT in $(seq 1 15); do
+              if curl -fsS "http://127.0.0.1:${FRONTEND_PORT}/" | grep -q 'id="root"'; then
+                FRONTEND_READY=1
+                break
+              fi
+              sleep 2
+            done
+            if [ "$FRONTEND_READY" -ne 1 ]; then
+              echo "❌ 前端容器启动超时"
+              exit 1
+            fi
 
             if command -v nginx >/dev/null 2>&1; then
               # 部署用户可管理 Docker，但没有免密 sudo。使用一次性维护容器
@@ -93,7 +105,12 @@ jobs:
                 nsenter -t 1 -m -u -i -n -p -- nginx -s reload
             fi
 
-            curl -fsS -H "Host: ${{ secrets.SERVER_HOST }}" http://127.0.0.1/ | grep -q 'id="root"'
+            EXPECTED_INDEX_SHA="$(docker compose -f docker-compose.deploy.yml exec -T frontend sha256sum /usr/share/nginx/html/index.html | awk '{print $1}')"
+            PUBLIC_INDEX_SHA="$(curl -fsS -H "Host: ${{ secrets.SERVER_HOST }}" http://127.0.0.1/ | sha256sum | awk '{print $1}')"
+            if [ "$PUBLIC_INDEX_SHA" != "$EXPECTED_INDEX_SHA" ]; then
+              echo "❌ 公网入口没有返回当前前端容器的版本"
+              exit 1
+            fi
             docker compose -f docker-compose.deploy.yml exec -T backend python -c \
               'from app.core.config import get_settings; s = get_settings(); print({"image_generation_enabled": s.image_generation_enabled, "image_api_key_configured": bool(s.resolved_image_api_key), "image_model": s.image_model, "image_timeout_seconds": s.image_timeout_seconds})'
             REDIRECT_RESULT="$(curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' -H "Host: ${{ secrets.SERVER_HOST }}:8080" http://127.0.0.1:8080/)"
