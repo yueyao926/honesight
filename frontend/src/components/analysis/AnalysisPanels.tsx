@@ -106,10 +106,8 @@ export function StylePanel({ analysis }: { analysis: PhotoAnalysis }) {
   return (
     <div className="card">
       <p className="section-eyebrow">风格判断</p>
-      <div className="mt-4 grid gap-4 md:grid-cols-3">
+      <div className="mt-4">
         <Metric label="当前风格" value={analysis.detected_style} small />
-        <Metric label="置信度" value={`${Math.round(analysis.style_confidence * 100)}%`} small />
-        <Metric label="目标匹配" value={analysis.target_style_match_score} />
       </div>
       <p className="mt-4 text-sm leading-7 text-muted">{analysis.style_reasoning}</p>
     </div>
