@@ -124,7 +124,6 @@ export default function AiStudio() {
   const [refinementInstructions, setRefinementInstructions] = useState<string[]>([]);
   const [editInstruction, setEditInstruction] = useState("");
   const [improvedPhotoUrl, setImprovedPhotoUrl] = useState<string | null>(null);
-  const [improvedPhotoTitle, setImprovedPhotoTitle] = useState("");
   const stepOneRef = useRef<HTMLElement>(null);
   const stepTwoRef = useRef<HTMLElement>(null);
   const stepThreeRef = useRef<HTMLElement>(null);
@@ -251,7 +250,6 @@ export default function AiStudio() {
       setSaveCandidate(null);
       if (saveCandidate.source === "user_improved") {
         setImprovedPhotoUrl(null);
-        setImprovedPhotoTitle("");
       }
       setSaveSuccess(`${sourceLabels[saveCandidate.source]}已保存到“${result.collection.name}”`);
     } catch (err) {
@@ -265,6 +263,23 @@ export default function AiStudio() {
     setSaveError("");
     setSaveSuccess("");
     setSaveCandidate(candidate);
+  }
+
+  function handleImprovedPhotoChange(imageUrl: string | null) {
+    setImprovedPhotoUrl(imageUrl);
+    if (imageUrl) {
+      openSaveCandidate({
+        imageUrl,
+        source: "user_improved",
+        title: "改进后的作品",
+      });
+    }
+  }
+
+  function closeSaveDialog() {
+    if (saveCandidate?.source === "user_improved") setImprovedPhotoUrl(null);
+    setSaveCandidate(null);
+    setSaveError("");
   }
 
   async function handleSaveQuickPreview() {
@@ -328,7 +343,7 @@ export default function AiStudio() {
     }
   }
 
-  function handleRestart() {
+  function handleAnotherPhoto() {
     setStep(1);
     setPhotoUrl(null);
     setStyleRefs([]);
@@ -341,7 +356,6 @@ export default function AiStudio() {
     setSaveSuccess("");
     setSaveError("");
     setImprovedPhotoUrl(null);
-    setImprovedPhotoTitle("");
     setError("");
     scrollToStep(stepOneRef);
   }
@@ -517,31 +531,9 @@ export default function AiStudio() {
                 <h2 className="mt-1 font-display text-2xl font-semibold">把你根据建议调整后的照片加入作品集</h2>
                 <p className="mt-2 text-sm leading-6 text-muted">你可以在其他修图工具中实践这些建议，再把最终作品上传回来留档。</p>
                 <div className="mt-5 max-w-xl">
-                  <PhotoUpload value={improvedPhotoUrl} onChange={setImprovedPhotoUrl} label="上传改进后的照片" />
+                  <PhotoUpload value={improvedPhotoUrl} onChange={handleImprovedPhotoChange} label="上传改进后的照片" />
                 </div>
-                {improvedPhotoUrl && (
-                  <div className="mt-4 flex max-w-xl flex-col gap-3 sm:flex-row">
-                    <input
-                      className="input"
-                      value={improvedPhotoTitle}
-                      onChange={(event) => setImprovedPhotoTitle(event.target.value)}
-                      placeholder="作品名称（可选）"
-                      maxLength={120}
-                    />
-                    <button
-                      className="btn-primary shrink-0"
-                      type="button"
-                      onClick={() => openSaveCandidate({
-                        imageUrl: improvedPhotoUrl,
-                        source: "user_improved",
-                        title: improvedPhotoTitle.trim() || "改进后的作品",
-                      })}
-                    >
-                      保存到作品集
-                    </button>
-                  </div>
-                )}
-                <button className="btn-ghost mt-5" type="button" onClick={handleRestart}>重新开始</button>
+                <button className="btn-ghost mt-5" type="button" onClick={handleAnotherPhoto}>再来一张</button>
               </div>
               {error && step === 3 && <p className="text-sm text-red-500">{error}</p>}
             </div>
@@ -591,7 +583,7 @@ export default function AiStudio() {
             {saveError && <p className="text-sm text-red-500">{saveError}</p>}
             <div className="flex gap-3">
               <button className="btn-primary" type="submit" disabled={saving}>{saving ? "保存中..." : "确认保存"}</button>
-              <button className="btn-secondary" type="button" onClick={() => setSaveCandidate(null)} disabled={saving}>取消</button>
+              <button className="btn-secondary" type="button" onClick={closeSaveDialog} disabled={saving}>取消</button>
             </div>
           </form>
         </div>
