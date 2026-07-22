@@ -11,7 +11,6 @@ import {
   BenchmarkOverview,
   DimensionCards,
   ParamsPanel,
-  PlatformPanel,
   StylePanel,
 } from "../components/analysis/AnalysisPanels";
 import ExpectedEffectPreview from "../components/ExpectedEffectPreview";
@@ -454,7 +453,7 @@ export default function AiStudio() {
         <StepSection number={3} title={steps[2]} state={step === 3 ? "active" : "pending"} sectionRef={stepThreeRef}>
           {analysis && photoUrl ? (
             <div className="space-y-5 animate-fade-up">
-              <BenchmarkOverview analysis={analysis} />
+              <BenchmarkOverview analysis={analysis} targetPlatform={targetPlatform} />
               <div ref={aiPreviewRef} className="scroll-mt-24">
                 <ExpectedEffectPreview
                   imageUrl={photoUrl}
@@ -478,7 +477,6 @@ export default function AiStudio() {
               <AdvicePanel analysis={analysis} />
               <ParamsPanel analysis={analysis} />
               <StylePanel analysis={analysis} />
-              <PlatformPanel analysis={analysis} />
               <div className="card-soft">
                 <p className="section-eyebrow">AI 精修</p>
                 <h2 className="mt-1 font-display text-2xl font-semibold">

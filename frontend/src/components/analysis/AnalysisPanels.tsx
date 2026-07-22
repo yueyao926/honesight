@@ -16,37 +16,24 @@ const quickQuestions = [
   "帮我生成一段小红书文案。",
 ];
 
-const platformFieldLabels: Record<string, string> = {
-  aspect_ratio: "画面比例",
-  aspectRatio: "画面比例",
-  ratio: "画面比例",
-  crop: "裁切建议",
-  crop_suggestion: "裁切建议",
-  caption: "文案方向",
-  caption_style: "文案方向",
-  hashtags: "话题标签",
-  posting_time: "发布时间",
-  publish_time: "发布时间",
-  color_strategy: "色彩策略",
-  audience: "目标受众",
-  layout: "版式建议",
-  resolution: "分辨率",
-  format: "文件格式",
-  cover: "封面建议",
-  cover_advice: "封面建议",
-  caption_advice: "文案建议",
-  editing_focus: "修图重点",
-  recommended_ratio: "推荐比例",
-  selection_advice: "选片建议",
-  series_advice: "系列建议",
-};
-
-function getPlatformFieldLabel(key: string) {
-  if (platformFieldLabels[key]) return platformFieldLabels[key];
-  return /[\u4e00-\u9fff]/.test(key) ? key : "补充建议";
+function buildPublishingAdvice(analysis: PhotoAnalysis, targetPlatform: string) {
+  const entries = Object.entries(analysis.platform_suggestions || {});
+  const aliases: Record<string, string[]> = {
+    微信朋友圈: ["微信朋友圈", "朋友圈"],
+  };
+  const acceptedNames = aliases[targetPlatform] || [targetPlatform];
+  const selected = entries.find(([platform]) => acceptedNames.includes(platform))
+    || (entries.length === 1 ? entries[0] : undefined);
+  if (!selected) return "";
+  const [platform, suggestions] = selected;
+  const advice = [...new Set(Object.values(suggestions).map((value) => String(value).trim()).filter(Boolean))]
+    .map((value) => value.replace(/[。；;]+$/, ""))
+    .join("；");
+  return advice ? `${platform}发布建议：${advice}。` : "";
 }
 
-export function BenchmarkOverview({ analysis }: { analysis: PhotoAnalysis }) {
+export function BenchmarkOverview({ analysis, targetPlatform }: { analysis: PhotoAnalysis; targetPlatform: string }) {
+  const publishingAdvice = buildPublishingAdvice(analysis, targetPlatform);
   return (
     <div className="card">
       <p className="section-eyebrow">质量评估</p>
@@ -56,7 +43,9 @@ export function BenchmarkOverview({ analysis }: { analysis: PhotoAnalysis }) {
         <Metric label="照片类型" value={analysis.photo_type} small />
         <Metric label="识别风格" value={analysis.detected_style} small />
       </div>
-      <p className="mt-5 text-sm leading-7 text-muted">{analysis.summary}</p>
+      <p className="mt-5 text-sm leading-7 text-muted">
+        {[analysis.summary, publishingAdvice].filter(Boolean).join(" ")}
+      </p>
     </div>
   );
 }
@@ -169,27 +158,6 @@ function ParamTable({ title, params }: { title: string; params: Record<string, s
           <div key={key} className="flex justify-between rounded-xl bg-white/70 px-3 py-2 text-sm">
             <span className="text-muted">{key}</span>
             <span className="font-medium text-ink">{value}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-export function PlatformPanel({ analysis }: { analysis: PhotoAnalysis }) {
-  return (
-    <div className="card">
-      <p className="section-eyebrow">发布建议</p>
-      <h2 className="mt-1 font-display text-2xl font-semibold">平台策略</h2>
-      <div className="mt-5 grid gap-4 md:grid-cols-2">
-        {Object.entries(analysis.platform_suggestions).map(([platform, suggestion]) => (
-          <div key={platform} className="rounded-2xl bg-blush/30 p-4">
-            <h3 className="font-medium">{platform}</h3>
-            <div className="mt-3 space-y-2 text-sm text-muted">
-              {Object.entries(suggestion as Record<string, string>).map(([key, value]) => (
-                <p key={key}><span className="text-ink">{getPlatformFieldLabel(key)}：</span>{value}</p>
-              ))}
-            </div>
           </div>
         ))}
       </div>
