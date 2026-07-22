@@ -27,8 +27,6 @@ export function BenchmarkOverview({ analysis }: { analysis: PhotoAnalysis }) {
         <Metric label="识别风格" value={analysis.detected_style} small />
       </div>
       <p className="mt-5 text-sm leading-7 text-muted">{analysis.summary}</p>
-      <p className="mt-3 text-sm text-muted">{String(analysis.benchmark_detail.weight_reason || "")}</p>
-      <div className="mt-3 text-xs text-muted">模式：{analysis.analysis_mode} · 模型：{analysis.model_used}</div>
     </div>
   );
 }
@@ -46,34 +44,40 @@ function Metric({ label, value, small = false }: { label: string; value: string 
 
 export function DimensionCards({ analysis }: { analysis: PhotoAnalysis }) {
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      {dimensions.map(([key, label]) => {
-        const detail = analysis.benchmark_detail[key] as BenchmarkDimension | undefined;
-        const score = analysis[`${key}_score` as keyof PhotoAnalysis] as number;
-        const weight = analysis[`${key}_weight` as keyof PhotoAnalysis] as number;
-        return (
-          <div key={key} className="card">
-            <div className="flex items-center justify-between">
-              <h3 className="font-display text-xl font-semibold">{label}</h3>
-              <span className="text-xs text-muted">权重 {(weight * 100).toFixed(0)}%</span>
+    <section>
+      <div className="mb-4">
+        <p className="section-eyebrow">四维评分</p>
+        <h2 className="mt-1 font-display text-2xl font-semibold">曝光、对焦、构图、色彩</h2>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        {dimensions.map(([key, label]) => {
+          const detail = analysis.benchmark_detail[key] as BenchmarkDimension | undefined;
+          const score = analysis[`${key}_score` as keyof PhotoAnalysis] as number;
+          const weight = analysis[`${key}_weight` as keyof PhotoAnalysis] as number;
+          return (
+            <div key={key} className="card">
+              <div className="flex items-center justify-between">
+                <h3 className="font-display text-xl font-semibold">{label}</h3>
+                <span className="text-xs text-muted">权重 {(weight * 100).toFixed(0)}%</span>
+              </div>
+              <div className="mt-4 h-1.5 rounded-full bg-sand">
+                <div className="h-1.5 rounded-full bg-brand" style={{ width: `${score}%` }} />
+              </div>
+              <p className="mt-3 font-display text-2xl font-semibold">{score}</p>
+              <p className="mt-3 text-sm leading-7 text-muted">{detail?.reason}</p>
+              <p className="mt-3 text-xs font-medium uppercase tracking-wider text-muted">问题</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted">
+                {detail?.problems?.map((item: string) => <li key={item}>{item}</li>)}
+              </ul>
+              <p className="mt-3 text-xs font-medium uppercase tracking-wider text-muted">建议</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted">
+                {detail?.suggestions?.map((item: string) => <li key={item}>{item}</li>)}
+              </ul>
             </div>
-            <div className="mt-4 h-1.5 rounded-full bg-sand">
-              <div className="h-1.5 rounded-full bg-brand" style={{ width: `${score}%` }} />
-            </div>
-            <p className="mt-3 font-display text-2xl font-semibold">{score}</p>
-            <p className="mt-3 text-sm leading-7 text-muted">{detail?.reason}</p>
-            <p className="mt-3 text-xs font-medium uppercase tracking-wider text-muted">问题</p>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted">
-              {detail?.problems?.map((item: string) => <li key={item}>{item}</li>)}
-            </ul>
-            <p className="mt-3 text-xs font-medium uppercase tracking-wider text-muted">建议</p>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted">
-              {detail?.suggestions?.map((item: string) => <li key={item}>{item}</li>)}
-            </ul>
-          </div>
-        );
-      })}
-    </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

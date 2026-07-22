@@ -32,13 +32,13 @@ export default function ExpectedEffectPreview({ imageUrl, generatedImageUrl, tar
     <div className="card-soft">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="section-eyebrow">预期效果</p>
-          <h2 className="mt-1 font-display text-2xl font-semibold text-ink">修图后视觉预览</h2>
+          <p className="section-eyebrow">效果对比</p>
+          <h2 className="mt-1 font-display text-2xl font-semibold text-ink">原图与效果图</h2>
         </div>
         {generatedImageUrl ? (
-          <span className="rounded-full bg-white/80 px-3 py-1 text-xs text-muted">AI generated image</span>
+          <span className="rounded-full bg-white/80 px-3 py-1 text-xs text-muted">AI 效果图</span>
         ) : (
-          <span className="rounded-full bg-white/80 px-3 py-1 text-xs text-muted">模拟预览 · 非最终成片</span>
+          <span className="rounded-full bg-white/80 px-3 py-1 text-xs text-muted">待生成</span>
         )}
       </div>
 

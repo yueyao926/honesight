@@ -103,6 +103,65 @@ body {
     @apply bg-sand text-muted;
   }
 
+  .studio-flow {
+    @apply mt-10 space-y-14 md:mt-14 md:space-y-20;
+  }
+
+  .studio-step {
+    @apply relative grid scroll-mt-24 grid-cols-[2.5rem_minmax(0,1fr)] gap-3 md:grid-cols-[9rem_minmax(0,1fr)] md:gap-8;
+  }
+
+  .studio-step:not(:last-child)::before {
+    content: "";
+    @apply absolute left-[1.22rem] top-10 -bottom-14 w-px bg-sand md:left-5 md:-bottom-20;
+  }
+
+  .studio-step-rail {
+    @apply sticky top-24 z-10 flex h-fit items-center gap-3 self-start md:top-28;
+  }
+
+  .studio-step-number {
+    @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-sand bg-cream text-sm font-semibold text-muted transition;
+  }
+
+  .studio-step-label {
+    @apply hidden text-sm font-medium text-muted md:block;
+  }
+
+  .studio-step-active .studio-step-number {
+    @apply border-brand bg-brand text-white;
+    box-shadow: 0 10px 28px rgba(196, 137, 142, 0.24);
+  }
+
+  .studio-step-active .studio-step-label {
+    @apply text-ink;
+  }
+
+  .studio-step-done .studio-step-number {
+    @apply border-sage/50 bg-sage/40 text-ink;
+  }
+
+  .studio-step-card {
+    @apply max-w-4xl;
+  }
+
+  .studio-step-placeholder {
+    @apply max-w-4xl rounded-3xl border border-dashed border-sand/80 bg-white/35 px-6 py-8 text-sm text-muted;
+  }
+
+  .choice-grid {
+    @apply flex flex-wrap gap-2.5;
+  }
+
+  .choice-chip {
+    @apply rounded-full border border-sand bg-white/75 px-4 py-2.5 text-sm text-muted transition hover:border-brand hover:text-ink focus:outline-none focus:ring-4 focus:ring-rose/30;
+  }
+
+  .choice-chip-active {
+    @apply border-brand bg-blush text-brand-deep;
+    box-shadow: inset 0 0 0 1px rgba(212, 165, 165, 0.2);
+  }
+
   .ins-grid {
     @apply grid gap-4 md:grid-cols-2 lg:grid-cols-3;
   }

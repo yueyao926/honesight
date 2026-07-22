@@ -76,10 +76,7 @@ export default function StyleReferenceUpload({ value, onChange, maxFiles = 4 }: 
         className="hidden"
         onChange={(event) => handleFiles(event.target.files)}
       />
-      <p className="text-xs leading-6 text-muted">
-        上传你喜欢的风格样片（如日系、胶片、韩系博主作品），AI 会从中识别色调与氛围，再给出针对性建议。
-        可选，最多 {maxFiles} 张。
-      </p>
+      <p className="text-xs text-muted">最多 {maxFiles} 张</p>
       {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   );
