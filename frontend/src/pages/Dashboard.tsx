@@ -2,12 +2,10 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getMyPreferences } from "../api/preferences";
 import { listPortfolio } from "../api/portfolio";
-import { useAuth } from "../contexts/AuthContext";
 import DailyInspirationSection from "../components/DailyInspirationSection";
 import type { PortfolioCollection, Preference } from "../types";
 
 export default function Dashboard() {
-  const { user } = useAuth();
   const [preference, setPreference] = useState<Preference | null>(null);
   const [collections, setCollections] = useState<PortfolioCollection[]>([]);
 
@@ -22,22 +20,25 @@ export default function Dashboard() {
     <>
     <main className="container-page">
       <header className="animate-fade-up">
-        <p className="section-eyebrow">Dashboard</p>
-        <h1 className="page-title mt-2">你好，{user?.username}</h1>
-        <p className="mt-4 text-muted">让每一次快门都有迹可循，也让光影里的进步慢慢成为你的作品。</p>
+        <h1 className="max-w-3xl font-display text-3xl font-semibold leading-relaxed text-ink md:text-4xl">
+          让每一次快门都有迹可循，也让光影里的进步慢慢成为你的作品。
+        </h1>
       </header>
 
-      <DailyInspirationSection embedded />
-
-      <section className="card mt-8 animate-fade-up flex flex-col justify-between gap-5 md:flex-row md:items-center">
+      <Link
+        className="card group mt-8 flex animate-fade-up items-center justify-between gap-6 transition duration-300 hover:-translate-y-1"
+        to="/ai"
+      >
         <div className="max-w-3xl">
           <h2 className="font-display text-2xl font-semibold">让照片更接近你想要的样子</h2>
           <p className="mt-3 text-sm leading-7 text-muted">
             设定目标风格和发布平台，AI 会结合画面内容与个人偏好，分析构图、光线、色彩和风格匹配，并给出清晰可执行的调整建议。
           </p>
         </div>
-        <Link className="btn-primary shrink-0" to="/ai">开始 AI 分析</Link>
-      </section>
+        <span className="shrink-0 text-2xl text-brand-deep transition group-hover:translate-x-1" aria-hidden="true">→</span>
+      </Link>
+
+      <DailyInspirationSection embedded />
 
       <section className="mt-10 grid gap-6 lg:grid-cols-2">
         <div className="card lg:h-[22rem]">
