@@ -1,0 +1,12 @@
+import {apiRequest} from "./client";
+export type Conversation={id:number;peer:{id:number;username:string;avatar_url?:string|null;signature?:string|null};request_status:string;is_unlocked:boolean;opening_message_used:boolean;is_initiator:boolean;waiting_for_reply:boolean;is_request:boolean;last_message?:{id:number;type:string;content:string;sender_id:number;created_at:string}|null;last_message_at?:string|null;unread_count:number;is_muted:boolean;is_archived:boolean};
+export type DirectMessage={id:number;sender_id:number;message_type:string;content?:string|null;image_url?:string|null;shared_post?:{id:number;title:string;cover_image_url?:string|null}|null;reply_to_message_id?:number|null;status:string;is_opening_message:boolean;created_at:string};
+export const createConversation=(target_user_id:number)=>apiRequest<Conversation>("/messages/conversations",{method:"POST",body:JSON.stringify({target_user_id})});
+export const getConversations=()=>apiRequest<Conversation[]>("/messages/conversations");
+export const getMessages=(id:number,before?:number)=>apiRequest<DirectMessage[]>(`/messages/conversations/${id}/messages${before?`?before_id=${before}`:""}`);
+export const sendMessage=(id:number,payload:{message_type:string;content?:string;image_url?:string;shared_post_id?:number})=>apiRequest<DirectMessage>(`/messages/conversations/${id}/messages`,{method:"POST",body:JSON.stringify(payload)});
+export const markRead=(id:number)=>apiRequest<{unread_count:number}>(`/messages/conversations/${id}/read`,{method:"POST"});
+export const getUnreadCount=()=>apiRequest<{unread_count:number}>("/messages/unread-count");
+export const rejectConversation=(id:number)=>apiRequest(`/messages/conversations/${id}/reject`,{method:"POST"});
+export const updateConversation=(id:number,payload:Record<string,boolean>)=>apiRequest(`/messages/conversations/${id}/settings`,{method:"PATCH",body:JSON.stringify(payload)});
+export const uploadMessageImage=(file:File)=>{const body=new FormData();body.append("file",file);return apiRequest<{image_url:string}>("/messages/uploads/images",{method:"POST",body})};

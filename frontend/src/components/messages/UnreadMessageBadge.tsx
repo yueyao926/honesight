@@ -1,0 +1,1 @@
+export default function UnreadMessageBadge({count}:{count:number}){return count>0?<span className="ml-1 inline-flex min-w-5 items-center justify-center rounded-full bg-brand px-1.5 text-[10px] leading-5 text-white">{count>99?'99+':count}</span>:null}

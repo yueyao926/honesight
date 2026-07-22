@@ -11,6 +11,7 @@ from app.models.community import CommunityPost, Comment, ContentAction, Favorite
 from app.models.profile import UserFollow
 from app.models.user import User
 from app.schemas.community import CollectionPayload, CommentPayload, FavoritePayload, PostPayload, PostUpdate, ReportPayload
+from app.services.search import build_post_document
 
 router = APIRouter(prefix="/community", tags=["community"])
 
@@ -48,7 +49,7 @@ def sync(post, payload, db):
 def create_post(payload:PostPayload,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
     post=CommunityPost(author_id=user.id); db.add(post); db.flush(); sync(post,payload,db)
     if post.status=="published": post.published_at=datetime.now(timezone.utc)
-    db.commit(); return post_dict(load_post(db,post.id),user,db)
+    db.commit(); build_post_document(db,post.id); db.commit(); return post_dict(load_post(db,post.id),user,db)
 
 @router.get("/posts/{post_id}")
 def detail(post_id:int,viewer:User|None=Depends(get_optional_user),db:Session=Depends(get_db)):
@@ -65,13 +66,13 @@ def update(post_id:int,payload:PostUpdate,user:User=Depends(get_current_user),db
     if not post or post.author_id!=user.id: raise HTTPException(403,"只能编辑自己的帖子")
     sync(post,payload,db)
     if post.status=="published" and not post.published_at: post.published_at=datetime.now(timezone.utc)
-    db.commit(); return post_dict(load_post(db,post_id),user,db)
+    db.commit(); build_post_document(db,post.id); db.commit(); return post_dict(load_post(db,post_id),user,db)
 
 @router.delete("/posts/{post_id}",status_code=204)
 def remove_post(post_id:int,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
     post=db.get(CommunityPost,post_id)
     if not post or post.author_id!=user.id: raise HTTPException(403,"无权删除")
-    post.status="deleted"; post.deleted_at=datetime.now(timezone.utc); db.commit()
+    post.status="deleted"; post.deleted_at=datetime.now(timezone.utc); db.commit(); build_post_document(db,post.id); db.commit()
 
 @router.post("/posts/{post_id}/restore")
 def restore(post_id:int,user:User=Depends(get_current_user),db:Session=Depends(get_db)):

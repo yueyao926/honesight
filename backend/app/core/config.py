@@ -34,6 +34,16 @@ class Settings(BaseSettings):
     image_size: str = Field(default="2K", alias="IMAGE_SIZE")
     image_timeout_seconds: int = Field(default=120, alias="IMAGE_TIMEOUT_SECONDS")
     image_watermark: bool = Field(default=False, alias="IMAGE_WATERMARK")
+    message_image_max_size: int = Field(default=8 * 1024 * 1024, alias="MESSAGE_IMAGE_MAX_SIZE")
+    message_rate_limit: int = Field(default=20, alias="MESSAGE_RATE_LIMIT")
+    message_request_daily_limit: int = Field(default=10, alias="MESSAGE_REQUEST_DAILY_LIMIT")
+    search_result_limit: int = Field(default=24, alias="SEARCH_RESULT_LIMIT")
+    search_semantic_enabled: bool = Field(default=False, alias="SEARCH_SEMANTIC_ENABLED")
+    embedding_provider: str = Field(default="", alias="EMBEDDING_PROVIDER")
+    text_embedding_model: str = Field(default="", alias="TEXT_EMBEDDING_MODEL")
+    image_embedding_model: str = Field(default="", alias="IMAGE_EMBEDDING_MODEL")
+    embedding_dimension: int = Field(default=0, alias="EMBEDDING_DIMENSION")
+    image_caption_enabled: bool = Field(default=False, alias="IMAGE_CAPTION_ENABLED")
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8-sig", populate_by_name=True, extra="ignore")
 
