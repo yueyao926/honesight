@@ -46,18 +46,10 @@ const targetPlatforms = [
   "微信朋友圈",
   "抖音",
   "微博",
-  "微信公众号",
-  "哔哩哔哩",
-  "知乎",
-  "豆瓣",
   "Instagram",
-  "TikTok",
-  "Pinterest",
-  "Behance",
   "作品集",
   "个人网站",
   "商业约拍",
-  "印刷与展览",
 ];
 const steps = ["上传照片", "设置目标", "查看建议"];
 
