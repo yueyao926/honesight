@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import get_current_user, get_optional_user
 from app.database import get_db
-from app.models.community import CommunityPost, Comment, ContentAction, FavoriteCollection, Notification, PostFavorite, PostImage, PostLike, PostTag, PostView, Report, Tag, UserBlock
+from app.models.community import CommunityPost, Comment, CommentLike, ContentAction, FavoriteCollection, Notification, PostFavorite, PostImage, PostLike, PostTag, PostView, Report, Tag, UserBlock
 from app.models.profile import UserFollow
 from app.models.user import User
 from app.schemas.community import CollectionPayload, CommentPayload, FavoritePayload, PostPayload, PostUpdate, ReportPayload
@@ -135,8 +135,11 @@ def unfavorite(post_id:int,user:User=Depends(get_current_user),db:Session=Depend
     return {"favorited":False,"favorite_count":post.favorite_count if post else 0}
 
 @router.get("/posts/{post_id}/comments")
-def comments(post_id:int,db:Session=Depends(get_db)):
-    rows=db.scalars(select(Comment).options(selectinload(Comment.author)).where(Comment.post_id==post_id,Comment.deleted_at.is_(None)).order_by(Comment.created_at)).all(); return [{"id":c.id,"content":c.content,"parent_id":c.parent_id,"reply_to_user_id":c.reply_to_user_id,"like_count":c.like_count,"reply_count":c.reply_count,"created_at":c.created_at,"author":{"id":c.author.id,"username":c.author.username,"avatar_url":c.author.avatar_url}} for c in rows]
+def comments(post_id:int,viewer:User|None=Depends(get_optional_user),db:Session=Depends(get_db)):
+    post=load_post(db,post_id)
+    if not post or not visible(post,viewer,db): raise HTTPException(404,"帖子不存在或不可见")
+    rows=db.scalars(select(Comment).options(selectinload(Comment.author)).where(Comment.post_id==post_id,Comment.deleted_at.is_(None),Comment.status=="published").order_by(Comment.created_at)).all()
+    return [{"id":c.id,"content":c.content,"parent_id":c.parent_id,"reply_to_user_id":c.reply_to_user_id,"like_count":c.like_count,"reply_count":c.reply_count,"created_at":c.created_at,"is_liked":bool(viewer and db.scalar(select(CommentLike.id).where(CommentLike.user_id==viewer.id,CommentLike.comment_id==c.id))),"is_owner":bool(viewer and viewer.id==c.author_id),"author":{"id":c.author.id,"username":c.author.username,"avatar_url":c.author.avatar_url}} for c in rows]
 
 @router.post("/posts/{post_id}/comments",status_code=201)
 def add_comment(post_id:int,payload:CommentPayload,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
@@ -144,9 +147,33 @@ def add_comment(post_id:int,payload:CommentPayload,user:User=Depends(get_current
     if not post or not visible(post,user,db) or not post.allow_comments: raise HTTPException(403,"评论已关闭或帖子不可见")
     parent=db.get(Comment,payload.parent_id) if payload.parent_id else None
     if parent and (parent.post_id!=post_id or parent.parent_id): raise HTTPException(400,"仅支持两级评论")
-    row=Comment(post_id=post_id,author_id=user.id,**payload.model_dump()); db.add(row); db.flush(); post.comment_count+=1; post.hot_score+=4
+    if parent and blocked(db,user.id,parent.author_id): raise HTTPException(403,"暂时无法回复该评论")
+    values=payload.model_dump();
+    if parent and not values.get("reply_to_user_id"): values["reply_to_user_id"]=parent.author_id
+    row=Comment(post_id=post_id,author_id=user.id,**values); db.add(row); db.flush(); post.comment_count+=1; post.hot_score+=4
     if parent: parent.reply_count+=1
-    notify(db,post,user,"comment_reply" if parent else "post_comment",row.id); db.commit(); return {"id":row.id,"created_at":row.created_at}
+    if parent and parent.author_id!=user.id and not blocked(db,parent.author_id,user.id): db.add(Notification(recipient_id=parent.author_id,actor_id=user.id,notification_type="comment_reply",post_id=post.id,comment_id=row.id))
+    elif not parent: notify(db,post,user,"post_comment",row.id)
+    db.commit(); return {"id":row.id,"created_at":row.created_at}
+
+@router.post("/comments/{comment_id}/like")
+def like_comment(comment_id:int,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
+    comment=db.scalar(select(Comment).where(Comment.id==comment_id).with_for_update())
+    post=load_post(db,comment.post_id) if comment else None
+    if not comment or comment.deleted_at or not post or not visible(post,user,db): raise HTTPException(404,"评论不存在或不可见")
+    if not db.scalar(select(CommentLike.id).where(CommentLike.user_id==user.id,CommentLike.comment_id==comment_id)):
+        db.add(CommentLike(user_id=user.id,comment_id=comment_id));comment.like_count+=1
+        if comment.author_id!=user.id and not blocked(db,comment.author_id,user.id): db.add(Notification(recipient_id=comment.author_id,actor_id=user.id,notification_type="comment_like",post_id=comment.post_id,comment_id=comment.id))
+        db.commit()
+    return {"liked":True,"like_count":comment.like_count}
+
+@router.delete("/comments/{comment_id}/like")
+def unlike_comment(comment_id:int,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
+    comment=db.scalar(select(Comment).where(Comment.id==comment_id).with_for_update())
+    if not comment: raise HTTPException(404,"评论不存在")
+    row=db.scalar(select(CommentLike).where(CommentLike.user_id==user.id,CommentLike.comment_id==comment_id))
+    if row: db.delete(row);comment.like_count=max(0,comment.like_count-1);db.commit()
+    return {"liked":False,"like_count":comment.like_count}
 
 @router.get("/me/favorite-collections")
 def collections(user:User=Depends(get_current_user),db:Session=Depends(get_db)):

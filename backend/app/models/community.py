@@ -103,6 +103,15 @@ class Comment(Base):
     id: Mapped[int] = mapped_column(primary_key=True); post_id: Mapped[int] = mapped_column(ForeignKey("community_posts.id", ondelete="CASCADE"), index=True); author_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True); parent_id: Mapped[int | None] = mapped_column(ForeignKey("community_comments.id", ondelete="CASCADE"), index=True); reply_to_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL")); content: Mapped[str] = mapped_column(Text); status: Mapped[str] = mapped_column(String(16), default="published"); like_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0"); reply_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0"); created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now()); updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now()); deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True)); author = relationship("User", foreign_keys=[author_id])
 
 
+class CommentLike(Base):
+    __tablename__ = "community_comment_likes"
+    __table_args__ = (UniqueConstraint("user_id", "comment_id", name="uq_community_comment_like"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    comment_id: Mapped[int] = mapped_column(ForeignKey("community_comments.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class UserBlock(Base):
     __tablename__ = "community_user_blocks"; __table_args__ = (UniqueConstraint("blocker_id", "blocked_id", name="uq_community_user_block"),)
     id: Mapped[int] = mapped_column(primary_key=True); blocker_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True); blocked_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True); created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
