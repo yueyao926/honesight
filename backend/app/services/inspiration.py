@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.models.inspiration import DailyInspirationRecommendation, InspirationFavorite, InspirationPhoto
 from app.models.preference import Preference
+from app.services.inspiration_content import GENERIC_CAPTION, GENERIC_SUMMARY, build_content, build_recommendation_reason
 
 
 ALLOWED_OPENVERSE = {"CC0", "PDM", "BY", "BY-SA"}
@@ -23,6 +24,18 @@ def eligible_clause():
 def daily_recommendations(db: Session, user_id: int | None, today: date | None = None) -> list[dict]:
     today = today or date.today(); key = str(user_id) if user_id else "public"; settings = get_settings()
     existing = list(db.scalars(select(DailyInspirationRecommendation).where(DailyInspirationRecommendation.user_key == key, DailyInspirationRecommendation.recommendation_date == today).order_by(DailyInspirationRecommendation.position)))
+    content_changed = False
+    for row in existing:
+        if row.photo and (row.photo.poetic_caption == GENERIC_CAPTION or row.photo.appreciation_summary == GENERIC_SUMMARY):
+            content = build_content(row.photo)
+            row.photo.poetic_caption = content.poetic_caption
+            row.photo.appreciation_summary = content.appreciation_summary
+            content_changed = True
+        if row.photo and row.recommendation_reason == "今日精选：从构图、光线与色彩中寻找新的观察方式":
+            row.recommendation_reason = build_recommendation_reason(row.photo, today, False)
+            content_changed = True
+    if content_changed:
+        db.commit()
     if not existing:
         recent_since = today - timedelta(days=settings.inspiration_recent_exclusion_days)
         recent_ids = set(db.scalars(select(DailyInspirationRecommendation.photo_id).where(DailyInspirationRecommendation.user_key == key, DailyInspirationRecommendation.recommendation_date >= recent_since)))
@@ -39,7 +52,8 @@ def daily_recommendations(db: Session, user_id: int | None, today: date | None =
         scored.sort(key=lambda row: (row[0], row[1]), reverse=True)
         selected = scored[:settings.inspiration_daily_count]
         for pos, (score, _, photo) in enumerate(selected):
-            reason = "与你的摄影偏好相呼应" if interests and any(x.strip() in photo.tags.lower() for x in interests.split(",") if x.strip()) else "今日精选：从构图、光线与色彩中寻找新的观察方式"
+            personalized = bool(interests and any(x.strip() in photo.tags.lower() for x in interests.split(",") if x.strip()))
+            reason = build_recommendation_reason(photo, today, personalized)
             db.add(DailyInspirationRecommendation(user_id=user_id, user_key=key, photo_id=photo.id, recommendation_date=today, position=pos, score=score, recommendation_reason=reason))
         db.commit()
         existing = list(db.scalars(select(DailyInspirationRecommendation).where(DailyInspirationRecommendation.user_key == key, DailyInspirationRecommendation.recommendation_date == today).order_by(DailyInspirationRecommendation.position)))

@@ -297,3 +297,26 @@ alembic upgrade head
 - `PATCH /inspirations/admin/{photo_id}/moderation`：人工确认许可证并批准或拒绝 Openverse 作品。
 
 用户接口包括 `GET /inspirations/today`、`GET /inspirations/{id}`、`PUT/DELETE /inspirations/{id}/favorite` 和 `GET /inspirations/favorites`。Openverse 只有 `license_verified=true`、`moderation_status=approved` 且许可证在允许列表中才会推荐；社区作品还必须公开、明确同意推荐且授权未撤回。
+
+### 长期图片池同步
+
+生产环境默认启用轻量后台同步任务：后端启动 15 秒后按 7 个主题各同步 20 张，形成约 140 张候选池；之后每 168 小时补充一次最新结果。Unsplash 搜索支持分页，单主题最多同步 200 张，数据库通过 `source_type + external_id` 唯一约束去重。现有用户推荐仍优先排除最近 14 天出现过的作品。
+
+```env
+INSPIRATION_SYNC_ENABLED=true
+INSPIRATION_SYNC_INTERVAL_HOURS=168
+INSPIRATION_SYNC_PER_TOPIC=20
+INSPIRATION_SYNC_STARTUP_DELAY_SECONDS=15
+INSPIRATION_SYNC_TOPICS=portrait,landscape,street photography,architecture,still life,night photography,animals
+```
+
+如需立即补充，可由管理员调用 `POST /inspirations/admin/sync-all`。请求体可留空使用默认配置，也可指定主题和每主题数量：
+
+```json
+{
+  "topics": ["portrait", "landscape", "street photography", "architecture", "still life", "night photography", "animals"],
+  "per_topic": 20
+}
+```
+
+Demo API 默认每小时请求额度较低。默认初始同步仅需 7 次请求；请避免把同步间隔设置得过短。

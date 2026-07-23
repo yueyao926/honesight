@@ -8,8 +8,9 @@ from app.api.deps import get_current_user, get_optional_user
 from app.database import get_db
 from app.models.inspiration import InspirationFavorite, InspirationPhoto
 from app.models.user import User
-from app.schemas.inspiration import InspirationRead, ModerationRequest, SyncRequest
+from app.schemas.inspiration import BulkSyncRequest, InspirationRead, ModerationRequest, SyncRequest
 from app.services.inspiration import daily_recommendations, eligible_clause
+from app.services.inspiration_sync import add_provider_photos, sync_unsplash_topics
 from app.services.photo_providers import OpenverseProvider, UnsplashProvider
 
 router = APIRouter(prefix="/inspirations", tags=["inspirations"])
@@ -67,14 +68,15 @@ async def sync(provider: str, payload: SyncRequest, user: User = Depends(get_cur
     if not source: raise HTTPException(400, "不支持的图片来源")
     try: photos = await source.search(payload.query, payload.count)
     except Exception as exc: raise HTTPException(502, "图片来源暂时不可用") from exc
-    added = 0
-    for data in photos:
-        existing = db.scalar(select(InspirationPhoto).where(InspirationPhoto.source_type == data.source_type, InspirationPhoto.external_id == data.external_id))
-        if existing: continue
-        values = data.__dict__
-        db.add(InspirationPhoto(**values, poetic_caption="光线经过的地方，日常也有了新的轮廓。", appreciation_summary="从主体与环境的关系进入画面，感受摄影师如何组织观看。"))
-        added += 1
-    db.commit(); return {"received": len(photos), "created": added}
+    added = add_provider_photos(db, photos)
+    return {"received": len(photos), "created": added}
+
+
+@router.post("/admin/sync-all")
+async def sync_all(payload: BulkSyncRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+    require_admin(user)
+    result = await sync_unsplash_topics(db, topics=payload.topics, per_topic=payload.per_topic)
+    return result.to_dict()
 
 
 @router.patch("/admin/{photo_id}/moderation")

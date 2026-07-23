@@ -1,4 +1,5 @@
 import asyncio
+import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from urllib.parse import urlparse
@@ -42,13 +43,32 @@ class UnsplashProvider(PhotoProvider):
     async def search(self, query: str, count: int) -> list[ProviderPhoto]:
         key = get_settings().unsplash_access_key
         if not key: return []
-        data = await self._get("https://api.unsplash.com/search/photos", params={"query": query, "per_page": min(count, 30), "content_filter": "high"}, headers={"Authorization": f"Client-ID {key}"})
+        requested = min(max(count, 1), 200)
+        per_page = min(requested, 30)
+        pages = math.ceil(requested / per_page)
         photos = []
-        for item in data.get("results", []):
-            user = item.get("user") or {}; urls = item.get("urls") or {}; links = item.get("links") or {}
-            raw = ProviderPhoto("unsplash", str(item.get("id")), item.get("description") or item.get("alt_description") or "摄影作品", item.get("alt_description"), urls.get("regular", ""), urls.get("small", ""), item.get("width"), item.get("height"), user.get("name") or "Unknown", (user.get("links") or {}).get("html", ""), "Unsplash", links.get("html", ""), f"摄影：{user.get('name') or 'Unknown'} · Unsplash", license_code="Unsplash License", license_name="Unsplash License", license_url="https://unsplash.com/license", license_verified=True, moderation_status="approved")
-            if all(safe_public_url(v) for v in (raw.image_url, raw.thumbnail_url, raw.photographer_url, raw.source_page_url)): photos.append(raw)
-        return photos
+        seen: set[str] = set()
+        for page in range(1, pages + 1):
+            page_size = min(per_page, requested - len(photos))
+            data = await self._get(
+                "https://api.unsplash.com/search/photos",
+                params={"query": query, "page": page, "per_page": page_size, "order_by": "latest", "content_filter": "high"},
+                headers={"Authorization": f"Client-ID {key}"},
+            )
+            results = data.get("results", [])
+            if not results: break
+            for item in results:
+                external_id = str(item.get("id") or "")
+                if not external_id or external_id in seen: continue
+                seen.add(external_id)
+                user = item.get("user") or {}; urls = item.get("urls") or {}; links = item.get("links") or {}
+                api_tags = [tag.get("title", "") for tag in item.get("tags", []) if isinstance(tag, dict)]
+                tags = ",".join(dict.fromkeys([query, *api_tags]))
+                raw = ProviderPhoto("unsplash", external_id, item.get("description") or item.get("alt_description") or "摄影作品", item.get("alt_description"), urls.get("regular", ""), urls.get("small", ""), item.get("width"), item.get("height"), user.get("name") or "Unknown", (user.get("links") or {}).get("html", ""), "Unsplash", links.get("html", ""), f"摄影：{user.get('name') or 'Unknown'} · Unsplash", license_code="Unsplash License", license_name="Unsplash License", license_url="https://unsplash.com/license", tags=tags, license_verified=True, moderation_status="approved")
+                if all(safe_public_url(v) for v in (raw.image_url, raw.thumbnail_url, raw.photographer_url, raw.source_page_url)): photos.append(raw)
+                if len(photos) >= requested: break
+            if len(photos) >= requested: break
+        return photos[:requested]
 
 
 class OpenverseProvider(PhotoProvider):
