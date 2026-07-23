@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.models.inspiration import InspirationPhoto
 from app.services.photo_providers import ProviderPhoto, UnsplashProvider
+from app.services.inspiration_content import GENERIC_CAPTION, GENERIC_SUMMARY, build_content
 
 
 logger = logging.getLogger(__name__)
@@ -33,12 +34,13 @@ class InspirationSyncResult:
 def add_provider_photos(db: Session, photos: list[ProviderPhoto]) -> int:
     created = 0
     for data in photos:
+        content = build_content(data)
         try:
             with db.begin_nested():
                 db.add(InspirationPhoto(
                     **asdict(data),
-                    poetic_caption="光线经过的地方，日常也有了新的轮廓。",
-                    appreciation_summary="从主体与环境的关系进入画面，感受摄影师如何组织观看。",
+                    poetic_caption=content.poetic_caption,
+                    appreciation_summary=content.appreciation_summary,
                 ))
                 db.flush()
             created += 1
@@ -49,12 +51,26 @@ def add_provider_photos(db: Session, photos: list[ProviderPhoto]) -> int:
     return created
 
 
+def backfill_generic_content(db: Session) -> int:
+    photos = list(db.query(InspirationPhoto).filter(
+        (InspirationPhoto.poetic_caption == GENERIC_CAPTION) | (InspirationPhoto.appreciation_summary == GENERIC_SUMMARY)
+    ))
+    for photo in photos:
+        content = build_content(photo)
+        photo.poetic_caption = content.poetic_caption
+        photo.appreciation_summary = content.appreciation_summary
+    if photos:
+        db.commit()
+    return len(photos)
+
+
 async def sync_unsplash_topics(db: Session, topics: list[str] | None = None, per_topic: int | None = None) -> InspirationSyncResult:
     settings = get_settings()
     selected_topics = topics or settings.inspiration_topics
     selected_count = min(max(per_topic or settings.inspiration_sync_per_topic, 1), 200)
     provider = UnsplashProvider()
     results: list[TopicSyncResult] = []
+    backfill_generic_content(db)
 
     for topic in selected_topics:
         item = TopicSyncResult(topic=topic)
