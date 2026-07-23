@@ -27,6 +27,14 @@ class Settings(BaseSettings):
     inspiration_daily_count: int = Field(default=4, alias="INSPIRATION_DAILY_COUNT")
     inspiration_recent_exclusion_days: int = Field(default=14, alias="INSPIRATION_RECENT_EXCLUSION_DAYS")
     inspiration_admin_emails: str = Field(default="", alias="INSPIRATION_ADMIN_EMAILS")
+    inspiration_sync_enabled: bool = Field(default=True, alias="INSPIRATION_SYNC_ENABLED")
+    inspiration_sync_interval_hours: int = Field(default=168, alias="INSPIRATION_SYNC_INTERVAL_HOURS")
+    inspiration_sync_per_topic: int = Field(default=20, alias="INSPIRATION_SYNC_PER_TOPIC")
+    inspiration_sync_startup_delay_seconds: int = Field(default=15, alias="INSPIRATION_SYNC_STARTUP_DELAY_SECONDS")
+    inspiration_sync_topics: str = Field(
+        default="portrait,landscape,street photography,architecture,still life,night photography,animals",
+        alias="INSPIRATION_SYNC_TOPICS",
+    )
     image_generation_enabled: bool = Field(default=False, alias="IMAGE_GENERATION_ENABLED")
     image_api_key: str | None = Field(default=None, alias="IMAGE_API_KEY")
     image_base_url: str = Field(default="https://ark.cn-beijing.volces.com/api/v3", alias="IMAGE_BASE_URL")
@@ -74,6 +82,10 @@ class Settings(BaseSettings):
     @property
     def resolved_image_base_url(self) -> str:
         return self.image_base_url.rstrip("/")
+
+    @property
+    def inspiration_topics(self) -> list[str]:
+        return [topic.strip() for topic in self.inspiration_sync_topics.split(",") if topic.strip()]
 
 
 @lru_cache

@@ -40,3 +40,8 @@ class ModerationRequest(BaseModel):
 class SyncRequest(BaseModel):
     query: str = "photography"
     count: int = 12
+
+
+class BulkSyncRequest(BaseModel):
+    topics: list[str] | None = None
+    per_topic: int | None = None
