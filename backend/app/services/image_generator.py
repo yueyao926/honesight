@@ -8,6 +8,7 @@ from uuid import uuid4
 import httpx
 
 from app.core.config import get_settings
+from app.services.editing_strategist import generate_editing_strategy
 
 
 logger = logging.getLogger(__name__)
@@ -43,13 +44,29 @@ def generate_edited_image(
         if resolved:
             images.append(resolved)
 
-    prompt = _build_edit_prompt(
-        target_style,
-        target_platform,
-        edit_instruction,
-        analysis_guidance,
-        len(images) - 1,
-    )
+    # Try to generate an editing strategy + optimized prompt from the LLM.
+    # Falls back to the default prompt builder on any failure.
+    editing_strategy: str | None = None
+    strategy_result = None
+    if analysis_guidance and analysis_guidance.strip():
+        strategy_result = generate_editing_strategy(
+            target_style=target_style,
+            target_platform=target_platform,
+            analysis_context=analysis_guidance,
+            edit_instruction=edit_instruction,
+        )
+
+    if strategy_result:
+        prompt = strategy_result["optimized_prompt"]
+        editing_strategy = strategy_result["editing_strategy"]
+    else:
+        prompt = _build_edit_prompt(
+            target_style,
+            target_platform,
+            edit_instruction,
+            analysis_guidance,
+            len(images) - 1,
+        )
     payload = {
         "model": settings.image_model,
         "prompt": prompt,
@@ -107,11 +124,14 @@ def generate_edited_image(
         raise ImageGenerationError("图片生成服务没有返回可用图片")
 
     local_url = _download_generated_image(generated_url, user_id)
-    return {
+    result: dict[str, str] = {
         "image_url": local_url,
         "model": settings.image_model,
         "prompt": prompt,
     }
+    if editing_strategy:
+        result["editing_strategy"] = editing_strategy
+    return result
 
 
 def _build_edit_prompt(

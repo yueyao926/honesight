@@ -51,7 +51,7 @@ export function saveOriginalToPortfolio(payload: {
   });
 }
 
-export type PortfolioPhotoSource = "ai_original" | "quick_preview" | "ai_refined" | "user_improved";
+export type PortfolioPhotoSource = "ai_original" | "ai_refined" | "user_improved";
 
 export function savePhotoToPortfolio(payload: {
   image_url: string;

@@ -149,14 +149,6 @@ body {
     @apply max-w-4xl rounded-3xl border border-dashed border-sand/80 bg-white/35 px-6 py-8 text-sm text-muted;
   }
 
-  .preview-version {
-    @apply rounded-full border border-sand bg-white/65 px-3.5 py-2 text-xs text-muted transition hover:border-brand hover:text-ink;
-  }
-
-  .preview-version-active {
-    @apply border-brand bg-white text-brand-deep;
-  }
-
   .ins-grid {
     @apply grid gap-4 md:grid-cols-2 lg:grid-cols-3;
   }

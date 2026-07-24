@@ -14,7 +14,6 @@ import type { PortfolioCollectionDetail, PortfolioPhoto } from "../types";
 const sourceLabels: Record<string, string> = {
   direct_upload: "直接上传",
   ai_original: "原图",
-  quick_preview: "快速预览",
   ai_refined: "AI 精修",
   user_improved: "自主改进",
 };
@@ -160,7 +159,7 @@ export default function PortfolioDetail() {
       {collection.photos.length === 0 ? (
         <div className="card mt-10 text-center">
           <h2 className="font-display text-2xl font-semibold">这个作品集还是空的</h2>
-          <p className="mt-3 text-sm text-muted">打开管理功能上传作品，或从 AI 工作室保存原图、快速预览和 AI 精修版本。</p>
+          <p className="mt-3 text-sm text-muted">打开管理功能上传作品，或从 AI 工作室保存原图和 AI 精修版本。</p>
           {!managing && <button className="btn-primary mt-6" type="button" onClick={() => setManaging(true)}>添加照片</button>}
         </div>
       ) : (

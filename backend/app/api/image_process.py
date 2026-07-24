@@ -22,6 +22,7 @@ class ImageProcessResponse(BaseModel):
     image_url: str
     model: str
     prompt: str
+    editing_strategy: str | None = None
 
 
 @router.post("/generate", response_model=ImageProcessResponse)

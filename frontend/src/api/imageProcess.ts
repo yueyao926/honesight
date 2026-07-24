@@ -13,6 +13,7 @@ export type ImageProcessResult = {
   image_url: string;
   model: string;
   prompt: string;
+  editing_strategy?: string;
 };
 
 export function generateProcessedImage(payload: ImageProcessPayload) {

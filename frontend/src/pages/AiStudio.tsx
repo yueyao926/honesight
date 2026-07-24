@@ -5,7 +5,6 @@ import { getAssetUrl } from "../api/client";
 import { generateProcessedImage } from "../api/imageProcess";
 import { listPortfolio, savePhotoToPortfolio } from "../api/portfolio";
 import type { PortfolioPhotoSource } from "../api/portfolio";
-import { uploadImage } from "../api/upload";
 import {
   AdvicePanel,
   BenchmarkOverview,
@@ -13,11 +12,9 @@ import {
   ParamsPanel,
   StylePanel,
 } from "../components/analysis/AnalysisPanels";
-import ExpectedEffectPreview from "../components/ExpectedEffectPreview";
 import PhotoUpload from "../components/PhotoUpload";
 import StyleReferenceUpload from "../components/StyleReferenceUpload";
 import type { PhotoAnalysis, PhotoTag, PortfolioCollection } from "../types";
-import { createQuickPreviewFile } from "../utils/quickPreview";
 
 const targetStyles = [
   "清新自然",
@@ -61,9 +58,13 @@ type SaveCandidate = {
   title: string;
 };
 
+type GeneratedImage = {
+  imageUrl: string;
+  editingStrategy?: string;
+};
+
 const sourceLabels: Record<PortfolioPhotoSource, string> = {
   ai_original: "原图",
-  quick_preview: "快速预览",
   ai_refined: "AI 精修图",
   user_improved: "改进后的作品",
 };
@@ -117,16 +118,15 @@ export default function AiStudio() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [generatingImage, setGeneratingImage] = useState(false);
-  const [savingQuickPreview, setSavingQuickPreview] = useState(false);
-  const [generatedImageUrls, setGeneratedImageUrls] = useState<string[]>([]);
+  const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [selectedGeneratedImageUrl, setSelectedGeneratedImageUrl] = useState<string | null>(null);
   const [refinementInstructions, setRefinementInstructions] = useState<string[]>([]);
   const [editInstruction, setEditInstruction] = useState("");
   const [improvedPhotoUrl, setImprovedPhotoUrl] = useState<string | null>(null);
+  const [expandedStrategies, setExpandedStrategies] = useState<Set<string>>(new Set());
   const stepOneRef = useRef<HTMLElement>(null);
   const stepTwoRef = useRef<HTMLElement>(null);
   const stepThreeRef = useRef<HTMLElement>(null);
-  const aiPreviewRef = useRef<HTMLDivElement>(null);
   const analysisControllerRef = useRef<AbortController | null>(null);
   const analysisRequestIdRef = useRef(0);
 
@@ -157,14 +157,14 @@ export default function AiStudio() {
     if (!url) {
       setStep(1);
       setAnalysis(null);
-      setGeneratedImageUrls([]);
+      setGeneratedImages([]); setExpandedStrategies(new Set());
       setSelectedGeneratedImageUrl(null);
       setRefinementInstructions([]);
       return;
     }
     setStep(2);
     setAnalysis(null);
-    setGeneratedImageUrls([]);
+    setGeneratedImages([]); setExpandedStrategies(new Set());
     setSelectedGeneratedImageUrl(null);
     setRefinementInstructions([]);
     scrollToStep(stepTwoRef);
@@ -189,7 +189,7 @@ export default function AiStudio() {
     cancelAnalysis();
     if (analysis) setStep(2);
     setAnalysis(null);
-    setGeneratedImageUrls([]);
+    setGeneratedImages([]); setExpandedStrategies(new Set());
     setSelectedGeneratedImageUrl(null);
     setRefinementInstructions([]);
     setEditInstruction("");
@@ -306,29 +306,10 @@ export default function AiStudio() {
     setSaveError("");
   }
 
-  async function handleSaveQuickPreview() {
-    if (!photoUrl) return;
-    setSavingQuickPreview(true);
-    setError("");
-    try {
-      const file = await createQuickPreviewFile(photoUrl, targetStyle, targetPlatform);
-      const uploaded = await uploadImage(file);
-      openSaveCandidate({
-        imageUrl: uploaded.image_url,
-        source: "quick_preview",
-        title: `${targetStyle}快速预览`,
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "快速预览保存失败");
-    } finally {
-      setSavingQuickPreview(false);
-    }
-  }
-
   async function handleGenerateImage() {
     if (!photoUrl) return;
     const currentInstruction = editInstruction.trim();
-    if (generatedImageUrls.length > 0 && !currentInstruction) return;
+    if (generatedImages.length > 0 && !currentInstruction) return;
     setGeneratingImage(true);
     setError("");
     try {
@@ -353,13 +334,12 @@ export default function AiStudio() {
         edit_instruction: [...refinementInstructions, currentInstruction].filter(Boolean).join("；") || undefined,
         reference_image_urls: styleRefs,
       });
-      setGeneratedImageUrls((current) => [...current, result.image_url]);
+      setGeneratedImages((current) => [...current, { imageUrl: result.image_url, editingStrategy: result.editing_strategy }]);
       setSelectedGeneratedImageUrl(result.image_url);
       if (currentInstruction) {
         setRefinementInstructions((current) => [...current, currentInstruction]);
       }
       setEditInstruction("");
-      scrollToStep(aiPreviewRef);
     } catch (err) {
       setError(err instanceof Error ? err.message : "图片生成失败，请稍后重试");
     } finally {
@@ -373,7 +353,7 @@ export default function AiStudio() {
     setPhotoUrl(null);
     setStyleRefs([]);
     setAnalysis(null);
-    setGeneratedImageUrls([]);
+    setGeneratedImages([]); setExpandedStrategies(new Set());
     setSelectedGeneratedImageUrl(null);
     setRefinementInstructions([]);
     setEditInstruction("");
@@ -416,7 +396,16 @@ export default function AiStudio() {
                   <h2 className="font-display text-2xl font-semibold">你想把它调整成什么样？</h2>
                   <p className="mt-2 text-sm text-muted">选择目标，AI 会据此分析照片。</p>
                 </div>
-                <img className="h-20 w-20 shrink-0 rounded-2xl object-cover ring-4 ring-white" src={getAssetUrl(photoUrl)} alt="已上传照片" />
+                <div className="flex items-center gap-3">
+                  <img className="h-20 w-20 shrink-0 rounded-2xl object-cover ring-4 ring-white" src={getAssetUrl(photoUrl)} alt="已上传照片" />
+                  <button
+                    className="btn-ghost text-xs"
+                    type="button"
+                    onClick={() => openSaveCandidate({ imageUrl: photoUrl, source: "ai_original", title: "原图" })}
+                  >
+                    保存原图
+                  </button>
+                </div>
               </div>
 
               <div className="mt-7 grid gap-4 md:grid-cols-2">
@@ -434,24 +423,10 @@ export default function AiStudio() {
                 </label>
               </div>
 
-              <ExpectedEffectPreview
-                compact
-                imageUrl={photoUrl}
-                targetStyle={targetStyle}
-                targetPlatform={targetPlatform}
-                onSaveOriginal={() => openSaveCandidate({
-                  imageUrl: photoUrl,
-                  source: "ai_original",
-                  title: "原图",
-                })}
-                onSaveQuickPreview={handleSaveQuickPreview}
-                savingQuickPreview={savingQuickPreview}
-              />
-
               <div className="mt-7 border-t border-sand/70 pt-6">
                 <div className="mb-4">
                   <p className="label mb-1">参考图（可选）</p>
-                  <p className="text-xs text-muted">如果快速预览还不够理想，可以添加样片，后续分析与 AI 精修会参考它们。</p>
+                  <p className="text-xs text-muted">添加样片作为风格参考，AI 分析与精修会参考它们。</p>
                 </div>
                 <StyleReferenceUpload value={styleRefs} onChange={handleStyleRefsChange} maxFiles={3} />
               </div>
@@ -480,51 +455,80 @@ export default function AiStudio() {
           {analysis && photoUrl ? (
             <div className="space-y-5 animate-fade-up">
               <BenchmarkOverview analysis={analysis} targetPlatform={targetPlatform} />
-              <div ref={aiPreviewRef} className="scroll-mt-24">
-                <ExpectedEffectPreview
-                  imageUrl={photoUrl}
-                  targetStyle={targetStyle}
-                  targetPlatform={targetPlatform}
-                  description={analysis.expected_effect_description || ""}
-                  referenceUrls={analysis.style_reference_image_urls || styleRefs}
-                  generatedImageUrls={generatedImageUrls}
-                  selectedGeneratedImageUrl={selectedGeneratedImageUrl}
-                  onSelectGeneratedImage={setSelectedGeneratedImageUrl}
-                  onSaveOriginal={() => openSaveCandidate({
-                    imageUrl: photoUrl,
-                    source: "ai_original",
-                    title: "原图",
-                  })}
-                  onSaveQuickPreview={handleSaveQuickPreview}
-                  savingQuickPreview={savingQuickPreview}
-                  onSaveAiResult={(imageUrl) => openSaveCandidate({
-                    imageUrl,
-                    source: "ai_refined",
-                    title: `AI 精修 ${generatedImageUrls.indexOf(imageUrl) + 1}`,
-                  })}
-                />
-              </div>
               <DimensionCards analysis={analysis} />
               <AdvicePanel analysis={analysis} />
               <ParamsPanel analysis={analysis} />
               <StylePanel analysis={analysis} />
+              {generatedImages.length > 0 && (
+                <div className="card-soft">
+                  <p className="section-eyebrow">生成结果</p>
+                  <h2 className="mt-1 font-display text-2xl font-semibold">AI 精修版本</h2>
+                  <p className="mt-2 text-sm text-muted">点击选择想要保存的版本。</p>
+                  <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {generatedImages.map((gen, index) => {
+                      const isExpanded = expandedStrategies.has(gen.imageUrl);
+                      return (
+                      <div key={gen.imageUrl} className="group relative">
+                        <div className={`photo-frame cursor-pointer ${selectedGeneratedImageUrl === gen.imageUrl ? "ring-2 ring-brand" : ""}`} onClick={() => setSelectedGeneratedImageUrl(gen.imageUrl)}>
+                          <img className="aspect-[4/5] w-full object-cover" src={getAssetUrl(gen.imageUrl)} alt={`AI 精修 ${index + 1}`} />
+                        </div>
+                        <div className="mt-2 flex items-center justify-between">
+                          <span className="text-xs text-muted">版本 {index + 1}</span>
+                          <div className="flex items-center gap-2">
+                            {gen.editingStrategy && (
+                              <button
+                                className="btn-ghost px-2 py-1 text-xs"
+                                type="button"
+                                onClick={() => setExpandedStrategies((prev) => {
+                                  const next = new Set(prev);
+                                  isExpanded ? next.delete(gen.imageUrl) : next.add(gen.imageUrl);
+                                  return next;
+                                })}
+                              >
+                                {isExpanded ? "收起思路 ▲" : "查看修图思路 ▼"}
+                              </button>
+                            )}
+                            <button
+                              className="btn-secondary px-3 py-1 text-xs"
+                              type="button"
+                              onClick={() => openSaveCandidate({
+                                imageUrl: gen.imageUrl,
+                                source: "ai_refined",
+                                title: `AI 精修 ${index + 1}`,
+                              })}
+                            >
+                              保存
+                            </button>
+                          </div>
+                        </div>
+                        {isExpanded && gen.editingStrategy && (
+                          <div className="mt-3 rounded-2xl bg-white/80 p-4 text-sm leading-7 text-ink">
+                            <p className="mb-2 text-xs font-medium text-brand-deep">AI 修图思路</p>
+                            <div className="whitespace-pre-line">{gen.editingStrategy}</div>
+                          </div>
+                        )}
+                      </div>
+                    )})}
+                  </div>
+                </div>
+              )}
               <div className="card-soft">
                 <p className="section-eyebrow">AI 精修</p>
                 <h2 className="mt-1 font-display text-2xl font-semibold">
-                  {generatedImageUrls.length ? "继续告诉 AI 你想怎么改" : "让 AI 完成细节处理"}
+                  {generatedImages.length ? "继续告诉 AI 你想怎么改" : "让 AI 完成细节处理"}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-muted">
-                  {generatedImageUrls.length
+                  {generatedImages.length
                     ? "新的要求会与之前的要求一起应用，并保留已有版本。"
                     : "AI 会结合目标风格、平台和分析建议完成第一次精修。"}
                 </p>
                 <div className="mt-4">
-                  <label className="label">{generatedImageUrls.length ? "新的修改要求" : "补充要求（可选）"}</label>
+                  <label className="label">{generatedImages.length ? "新的修改要求" : "补充要求（可选）"}</label>
                   <textarea
                     className="input min-h-24"
                     value={editInstruction}
                     onChange={(event) => setEditInstruction(event.target.value)}
-                    placeholder={generatedImageUrls.length
+                    placeholder={generatedImages.length
                       ? "例如：再降低一点高光，让肤色更自然"
                       : "例如：降低高光，保留自然肤色，增加一点胶片颗粒"}
                     maxLength={600}
@@ -544,13 +548,13 @@ export default function AiStudio() {
                   className="btn-primary mt-4"
                   type="button"
                   onClick={handleGenerateImage}
-                  disabled={generatingImage || (generatedImageUrls.length > 0 && !editInstruction.trim())}
+                  disabled={generatingImage || (generatedImages.length > 0 && !editInstruction.trim())}
                 >
                   {generatingImage
                     ? "AI 正在精修，可能需要 1–5 分钟…"
-                    : generatedImageUrls.length ? "生成新版本" : "开始 AI 精修"}
+                    : generatedImages.length ? "生成新版本" : "开始 AI 精修"}
                 </button>
-                {generatedImageUrls.length > 0 && !editInstruction.trim() && (
+                {generatedImages.length > 0 && !editInstruction.trim() && (
                   <p className="mt-2 text-xs text-muted">写下新的修改要求后即可继续精修。</p>
                 )}
               </div>
