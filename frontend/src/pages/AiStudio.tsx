@@ -464,49 +464,51 @@ export default function AiStudio() {
                   <p className="section-eyebrow">生成结果</p>
                   <h2 className="mt-1 font-display text-2xl font-semibold">AI 精修版本</h2>
                   <p className="mt-2 text-sm text-muted">点击选择想要保存的版本。</p>
-                  <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="mt-5 flex flex-wrap gap-4">
                     {generatedImages.map((gen, index) => {
                       const isExpanded = expandedStrategies.has(gen.imageUrl);
                       return (
-                      <div key={gen.imageUrl} className="group relative">
-                        <div className={`photo-frame cursor-pointer ${selectedGeneratedImageUrl === gen.imageUrl ? "ring-2 ring-brand" : ""}`} onClick={() => setSelectedGeneratedImageUrl(gen.imageUrl)}>
-                          <img className="aspect-[4/5] w-full object-cover" src={getAssetUrl(gen.imageUrl)} alt={`AI 精修 ${index + 1}`} />
-                        </div>
-                        <div className="mt-2 flex items-center justify-between">
-                          <span className="text-xs text-muted">版本 {index + 1}</span>
-                          <div className="flex items-center gap-2">
-                            {gen.editingStrategy && (
-                              <button
-                                className="btn-ghost px-2 py-1 text-xs"
-                                type="button"
-                                onClick={() => setExpandedStrategies((prev) => {
-                                  const next = new Set(prev);
-                                  isExpanded ? next.delete(gen.imageUrl) : next.add(gen.imageUrl);
-                                  return next;
-                                })}
-                              >
-                                {isExpanded ? "收起思路 ▲" : "查看修图思路 ▼"}
-                              </button>
-                            )}
-                            <button
-                              className="btn-secondary px-3 py-1 text-xs"
-                              type="button"
-                              onClick={() => openSaveCandidate({
-                                imageUrl: gen.imageUrl,
-                                source: "ai_refined",
-                                title: `AI 精修 ${index + 1}`,
-                              })}
-                            >
-                              保存
-                            </button>
-                          </div>
-                        </div>
+                      <div key={gen.imageUrl} className={`${isExpanded && gen.editingStrategy ? "flex w-full flex-col gap-4 md:flex-row" : "w-72"}`}>
                         {isExpanded && gen.editingStrategy && (
-                          <div className="mt-3 rounded-2xl bg-white/80 p-4 text-sm leading-7 text-ink">
+                          <div className="flex-1 rounded-2xl bg-white/80 p-5 text-sm leading-7 text-ink md:order-first">
                             <p className="mb-2 text-xs font-medium text-brand-deep">AI 修图思路</p>
-                            <div className="whitespace-pre-line">{gen.editingStrategy}</div>
+                            <div className="max-h-80 overflow-y-auto whitespace-pre-line">{gen.editingStrategy}</div>
                           </div>
                         )}
+                        <div className={isExpanded && gen.editingStrategy ? "w-full md:w-72 md:shrink-0" : ""}>
+                          <div className={`photo-frame cursor-pointer ${selectedGeneratedImageUrl === gen.imageUrl ? "ring-2 ring-brand" : ""}`} onClick={() => setSelectedGeneratedImageUrl(gen.imageUrl)}>
+                            <img className="aspect-[4/5] w-full object-cover" src={getAssetUrl(gen.imageUrl)} alt={`AI 精修 ${index + 1}`} />
+                          </div>
+                          <div className="mt-2 flex items-center justify-between">
+                            <span className="text-xs text-muted">版本 {index + 1}</span>
+                            <div className="flex items-center gap-2">
+                              {gen.editingStrategy && (
+                                <button
+                                  className="btn-ghost px-2 py-1 text-xs"
+                                  type="button"
+                                  onClick={() => setExpandedStrategies((prev) => {
+                                    const next = new Set(prev);
+                                    isExpanded ? next.delete(gen.imageUrl) : next.add(gen.imageUrl);
+                                    return next;
+                                  })}
+                                >
+                                  {isExpanded ? "收起思路 ▲" : "查看修图思路 ▼"}
+                                </button>
+                              )}
+                              <button
+                                className="btn-secondary px-3 py-1 text-xs"
+                                type="button"
+                                onClick={() => openSaveCandidate({
+                                  imageUrl: gen.imageUrl,
+                                  source: "ai_refined",
+                                  title: `AI 精修 ${index + 1}`,
+                                })}
+                              >
+                                保存
+                              </button>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     )})}
                   </div>
