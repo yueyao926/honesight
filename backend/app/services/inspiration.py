@@ -21,9 +21,32 @@ def eligible_clause():
     ))
 
 
+def is_photo_eligible(photo: InspirationPhoto) -> bool:
+    if not photo.is_active or photo.moderation_status != "approved":
+        return False
+    if photo.source_type == "unsplash":
+        return True
+    if photo.source_type == "openverse":
+        return bool(photo.license_verified and photo.license_code in ALLOWED_OPENVERSE)
+    if photo.source_type == "community":
+        return bool(
+            photo.recommendation_consent
+            and photo.community_visibility == "public"
+            and photo.authorization_revoked_at is None
+        )
+    return False
+
+
 def daily_recommendations(db: Session, user_id: int | None, today: date | None = None) -> list[dict]:
     today = today or date.today(); key = str(user_id) if user_id else "public"; settings = get_settings()
     existing = list(db.scalars(select(DailyInspirationRecommendation).where(DailyInspirationRecommendation.user_key == key, DailyInspirationRecommendation.recommendation_date == today).order_by(DailyInspirationRecommendation.position)))
+    if existing and any(not row.photo or not is_photo_eligible(row.photo) for row in existing):
+        # Rebuild the full daily set if a source is disabled, rejected, or its
+        # recommendation consent is revoked after the set was first created.
+        for row in existing:
+            db.delete(row)
+        db.commit()
+        existing = []
     content_changed = False
     for row in existing:
         if row.photo and (row.photo.poetic_caption == GENERIC_CAPTION or row.photo.appreciation_summary == GENERIC_SUMMARY):
@@ -58,4 +81,4 @@ def daily_recommendations(db: Session, user_id: int | None, today: date | None =
         db.commit()
         existing = list(db.scalars(select(DailyInspirationRecommendation).where(DailyInspirationRecommendation.user_key == key, DailyInspirationRecommendation.recommendation_date == today).order_by(DailyInspirationRecommendation.position)))
     favorite_ids = set(db.scalars(select(InspirationFavorite.photo_id).where(InspirationFavorite.user_id == user_id))) if user_id else set()
-    return [{"photo": row.photo, "is_favorite": row.photo_id in favorite_ids, "recommendation_reason": row.recommendation_reason} for row in existing if row.photo and row.photo.is_active]
+    return [{"photo": row.photo, "is_favorite": row.photo_id in favorite_ids, "recommendation_reason": row.recommendation_reason} for row in existing if row.photo and is_photo_eligible(row.photo)]
