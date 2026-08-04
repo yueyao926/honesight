@@ -9,26 +9,32 @@ body {
   min-width: 320px;
   font-family: "Noto Sans SC", system-ui, sans-serif;
   background:
-    radial-gradient(ellipse at 0% 0%, rgba(245, 230, 224, 0.7), transparent 50%),
-    radial-gradient(ellipse at 100% 20%, rgba(232, 196, 196, 0.25), transparent 40%),
-    linear-gradient(180deg, #faf7f2 0%, #f5efe8 100%);
-  color: #3d3530;
+    radial-gradient(ellipse at 0% 0%, rgba(138, 143, 136, 0.14), transparent 50%),
+    radial-gradient(ellipse at 100% 20%, rgba(113, 90, 74, 0.08), transparent 42%),
+    linear-gradient(180deg, #f3f2ec 0%, #eae9e3 100%);
+  color: #272522;
+  accent-color: #31443b;
   -webkit-font-smoothing: antialiased;
 }
 
+::selection {
+  background: rgba(167, 181, 138, 0.45);
+  color: #272522;
+}
+
 @layer components {
-  .inspiration-stage { @apply relative grid overflow-hidden rounded-[1.75rem] bg-[#302e2b] text-white md:grid-cols-[1.6fr_0.8fr] md:rounded-3xl; box-shadow: 0 18px 60px rgba(40,35,31,.16); }
-  .inspiration-image { @apply block h-[300px] w-full overflow-hidden bg-neutral-900 text-left sm:h-[360px] md:h-[560px]; }
+  .inspiration-stage { @apply relative grid overflow-hidden rounded-[1.75rem] bg-ink text-white md:grid-cols-[1.6fr_0.8fr] md:rounded-3xl; box-shadow: 0 18px 60px rgba(39,37,34,.16); }
+  .inspiration-image { @apply block h-[300px] w-full overflow-hidden bg-ink text-left sm:h-[360px] md:h-[560px]; }
   .inspiration-image img { @apply h-full w-full object-cover transition duration-500 hover:scale-[1.01]; }
-  .inspiration-copy { @apply flex flex-col justify-center bg-[#f4eee6] p-5 text-ink sm:p-7 md:p-10; }
-  .carousel-arrow { @apply absolute top-[150px] flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-lg text-white backdrop-blur transition hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white md:top-1/2; }
+  .inspiration-copy { @apply flex flex-col justify-center bg-cream p-5 text-ink sm:p-7 md:p-10; }
+  .carousel-arrow { @apply absolute top-[150px] flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-ink/45 text-lg text-white backdrop-blur transition hover:bg-ink/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white md:top-1/2; }
   .carousel-dot { @apply h-2.5 w-2.5 rounded-full bg-brand/30 transition focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2; }
-  .carousel-dot-active { @apply w-8 bg-brand; }
+  .carousel-dot-active { @apply w-8 bg-accent; }
   .inspiration-skeleton { @apply h-[460px] animate-pulse rounded-3xl bg-sand/70; }
-  .inspiration-dialog-backdrop { @apply fixed inset-0 z-50 flex items-end justify-center bg-black/75 p-0 backdrop-blur-sm sm:items-center sm:p-3 md:p-8; }
-  .inspiration-dialog { @apply relative grid max-h-[96vh] w-full max-w-6xl overflow-hidden rounded-t-3xl bg-[#f8f4ee] shadow-2xl sm:rounded-3xl md:grid-cols-[1.45fr_0.75fr]; }
-  .dialog-close { @apply absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-2xl text-white; }
-  .community-folder { @apply flex items-center justify-between gap-5 rounded-3xl border border-white/70 bg-blush/55 p-7 md:p-9; box-shadow: 0 8px 32px rgba(61, 53, 48, 0.06); }
+  .inspiration-dialog-backdrop { @apply fixed inset-0 z-50 flex items-end justify-center bg-ink/75 p-0 backdrop-blur-sm sm:items-center sm:p-3 md:p-8; }
+  .inspiration-dialog { @apply relative grid max-h-[96vh] w-full max-w-6xl overflow-hidden rounded-t-3xl bg-cream shadow-2xl sm:rounded-3xl md:grid-cols-[1.45fr_0.75fr]; }
+  .dialog-close { @apply absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-ink/60 text-2xl text-white; }
+  .community-folder { @apply flex items-center justify-between gap-5 rounded-3xl border border-white/70 bg-blush/55 p-7 md:p-9; box-shadow: 0 8px 32px rgba(39, 37, 34, 0.07); }
 }
 
 @layer components {
@@ -38,7 +44,7 @@ body {
 
   .card {
     @apply rounded-[1.6rem] border border-white/60 bg-white/75 p-5 backdrop-blur-sm md:rounded-3xl md:p-8;
-    box-shadow: 0 8px 32px rgba(61, 53, 48, 0.06);
+    box-shadow: 0 8px 32px rgba(39, 37, 34, 0.07);
   }
 
   .card-soft {
@@ -47,11 +53,11 @@ body {
 
   .btn-primary {
     @apply inline-flex min-h-11 items-center justify-center rounded-full bg-brand px-6 py-3 text-center text-sm font-medium tracking-wide text-white transition hover:bg-brand-deep focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose/50 disabled:cursor-not-allowed disabled:opacity-55;
-    box-shadow: 0 20px 60px rgba(212, 165, 165, 0.12);
+    box-shadow: 0 20px 60px rgba(113, 90, 74, 0.14);
   }
 
   .btn-primary:hover {
-    box-shadow: 0 0 40px rgba(232, 196, 196, 0.35);
+    box-shadow: 0 0 40px rgba(113, 90, 74, 0.2);
   }
 
   .btn-secondary {
@@ -71,7 +77,7 @@ body {
   }
 
   .section-eyebrow {
-    @apply font-display text-sm font-medium italic tracking-wide text-brand-deep;
+    @apply font-display text-sm font-medium italic tracking-wide text-accent;
   }
 
   .page-title {
@@ -83,7 +89,7 @@ body {
   }
 
   .nav-link-active {
-    @apply text-ink after:absolute after:bottom-0 after:left-3 after:right-3 after:h-px after:bg-brand;
+    @apply text-ink after:absolute after:bottom-0 after:left-3 after:right-3 after:h-px after:bg-accent;
   }
 
   .step-dot {
@@ -92,11 +98,11 @@ body {
 
   .step-dot-active {
     @apply bg-brand text-white;
-    box-shadow: 0 20px 60px rgba(212, 165, 165, 0.12);
+    box-shadow: 0 20px 60px rgba(113, 90, 74, 0.14);
   }
 
   .step-dot-done {
-    @apply bg-sage/40 text-ink;
+    @apply bg-matcha/45 text-ink;
   }
 
   .step-dot-pending {
@@ -130,7 +136,7 @@ body {
 
   .studio-step-active .studio-step-number {
     @apply border-brand bg-brand text-white;
-    box-shadow: 0 10px 28px rgba(196, 137, 142, 0.24);
+    box-shadow: 0 10px 28px rgba(113, 90, 74, 0.2);
   }
 
   .studio-step-active .studio-step-label {
@@ -138,7 +144,7 @@ body {
   }
 
   .studio-step-done .studio-step-number {
-    @apply border-sage/50 bg-sage/40 text-ink;
+    @apply border-matcha/60 bg-matcha/45 text-ink;
   }
 
   .studio-step-card {
@@ -155,7 +161,7 @@ body {
 
   .photo-frame {
     @apply overflow-hidden rounded-3xl border-4 border-white;
-    box-shadow: 0 8px 32px rgba(61, 53, 48, 0.06);
+    box-shadow: 0 8px 32px rgba(39, 37, 34, 0.07);
   }
 }
 

@@ -115,7 +115,7 @@ function GuestHero() {
               loading="eager"
               decoding="async"
             />
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent px-4 pb-4 pt-14 text-white sm:px-5 sm:pb-5 sm:pt-16">
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/80 via-ink/35 to-transparent px-4 pb-4 pt-14 text-white sm:px-5 sm:pb-5 sm:pt-16">
               <p className="text-[0.65rem] text-white/70 sm:text-xs">本次想法</p>
               <p className="mt-1 text-xs font-medium leading-5 sm:text-sm">保留雨夜的安静，让冷暖光线自然叙事</p>
             </div>
@@ -173,7 +173,7 @@ function MemberHero() {
             decoding="async"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-ink/15 via-transparent to-ink/70 md:bg-gradient-to-r md:from-ink md:via-ink/15 md:to-transparent" />
-          <div className="absolute bottom-5 left-5 right-5 rounded-2xl border border-white/15 bg-black/30 p-4 backdrop-blur-md sm:bottom-7 sm:left-7 sm:right-7">
+          <div className="absolute bottom-5 left-5 right-5 rounded-2xl border border-white/15 bg-ink/30 p-4 backdrop-blur-md sm:bottom-7 sm:left-7 sm:right-7">
             <p className="text-xs text-white/60">推荐练习</p>
             <p className="mt-1 text-sm font-medium">尝试用冷暖对比，让夜景更有叙事感</p>
           </div>

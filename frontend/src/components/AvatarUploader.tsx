@@ -22,7 +22,7 @@ export default function AvatarUploader({ onSave, onReset, onClose }: { onSave: (
       if (!blob) throw new Error("图片处理失败"); await onSave(blob); onClose();
     } catch (err) { setError(err instanceof Error ? err.message : "上传失败"); } finally { setBusy(false); }
   }
-  return <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/55 p-4" role="dialog" aria-modal="true">
+  return <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/55 p-4" role="dialog" aria-modal="true">
     <div className="card w-full max-w-lg bg-cream">
       <div className="flex items-center justify-between"><h2 className="font-display text-2xl font-semibold">更换头像</h2><button className="btn-ghost" onClick={onClose}>关闭</button></div>
       <input className="mt-6 block w-full text-sm" type="file" accept="image/jpeg,image/png,image/webp" onChange={choose} />

@@ -26,7 +26,7 @@ function InspirationArtwork({
 
   if (unavailable) {
     return (
-      <span className={`${className} flex items-center justify-center bg-neutral-900 px-6 text-center text-sm text-white/65`}>
+      <span className={`${className} flex items-center justify-center bg-ink px-6 text-center text-sm text-white/65`}>
         图片暂时无法加载，仍可查看摄影赏析
       </span>
     );
@@ -237,7 +237,7 @@ export default function DailyInspirationSection({ embedded = false }: { embedded
         <div className="inspiration-dialog-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setDetail(null)}>
           <div role="dialog" aria-modal="true" aria-labelledby="inspiration-title" className="inspiration-dialog">
             <button ref={closeRef} className="dialog-close" type="button" onClick={() => setDetail(null)} aria-label="关闭详情">×</button>
-            <div className="h-[40vh] min-h-0 bg-neutral-900 sm:h-[44vh] md:h-auto">
+            <div className="h-[40vh] min-h-0 bg-ink sm:h-[44vh] md:h-auto">
               <InspirationArtwork photo={detail} className="h-full w-full object-contain" eager />
             </div>
             <aside className="max-h-[56vh] overflow-y-auto p-6 sm:p-7 md:max-h-none md:p-9">
