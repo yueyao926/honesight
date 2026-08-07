@@ -1,4 +1,5 @@
 import { apiRequest } from "./client";
+import { uploadImage } from "./upload";
 
 export type CommunityImage={id?:number;image_url:string;thumbnail_url?:string|null;sort_order:number;width?:number|null;height?:number|null;image_role:string;alt_text?:string|null};
 export type CommunityPost={id:number;author:{id:number;username:string;avatar_url?:string|null;signature?:string|null};title:string;content:string;post_type:string;visibility:string;status:string;allow_comments:boolean;allow_ai_review:boolean;allow_original_download:boolean;location_name?:string|null;device_name?:string|null;lens_name?:string|null;aperture?:string|null;shutter_speed?:string|null;iso?:number|null;focal_length?:string|null;editing_software?:string|null;editing_notes?:string|null;cover_image_url?:string|null;images:CommunityImage[];tags:{name:string;slug:string;category:string}[];view_count:number;like_count:number;favorite_count:number;comment_count:number;share_count:number;published_at?:string|null;created_at:string;updated_at:string;is_liked:boolean;is_favorited:boolean;is_following_author:boolean;is_owner:boolean};
@@ -18,6 +19,6 @@ export const getComments=(id:number)=>apiRequest<CommunityComment[]>(`/community
 export const addComment=(id:number,content:string,parent_id?:number)=>apiRequest<{id:number}>(`/community/posts/${id}/comments`,{method:"POST",body:JSON.stringify({content,parent_id})});
 export const likeComment=(id:number)=>apiRequest<{liked:boolean;like_count:number}>(`/community/comments/${id}/like`,{method:"POST"});
 export const unlikeComment=(id:number)=>apiRequest<{liked:boolean;like_count:number}>(`/community/comments/${id}/like`,{method:"DELETE"});
-export const uploadCommunityImage=(file:File)=>{const body=new FormData();body.append("file",file);return apiRequest<{image_url:string;thumbnail_url:string;width:number;height:number}>("/upload/image",{method:"POST",body})};
+export const uploadCommunityImage=(file:File)=>uploadImage(file,"standard");
 export const getNotifications=()=>apiRequest<any[]>("/community/notifications");
 export const markNotificationsRead=()=>apiRequest("/community/notifications/read-all",{method:"POST"});

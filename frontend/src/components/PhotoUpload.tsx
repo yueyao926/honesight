@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { getAssetUrl } from "../api/client";
 import { uploadImage } from "../api/upload";
+import type { ImageUploadStage } from "../utils/imageUpload";
 
 type Props = {
   value: string | null;
@@ -10,23 +11,25 @@ type Props = {
 
 export default function PhotoUpload({ value, onChange, label = "上传照片" }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
+  const [stage, setStage] = useState<ImageUploadStage | null>(null);
   const [error, setError] = useState("");
 
   async function handleFile(file: File | null) {
     if (!file) return;
     setError("");
-    setUploading(true);
+    setStage("optimizing");
     try {
-      const uploaded = await uploadImage(file);
+      const uploaded = await uploadImage(file, "standard", setStage);
       onChange(uploaded.image_url);
     } catch (err) {
       setError(err instanceof Error ? err.message : "上传失败");
     } finally {
-      setUploading(false);
+      setStage(null);
       if (inputRef.current) inputRef.current.value = "";
     }
   }
+
+  const statusText = stage === "optimizing" ? "正在优化图片…" : "正在上传…";
 
   return (
     <div className="space-y-4">
@@ -50,11 +53,12 @@ export default function PhotoUpload({ value, onChange, label = "上传照片" }:
           type="button"
           className="flex min-h-56 w-full flex-col items-center justify-center rounded-3xl border-2 border-dashed border-sand bg-white/50 transition hover:border-brand hover:bg-blush/30"
           onClick={() => inputRef.current?.click()}
-          disabled={uploading}
+          disabled={Boolean(stage)}
         >
           <span className="font-display text-4xl font-light text-brand">+</span>
-          <span className="mt-2 text-sm text-muted">{uploading ? "上传中..." : label}</span>
-          <span className="mt-1 text-xs text-muted">支持 JPG / PNG / WebP</span>
+          <span className="mt-2 text-sm text-muted">{stage ? statusText : label}</span>
+          <span className="mt-1 text-xs text-muted">JPG / PNG / WebP，单张最大 10MB</span>
+          <span className="mt-1 text-xs text-muted">上传前自动优化，不影响分析清晰度</span>
         </button>
       )}
       <input

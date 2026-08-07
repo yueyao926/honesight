@@ -26,7 +26,7 @@ from app.services.image_storage import (
 
 router = APIRouter(tags=["profile"])
 IMAGE_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
-MAX_AVATAR_SIZE = 5 * 1024 * 1024
+MAX_AVATAR_SIZE = 1024 * 1024
 
 
 def _active_user(user_id: int, db: Session) -> User:
@@ -89,7 +89,7 @@ async def upload_avatar(file: UploadFile = File(...), current_user: User = Depen
         raise HTTPException(status_code=400, detail="头像仅支持 JPG、PNG 或 WEBP")
     content = await file.read(MAX_AVATAR_SIZE + 1)
     if len(content) > MAX_AVATAR_SIZE:
-        raise HTTPException(status_code=400, detail="头像不能超过 5MB")
+        raise HTTPException(status_code=400, detail="头像上传文件不能超过 1MB")
     settings = get_settings()
     upload_dir = settings.upload_path / "avatars"
     try:

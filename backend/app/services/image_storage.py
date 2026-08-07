@@ -1,23 +1,41 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import wraps
 from io import BytesIO
 from pathlib import Path
+from threading import BoundedSemaphore
+from typing import Callable, ParamSpec, TypeVar
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 
-Image.MAX_IMAGE_PIXELS = 60_000_000
+Image.MAX_IMAGE_PIXELS = 40_000_000
 
 SUPPORTED_FORMATS = {"JPEG", "PNG", "WEBP"}
 FULL_IMAGE_SIZE = (2560, 2560)
 FULL_IMAGE_MAX_BYTES = 1536 * 1024
+REFERENCE_IMAGE_SIZE = (1920, 1920)
+REFERENCE_IMAGE_MAX_BYTES = 800 * 1024
 THUMBNAIL_SIZE = (720, 720)
 THUMBNAIL_MAX_BYTES = 300 * 1024
 AVATAR_SIZE = (512, 512)
 AVATAR_MAX_BYTES = 200 * 1024
 MESSAGE_IMAGE_SIZE = (1600, 1600)
 MESSAGE_IMAGE_MAX_BYTES = 1024 * 1024
+
+P = ParamSpec("P")
+R = TypeVar("R")
+_IMAGE_PROCESSING_SLOTS = BoundedSemaphore(2)
+
+
+def _limit_image_processing(function: Callable[P, R]) -> Callable[P, R]:
+    @wraps(function)
+    def wrapped(*args: P.args, **kwargs: P.kwargs) -> R:
+        with _IMAGE_PROCESSING_SLOTS:
+            return function(*args, **kwargs)
+
+    return wrapped
 
 
 class ImageProcessingError(ValueError):
@@ -84,6 +102,7 @@ def _encode_webp(
         quality = min(initial_quality, 75)
 
 
+@_limit_image_processing
 def store_image(
     content: bytes,
     upload_dir: Path,

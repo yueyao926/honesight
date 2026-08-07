@@ -10,6 +10,8 @@ from app.services.image_storage import (
     AVATAR_SIZE,
     FULL_IMAGE_MAX_BYTES,
     ImageProcessingError,
+    REFERENCE_IMAGE_MAX_BYTES,
+    REFERENCE_IMAGE_SIZE,
     THUMBNAIL_MAX_BYTES,
     local_upload_path,
     store_image,
@@ -53,6 +55,20 @@ class ImageStorageTests(unittest.TestCase):
             )
             self.assertLessEqual(max(stored.width, stored.height), 512)
             self.assertLessEqual(stored.image_path.stat().st_size, AVATAR_MAX_BYTES)
+            self.assertIsNone(stored.thumbnail_path)
+
+    def test_reference_profile_is_bounded_and_has_no_thumbnail(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            stored = store_image(
+                jpeg_bytes(),
+                Path(directory),
+                "reference",
+                max_size=REFERENCE_IMAGE_SIZE,
+                max_bytes=REFERENCE_IMAGE_MAX_BYTES,
+                quality=82,
+            )
+            self.assertLessEqual(max(stored.width, stored.height), 1920)
+            self.assertLessEqual(stored.image_path.stat().st_size, REFERENCE_IMAGE_MAX_BYTES)
             self.assertIsNone(stored.thumbnail_path)
 
     def test_invalid_image_is_rejected(self) -> None:

@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { getAssetUrl } from "../api/client";
 import { uploadImage } from "../api/upload";
+import type { ImageUploadStage } from "../utils/imageUpload";
 
 type Props = {
   value: string[];
@@ -8,27 +9,35 @@ type Props = {
   maxFiles?: number;
 };
 
-export default function StyleReferenceUpload({ value, onChange, maxFiles = 4 }: Props) {
+export default function StyleReferenceUpload({ value, onChange, maxFiles = 3 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
+  const [stage, setStage] = useState<ImageUploadStage | null>(null);
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [error, setError] = useState("");
 
   async function handleFiles(files: FileList | null) {
     if (!files?.length) return;
     setError("");
-    setUploading(true);
     try {
       const remaining = maxFiles - value.length;
       const selected = Array.from(files).slice(0, remaining);
       if (selected.length === 0) {
         throw new Error(`最多上传 ${maxFiles} 张风格参考图`);
       }
-      const uploaded = await Promise.all(selected.map((file) => uploadImage(file)));
-      onChange([...value, ...uploaded.map((item) => item.image_url)]);
+
+      setProgress({ current: 1, total: selected.length });
+      const imageUrls: string[] = [];
+      for (let index = 0; index < selected.length; index += 1) {
+        setProgress({ current: index + 1, total: selected.length });
+        const uploaded = await uploadImage(selected[index], "reference", setStage);
+        imageUrls.push(uploaded.image_url);
+        onChange([...value, ...imageUrls]);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "上传失败");
     } finally {
-      setUploading(false);
+      setStage(null);
+      setProgress({ current: 0, total: 0 });
       if (inputRef.current) inputRef.current.value = "";
     }
   }
@@ -36,6 +45,8 @@ export default function StyleReferenceUpload({ value, onChange, maxFiles = 4 }: 
   function removeAt(index: number) {
     onChange(value.filter((_, i) => i !== index));
   }
+
+  const statusText = stage === "optimizing" ? "正在优化" : "正在上传";
 
   return (
     <div className="space-y-4">
@@ -61,10 +72,12 @@ export default function StyleReferenceUpload({ value, onChange, maxFiles = 4 }: 
             type="button"
             className="flex h-28 w-28 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-sand bg-white/50 text-xs text-muted transition hover:border-brand hover:text-brand-deep"
             onClick={() => inputRef.current?.click()}
-            disabled={uploading}
+            disabled={Boolean(stage)}
           >
             <span className="text-2xl font-light text-brand">+</span>
-            <span className="mt-1">{uploading ? "上传中" : "添加参考"}</span>
+            <span className="mt-1">
+              {stage ? `${statusText} ${progress.current}/${progress.total}` : "添加参考图"}
+            </span>
           </button>
         )}
       </div>
@@ -76,7 +89,7 @@ export default function StyleReferenceUpload({ value, onChange, maxFiles = 4 }: 
         className="hidden"
         onChange={(event) => handleFiles(event.target.files)}
       />
-      <p className="text-xs text-muted">最多 {maxFiles} 张</p>
+      <p className="text-xs text-muted">最多 {maxFiles} 张，单张最大 10MB，上传时自动优化</p>
       {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   );
