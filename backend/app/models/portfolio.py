@@ -44,6 +44,7 @@ class PortfolioItem(Base):
     title: Mapped[str] = mapped_column(String(160), nullable=False, default="照片")
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     image_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    thumbnail_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     source: Mapped[str] = mapped_column(String(40), nullable=False, default="direct_upload")
     visibility: Mapped[str] = mapped_column(String(20), nullable=False, default="private", server_default="private")
     allow_favorite: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")

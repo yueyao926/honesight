@@ -1,10 +1,10 @@
-from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
+from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import get_current_user, get_optional_user
 from app.core.config import get_settings
@@ -15,6 +15,14 @@ from app.models.community import Notification, UserBlock
 from app.models.user import User
 from app.schemas.portfolio import PortfolioPhotoRead, PortfolioPhotoUpdate
 from app.schemas.profile import PrivacyPayload, ProfileRead, ProfileUpdate
+from app.services.image_storage import (
+    AVATAR_MAX_BYTES,
+    AVATAR_SIZE,
+    ImageProcessingError,
+    delete_local_upload,
+    store_image,
+    upload_url,
+)
 
 router = APIRouter(tags=["profile"])
 IMAGE_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
@@ -53,6 +61,7 @@ def _work_dict(work: PortfolioItem, viewer: User | None) -> dict:
     return {
         "id": work.id, "user_id": work.user_id, "collection_id": work.collection_id,
         "title": work.title, "description": work.description, "image_url": work.image_url,
+        "thumbnail_url": work.thumbnail_url,
         "source": work.source, "visibility": work.visibility, "allow_favorite": work.allow_favorite,
         "is_published_to_community": work.is_published_to_community, "allow_comments": work.allow_comments,
         "favorite_count": len(work.favorites), "view_count": work.view_count,
@@ -76,25 +85,38 @@ def update_profile(payload: ProfileUpdate, current_user: User = Depends(get_curr
 
 @router.post("/me/avatar", response_model=ProfileRead)
 async def upload_avatar(file: UploadFile = File(...), current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
-    suffix = Path(file.filename or "").suffix.lower()
-    if file.content_type not in IMAGE_TYPES or suffix not in {".jpg", ".jpeg", ".png", ".webp"}:
+    if file.content_type not in IMAGE_TYPES:
         raise HTTPException(status_code=400, detail="头像仅支持 JPG、PNG 或 WEBP")
     content = await file.read(MAX_AVATAR_SIZE + 1)
     if len(content) > MAX_AVATAR_SIZE:
         raise HTTPException(status_code=400, detail="头像不能超过 5MB")
-    upload_dir = get_settings().upload_path / "avatars"
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    filename = f"{current_user.id}_{uuid4().hex}{IMAGE_TYPES[file.content_type]}"
-    (upload_dir / filename).write_bytes(content)
-    current_user.avatar_url = f"/uploads/avatars/{filename}"
+    settings = get_settings()
+    upload_dir = settings.upload_path / "avatars"
+    try:
+        stored = await run_in_threadpool(
+            store_image,
+            content,
+            upload_dir,
+            f"{current_user.id}_{uuid4().hex}",
+            max_size=AVATAR_SIZE,
+            max_bytes=AVATAR_MAX_BYTES,
+            quality=80,
+        )
+    except ImageProcessingError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    previous_avatar_url = current_user.avatar_url
+    current_user.avatar_url = upload_url(stored.image_path, settings.upload_path)
     db.commit(); db.refresh(current_user)
+    delete_local_upload(previous_avatar_url, settings.upload_path)
     return _profile(current_user, current_user, db)
 
 
 @router.delete("/me/avatar", response_model=ProfileRead)
 def reset_avatar(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+    previous_avatar_url = current_user.avatar_url
     current_user.avatar_url = None
     db.commit(); db.refresh(current_user)
+    delete_local_upload(previous_avatar_url, get_settings().upload_path)
     return _profile(current_user, current_user, db)
 
 

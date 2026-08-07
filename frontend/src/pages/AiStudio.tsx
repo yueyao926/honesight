@@ -60,6 +60,7 @@ type SaveCandidate = {
 
 type GeneratedImage = {
   imageUrl: string;
+  thumbnailUrl?: string;
   editingStrategy?: string;
 };
 
@@ -334,7 +335,7 @@ export default function AiStudio() {
         edit_instruction: [...refinementInstructions, currentInstruction].filter(Boolean).join("；") || undefined,
         reference_image_urls: styleRefs,
       });
-      setGeneratedImages((current) => [...current, { imageUrl: result.image_url, editingStrategy: result.editing_strategy }]);
+      setGeneratedImages((current) => [...current, { imageUrl: result.image_url, thumbnailUrl: result.thumbnail_url, editingStrategy: result.editing_strategy }]);
       setSelectedGeneratedImageUrl(result.image_url);
       if (currentInstruction) {
         setRefinementInstructions((current) => [...current, currentInstruction]);
@@ -477,7 +478,7 @@ export default function AiStudio() {
                         )}
                         <div className={isExpanded && gen.editingStrategy ? "w-full md:w-72 md:shrink-0" : ""}>
                           <div className={`photo-frame cursor-pointer ${selectedGeneratedImageUrl === gen.imageUrl ? "ring-2 ring-brand" : ""}`} onClick={() => setSelectedGeneratedImageUrl(gen.imageUrl)}>
-                            <img className="aspect-[4/5] w-full object-cover" src={getAssetUrl(gen.imageUrl)} alt={`AI 精修 ${index + 1}`} />
+                            <img className="aspect-[4/5] w-full object-cover" src={getAssetUrl(gen.thumbnailUrl || gen.imageUrl)} alt={`AI 精修 ${index + 1}`} loading="lazy" decoding="async" />
                           </div>
                           <div className="mt-2 flex items-center justify-between">
                             <span className="text-xs text-muted">版本 {index + 1}</span>

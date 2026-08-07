@@ -11,6 +11,7 @@ export type ImageProcessPayload = {
 
 export type ImageProcessResult = {
   image_url: string;
+  thumbnail_url?: string;
   model: string;
   prompt: string;
   editing_strategy?: string;

@@ -20,6 +20,7 @@ class ImageProcessRequest(BaseModel):
 
 class ImageProcessResponse(BaseModel):
     image_url: str
+    thumbnail_url: str | None = None
     model: str
     prompt: str
     editing_strategy: str | None = None

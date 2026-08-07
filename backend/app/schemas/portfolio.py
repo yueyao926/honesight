@@ -30,6 +30,7 @@ class PortfolioPhotoRead(BaseModel):
     collection_id: int
     title: str
     image_url: str
+    thumbnail_url: str | None = None
     source: str
     description: str | None = None
     visibility: str = "private"

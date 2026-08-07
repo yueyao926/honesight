@@ -59,6 +59,7 @@ export type PortfolioPhoto = {
   collection_id: number;
   title: string;
   image_url: string;
+  thumbnail_url?: string | null;
   source: "direct_upload" | "ai_original" | "legacy" | string;
   description?: string | null;
   visibility: "public" | "private";

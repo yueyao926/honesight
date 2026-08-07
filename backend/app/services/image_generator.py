@@ -9,6 +9,7 @@ import httpx
 
 from app.core.config import get_settings
 from app.services.editing_strategist import generate_editing_strategy
+from app.services.image_storage import ImageProcessingError, store_image, upload_url
 
 
 logger = logging.getLogger(__name__)
@@ -123,9 +124,10 @@ def generate_edited_image(
     if not generated_url:
         raise ImageGenerationError("图片生成服务没有返回可用图片")
 
-    local_url = _download_generated_image(generated_url, user_id)
+    local_url, thumbnail_url = _download_generated_image(generated_url, user_id)
     result: dict[str, str] = {
         "image_url": local_url,
+        "thumbnail_url": thumbnail_url,
         "model": settings.image_model,
         "prompt": prompt,
     }
@@ -187,7 +189,7 @@ def _extract_generated_url(data: object) -> str | None:
     return url if isinstance(url, str) and url.startswith("https://") else None
 
 
-def _download_generated_image(url: str, user_id: int) -> str:
+def _download_generated_image(url: str, user_id: int) -> tuple[str, str]:
     settings = get_settings()
     try:
         with httpx.Client(timeout=settings.image_timeout_seconds, follow_redirects=True) as client:
@@ -205,10 +207,19 @@ def _download_generated_image(url: str, user_id: int) -> str:
     if len(response.content) > 20 * 1024 * 1024:
         raise ImageGenerationError("生成图片超过 20MB，无法保存")
 
-    settings.upload_path.mkdir(parents=True, exist_ok=True)
-    filename = f"{user_id}_generated_{uuid4().hex}{suffix}"
-    (settings.upload_path / filename).write_bytes(response.content)
-    return f"/uploads/{filename}"
+    try:
+        stored = store_image(
+            response.content,
+            settings.upload_path,
+            f"{user_id}_generated_{uuid4().hex}",
+            create_thumbnail=True,
+        )
+    except ImageProcessingError as exc:
+        raise ImageGenerationError(str(exc)) from exc
+    return (
+        upload_url(stored.image_path, settings.upload_path),
+        upload_url(stored.thumbnail_path, settings.upload_path) if stored.thumbnail_path else "",
+    )
 
 
 def _detect_image_suffix(content_type: str, content: bytes) -> str | None:

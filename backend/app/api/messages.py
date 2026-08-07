@@ -1,13 +1,12 @@
 from datetime import datetime, timezone
-from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
+from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import get_current_user
-from app.api.upload import _detected_image_type
 from app.core.config import get_settings
 from app.database import get_db
 from app.models.community import CommunityPost
@@ -15,6 +14,13 @@ from app.models.messaging import ConversationUserState, DirectConversation, Dire
 from app.models.user import User
 from app.schemas.messaging import ConversationCreate, ConversationSettings, MessageCreate, MessageReportCreate
 from app.services.messaging import create_or_get_conversation, other_user_id, require_participant, send_message
+from app.services.image_storage import (
+    ImageProcessingError,
+    MESSAGE_IMAGE_MAX_BYTES,
+    MESSAGE_IMAGE_SIZE,
+    store_image,
+    upload_url,
+)
 
 router = APIRouter(prefix="/messages", tags=["messages"])
 
@@ -77,6 +83,9 @@ def report(message_id:int,payload:MessageReportCreate,user:User=Depends(get_curr
 async def upload_image(file:UploadFile=File(...),user:User=Depends(get_current_user)):
     content=await file.read(get_settings().message_image_max_size+1)
     if len(content)>get_settings().message_image_max_size:raise HTTPException(400,"图片过大")
-    ext=_detected_image_type(content)
-    if not ext:raise HTTPException(400,"无效图片类型")
-    folder=get_settings().upload_path/"messages"/str(user.id);folder.mkdir(parents=True,exist_ok=True);name=f"{uuid4().hex}{ext}";(folder/name).write_bytes(content);return {"image_url":f"/uploads/messages/{user.id}/{name}"}
+    settings=get_settings();folder=settings.upload_path/"messages"/str(user.id)
+    try:
+        stored=await run_in_threadpool(store_image,content,folder,uuid4().hex,max_size=MESSAGE_IMAGE_SIZE,max_bytes=MESSAGE_IMAGE_MAX_BYTES,quality=78)
+    except ImageProcessingError as exc:
+        raise HTTPException(400,str(exc)) from exc
+    return {"image_url":upload_url(stored.image_path,settings.upload_path)}

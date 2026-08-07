@@ -21,6 +21,7 @@ from app.schemas.portfolio import (
     SaveOriginalToPortfolioRequest,
     SaveOriginalToPortfolioResponse,
 )
+from app.services.image_storage import local_upload_path, thumbnail_url_for
 
 
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
@@ -50,7 +51,7 @@ def _collection_dict(collection: PortfolioCollection, *, include_photos: bool = 
         "id": collection.id,
         "user_id": collection.user_id,
         "name": collection.name,
-        "cover_image_url": photos[0].image_url if photos else None,
+        "cover_image_url": (photos[0].thumbnail_url or photos[0].image_url) if photos else None,
         "photo_count": len(photos),
         "created_at": collection.created_at,
         "updated_at": collection.updated_at,
@@ -72,9 +73,8 @@ def _validate_portfolio_image(image_url: str, user_id: int, source: str) -> None
         raise HTTPException(status_code=400, detail="找不到对应的 AI 精修图")
     if source != "ai_refined" and is_generated:
         raise HTTPException(status_code=400, detail="AI 精修图必须使用正确的来源标记")
-    image_path = (get_settings().upload_path / filename).resolve()
-    upload_root = get_settings().upload_path.resolve()
-    if upload_root not in image_path.parents or not image_path.is_file():
+    image_path = local_upload_path(image_url, get_settings().upload_path)
+    if not image_path or not image_path.is_file():
         raise HTTPException(status_code=400, detail="找不到这张原始照片，请重新上传")
 
 
@@ -90,6 +90,7 @@ def _append_photo(
         user_id=user_id,
         collection_id=collection.id,
         image_url=payload.image_url,
+        thumbnail_url=thumbnail_url_for(payload.image_url, get_settings().upload_path),
         title=(payload.title or "照片").strip() or "照片",
         source=source,
     )

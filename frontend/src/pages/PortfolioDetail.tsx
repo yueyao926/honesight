@@ -50,7 +50,7 @@ export default function PortfolioDetail() {
         ...current,
         photos: [photo, ...current.photos],
         photo_count: current.photo_count + 1,
-        cover_image_url: photo.image_url,
+        cover_image_url: photo.thumbnail_url || photo.image_url,
       } : current);
       setUploadUrl(null);
     } catch (err) {
@@ -68,7 +68,7 @@ export default function PortfolioDetail() {
       setCollection((current) => {
         if (!current) return current;
         const photos = current.photos.filter((item) => item.id !== photo.id);
-        return { ...current, photos, photo_count: photos.length, cover_image_url: photos[0]?.image_url || null };
+        return { ...current, photos, photo_count: photos.length, cover_image_url: photos[0]?.thumbnail_url || photos[0]?.image_url || null };
       });
       if (selectedPhoto?.id === photo.id) setSelectedPhoto(null);
     } catch (err) {
@@ -167,7 +167,7 @@ export default function PortfolioDetail() {
           {collection.photos.map((photo) => (
             <div key={photo.id} className="group relative overflow-hidden rounded-3xl bg-white shadow-card">
               <button className="block w-full" type="button" onClick={() => !managing && setSelectedPhoto(photo)}>
-                <img className="h-72 w-full object-cover transition group-hover:scale-[1.02]" src={getAssetUrl(photo.image_url)} alt="作品照片" />
+                <img className="h-72 w-full object-cover transition group-hover:scale-[1.02]" src={getAssetUrl(photo.thumbnail_url || photo.image_url)} alt="作品照片" loading="lazy" decoding="async" />
               </button>
               <span className="absolute bottom-3 left-3 rounded-full bg-ink/75 px-3 py-1 text-xs text-white">
                 {sourceLabels[photo.source] || "作品"}

@@ -1,8 +1,11 @@
 import tempfile
 import unittest
+from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
+
+from PIL import Image
 
 from app.services.image_generator import generate_edited_image
 
@@ -34,7 +37,9 @@ class FakeClient:
         return FakeResponse(data={"data": [{"url": "https://images.example.com/generated.png"}]})
 
     def get(self, *args, **kwargs):
-        return FakeResponse(content=b"\x89PNG\r\n\x1a\nmock-image", content_type="image/png")
+        output = BytesIO()
+        Image.new("RGB", (1200, 800), (80, 120, 180)).save(output, format="PNG")
+        return FakeResponse(content=output.getvalue(), content_type="image/png")
 
 
 class ImageGeneratorTests(unittest.TestCase):
@@ -65,6 +70,8 @@ class ImageGeneratorTests(unittest.TestCase):
             self.assertEqual(result["model"], "test-image-model")
             self.assertTrue(result["image_url"].startswith("/uploads/12_generated_"))
             self.assertTrue((Path(directory) / result["image_url"].removeprefix("/uploads/")).is_file())
+            self.assertTrue(result["thumbnail_url"].endswith("_thumb.webp"))
+            self.assertTrue((Path(directory) / result["thumbnail_url"].removeprefix("/uploads/")).is_file())
 
 
 if __name__ == "__main__":

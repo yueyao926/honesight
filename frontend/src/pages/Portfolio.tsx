@@ -88,6 +88,8 @@ export default function Portfolio() {
                   className="h-64 w-full object-cover transition group-hover:scale-[1.02]"
                   src={getAssetUrl(collection.cover_image_url)}
                   alt={collection.name}
+                  loading="lazy"
+                  decoding="async"
                 />
               ) : (
                 <div className="flex h-64 items-center justify-center bg-blush/35">
