@@ -1,4 +1,4 @@
-import { Link, Navigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import DailyInspirationSection from "../components/DailyInspirationSection";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -278,5 +278,5 @@ export function LandingHome({ isAuthenticated }: { isAuthenticated: boolean }) {
 
 export default function Home() {
   const { isAuthenticated } = useAuth();
-  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <LandingHome isAuthenticated={false} />;
+  return <LandingHome isAuthenticated={isAuthenticated} />;
 }
