@@ -1,122 +1,103 @@
-name: Deploy to Server
+name: CI/CD
 
 on:
+  pull_request:
+    branches: [main]
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
-    inputs:
-      branch:
-        description: '要部署的分支'
-        required: false
-        default: 'main'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lenscoach-production
+  cancel-in-progress: false
+
+env:
+  BACKEND_IMAGE: lenscoach-backend
+  FRONTEND_IMAGE: lenscoach-frontend
 
 jobs:
-  deploy:
+  ci:
+    name: Test and build
     runs-on: ubuntu-latest
     steps:
-      - name: SSH 到服务器并执行部署
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          port: ${{ secrets.SERVER_PORT }}
-          script: |
-            set -euo pipefail
-            BRANCH="${{ github.event.inputs.branch || 'main' }}"
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
-            # 首次部署：如果目录不存在则克隆
-            if [ ! -d ~/lenscoach ]; then
-              git clone https://github.com/yueyao926/lenscoach.git ~/lenscoach
-            fi
+      - name: Build backend image
+        run: docker build --tag "${BACKEND_IMAGE}:ci" ./backend
 
-            cd ~/lenscoach
-            git fetch origin
-            git checkout "$BRANCH"
-            git pull origin "$BRANCH"
+      - name: Run backend tests
+        run: |
+          docker run --rm "${BACKEND_IMAGE}:ci" sh -c \
+            "pip install --no-cache-dir pytest >/dev/null && python -m pytest -q"
 
-            # 如果 .env 不存在，从模板创建（需要先在服务器填好真实值）
-            if [ ! -f .env ]; then
-              cp .env.production.example .env
-              echo "⚠️  .env 文件不存在，已从模板复制，请立即修改密码和密钥！"
-            fi
+      - name: Build frontend image
+        run: docker build --tag "${FRONTEND_IMAGE}:ci" ./frontend
 
-            docker compose -f docker-compose.deploy.yml up -d --build
+  deploy:
+    name: Deploy production
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
-            # Docker 前端可能因宿主机 Nginx 占用 80 端口而映射到其他端口。
-            # 自动读取实际端口，并确保公网入口代理到 LensCoach，而不是默认欢迎页。
-            FRONTEND_BIND="$(docker compose -f docker-compose.deploy.yml port frontend 80 | tail -n 1)"
-            FRONTEND_PORT="${FRONTEND_BIND##*:}"
-            if [ -z "$FRONTEND_PORT" ]; then
-              echo "❌ 无法获取前端容器映射端口"
-              exit 1
-            fi
+      - name: Build release images
+        run: |
+          docker build --tag "${BACKEND_IMAGE}:${GITHUB_SHA}" ./backend
+          docker build --tag "${FRONTEND_IMAGE}:${GITHUB_SHA}" ./frontend
 
-            FRONTEND_READY=0
-            for ATTEMPT in $(seq 1 15); do
-              if curl -fsS "http://127.0.0.1:${FRONTEND_PORT}/" | grep -q 'id="root"'; then
-                FRONTEND_READY=1
-                break
-              fi
-              sleep 2
-            done
-            if [ "$FRONTEND_READY" -ne 1 ]; then
-              echo "❌ 前端容器启动超时"
-              exit 1
-            fi
+      - name: Package release
+        run: |
+          mkdir -p release
+          docker save \
+            "${BACKEND_IMAGE}:${GITHUB_SHA}" \
+            "${FRONTEND_IMAGE}:${GITHUB_SHA}" \
+            | gzip -1 > release/lenscoach-images.tar.gz
+          cp docker-compose.prod.yml release/docker-compose.prod.yml
+          cp .github/scripts/deploy-production.sh release/deploy-production.sh
+          chmod +x release/deploy-production.sh
+          (cd release && sha256sum lenscoach-images.tar.gz docker-compose.prod.yml deploy-production.sh > SHA256SUMS)
 
-            if command -v nginx >/dev/null 2>&1; then
-              # 部署用户可管理 Docker，但没有免密 sudo。使用一次性维护容器
-              # 进入宿主机命名空间，精确写入站点配置并平滑重载 Nginx。
-              docker run --rm -i --privileged --pid=host alpine:3.20 \
-                nsenter -t 1 -m -u -i -n -p -- sh -c \
-                'cat > /etc/nginx/conf.d/lenscoach.conf' <<EOF
-            server {
-                listen 80;
-                server_name ${{ secrets.SERVER_HOST }};
+      - name: Configure SSH
+        env:
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          SERVER_KNOWN_HOSTS: ${{ secrets.SERVER_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SERVER_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$SERVER_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          ssh-keygen -y -f ~/.ssh/id_ed25519 >/dev/null
 
-                location / {
-                    proxy_pass http://127.0.0.1:${FRONTEND_PORT};
-                    proxy_http_version 1.1;
-                    proxy_connect_timeout 30s;
-                    proxy_send_timeout 360s;
-                    proxy_read_timeout 360s;
-                    send_timeout 360s;
-                    proxy_set_header Host \$host;
-                    proxy_set_header X-Real-IP \$remote_addr;
-                    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-                    proxy_set_header X-Forwarded-Proto \$scheme;
-                }
+      - name: Upload release
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_PORT: ${{ secrets.SERVER_PORT }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          remote_release="/home/${SERVER_USER}/lenscoach/releases/${GITHUB_SHA}"
+          ssh -i ~/.ssh/id_ed25519 -p "$SERVER_PORT" \
+            "${SERVER_USER}@${SERVER_HOST}" "mkdir -p '$remote_release'"
+          scp -i ~/.ssh/id_ed25519 -P "$SERVER_PORT" \
+            release/lenscoach-images.tar.gz \
+            release/docker-compose.prod.yml \
+            release/deploy-production.sh \
+            release/SHA256SUMS \
+            "${SERVER_USER}@${SERVER_HOST}:${remote_release}/"
 
-                client_max_body_size 10m;
-            }
-
-            server {
-                listen 8080;
-                server_name ${{ secrets.SERVER_HOST }};
-
-                return 308 http://${{ secrets.SERVER_HOST }}\$request_uri;
-            }
-            EOF
-              docker run --rm --privileged --pid=host alpine:3.20 \
-                nsenter -t 1 -m -u -i -n -p -- nginx -t
-              docker run --rm --privileged --pid=host alpine:3.20 \
-                nsenter -t 1 -m -u -i -n -p -- nginx -s reload
-            fi
-
-            EXPECTED_INDEX_SHA="$(docker compose -f docker-compose.deploy.yml exec -T frontend sha256sum /usr/share/nginx/html/index.html | awk '{print $1}')"
-            PUBLIC_INDEX_SHA="$(curl -fsS -H "Host: ${{ secrets.SERVER_HOST }}" http://127.0.0.1/ | sha256sum | awk '{print $1}')"
-            if [ "$PUBLIC_INDEX_SHA" != "$EXPECTED_INDEX_SHA" ]; then
-              echo "❌ 公网入口没有返回当前前端容器的版本"
-              exit 1
-            fi
-            docker compose -f docker-compose.deploy.yml exec -T backend python -c \
-              'from app.core.config import get_settings; s = get_settings(); print({"image_generation_enabled": s.image_generation_enabled, "image_api_key_configured": bool(s.resolved_image_api_key), "image_model": s.image_model, "image_timeout_seconds": s.image_timeout_seconds})'
-            REDIRECT_RESULT="$(curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' -H "Host: ${{ secrets.SERVER_HOST }}:8080" http://127.0.0.1:8080/)"
-            if [ "$REDIRECT_RESULT" != "308 http://${{ secrets.SERVER_HOST }}/" ]; then
-              echo "Unexpected :8080 redirect: $REDIRECT_RESULT"
-              exit 1
-            fi
-            docker compose -f docker-compose.deploy.yml ps
-            docker image prune -f
+      - name: Activate release
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_PORT: ${{ secrets.SERVER_PORT }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          remote_script="/home/${SERVER_USER}/lenscoach/releases/${GITHUB_SHA}/deploy-production.sh"
+          ssh -i ~/.ssh/id_ed25519 -p "$SERVER_PORT" \
+            "${SERVER_USER}@${SERVER_HOST}" \
+            "bash '$remote_script' '$GITHUB_SHA'"

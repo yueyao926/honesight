@@ -12,10 +12,15 @@ services:
       test: ["CMD-SHELL", "pg_isready -U postgres -d lenscoach"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   backend:
-    image: lenscoach-backend:latest
+    image: lenscoach-backend:${IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-lenscoach}@db:5432/lenscoach
@@ -29,10 +34,28 @@ services:
       AI_API_KEY: ${AI_API_KEY:-}
       AI_BASE_URL: ${AI_BASE_URL:-https://ark.cn-beijing.volces.com/api/v3}
       AI_MODEL: ${AI_MODEL:-doubao-seed-1-6-vision-250815}
-      AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-45}
+      AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-300}
+      IMAGE_GENERATION_ENABLED: ${IMAGE_GENERATION_ENABLED:-false}
+      IMAGE_API_KEY: ${IMAGE_API_KEY:-}
+      IMAGE_BASE_URL: ${IMAGE_BASE_URL:-https://ark.cn-beijing.volces.com/api/v3}
+      IMAGE_MODEL: ${IMAGE_MODEL:-doubao-seedream-5-0-260128}
+      IMAGE_SIZE: ${IMAGE_SIZE:-2K}
+      IMAGE_TIMEOUT_SECONDS: ${IMAGE_TIMEOUT_SECONDS:-120}
+      IMAGE_WATERMARK: ${IMAGE_WATERMARK:-false}
       ARK_API_KEY: ${ARK_API_KEY:-}
       ARK_API_URL: ${ARK_API_URL:-https://ark.cn-beijing.volces.com/api/v3/responses}
       ARK_VISION_MODEL: ${ARK_VISION_MODEL:-doubao-seed-1-6-vision-250815}
+      UNSPLASH_ACCESS_KEY: ${UNSPLASH_ACCESS_KEY:-}
+      OPENVERSE_CLIENT_ID: ${OPENVERSE_CLIENT_ID:-}
+      OPENVERSE_CLIENT_SECRET: ${OPENVERSE_CLIENT_SECRET:-}
+      INSPIRATION_DAILY_COUNT: ${INSPIRATION_DAILY_COUNT:-4}
+      INSPIRATION_RECENT_EXCLUSION_DAYS: ${INSPIRATION_RECENT_EXCLUSION_DAYS:-14}
+      INSPIRATION_ADMIN_EMAILS: ${INSPIRATION_ADMIN_EMAILS:-}
+      INSPIRATION_SYNC_ENABLED: ${INSPIRATION_SYNC_ENABLED:-true}
+      INSPIRATION_SYNC_INTERVAL_HOURS: ${INSPIRATION_SYNC_INTERVAL_HOURS:-168}
+      INSPIRATION_SYNC_PER_TOPIC: ${INSPIRATION_SYNC_PER_TOPIC:-20}
+      INSPIRATION_SYNC_STARTUP_DELAY_SECONDS: ${INSPIRATION_SYNC_STARTUP_DELAY_SECONDS:-15}
+      INSPIRATION_SYNC_TOPICS: ${INSPIRATION_SYNC_TOPICS:-portrait,landscape,street photography,architecture,still life,night photography,animals}
     volumes:
       - uploads:/app/uploads
     depends_on:
@@ -40,17 +63,35 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
-      interval: 30s
+      interval: 10s
       timeout: 10s
-      retries: 3
+      retries: 6
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   frontend:
-    image: lenscoach-frontend:latest
+    image: lenscoach-frontend:${IMAGE_TAG:-latest}
     restart: unless-stopped
     ports:
       - "${PORT:-80}:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/health >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   pgdata:
