@@ -76,25 +76,39 @@ export function DimensionCards({ analysis }: { analysis: PhotoAnalysis }) {
           const score = analysis[`${key}_score` as keyof PhotoAnalysis] as number;
           const weight = analysis[`${key}_weight` as keyof PhotoAnalysis] as number;
           return (
-            <div key={key} className="card">
-              <div className="flex items-center justify-between">
-                <h3 className="font-display text-xl font-semibold">{label}</h3>
-                <span className="text-xs text-muted">权重 {(weight * 100).toFixed(0)}%</span>
+            <details key={key} className="card group">
+              <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center justify-between gap-4">
+                  <span>
+                    <span className="block font-display text-xl font-semibold">{label}</span>
+                    <span className="mt-1 block text-xs text-muted">权重 {(weight * 100).toFixed(0)}%</span>
+                  </span>
+                  <span className="flex items-center gap-4">
+                    <span className="font-display text-3xl font-semibold text-ink">{score}</span>
+                    <span
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-blush/55 text-lg text-brand-deep transition-transform group-open:rotate-180"
+                      aria-hidden="true"
+                    >
+                      ↓
+                    </span>
+                  </span>
+                </span>
+                <span className="mt-4 block h-1.5 rounded-full bg-sand">
+                  <span className="block h-1.5 rounded-full bg-brand" style={{ width: `${score}%` }} />
+                </span>
+              </summary>
+              <div className="mt-5 border-t border-sand/70 pt-5">
+                <p className="text-sm leading-7 text-muted">{detail?.reason}</p>
+                <p className="mt-4 text-xs font-medium uppercase tracking-wider text-muted">问题</p>
+                {detail?.problems?.length ? (
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted">
+                    {detail.problems.map((item: string) => <li key={item}>{item}</li>)}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-muted">暂未发现明显问题。</p>
+                )}
               </div>
-              <div className="mt-4 h-1.5 rounded-full bg-sand">
-                <div className="h-1.5 rounded-full bg-brand" style={{ width: `${score}%` }} />
-              </div>
-              <p className="mt-3 font-display text-2xl font-semibold">{score}</p>
-              <p className="mt-3 text-sm leading-7 text-muted">{detail?.reason}</p>
-              <p className="mt-3 text-xs font-medium uppercase tracking-wider text-muted">问题</p>
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted">
-                {detail?.problems?.map((item: string) => <li key={item}>{item}</li>)}
-              </ul>
-              <p className="mt-3 text-xs font-medium uppercase tracking-wider text-muted">建议</p>
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted">
-                {detail?.suggestions?.map((item: string) => <li key={item}>{item}</li>)}
-              </ul>
-            </div>
+            </details>
           );
         })}
       </div>
@@ -116,13 +130,31 @@ export function StylePanel({ analysis }: { analysis: PhotoAnalysis }) {
 
 export function AdvicePanel({ analysis }: { analysis: PhotoAnalysis }) {
   return (
-    <div className="card grid gap-4 md:grid-cols-2">
-      <Advice title="构图建议" text={analysis.composition_advice} />
-      <Advice title="光线建议" text={analysis.lighting_advice} />
-      <Advice title="色彩建议" text={analysis.color_advice} />
-      <Advice title="下一步" text={analysis.next_step} />
-      <div className="md:col-span-2"><Advice title="下次拍摄建议" text={analysis.shooting_tips} /></div>
-    </div>
+    <details className="card group" open>
+      <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+        <span className="flex items-center justify-between gap-4">
+          <span>
+            <span className="section-eyebrow block">AI 教练建议</span>
+            <span className="mt-1 block font-display text-2xl font-semibold sm:text-3xl">
+              针对这张照片的整体改进建议
+            </span>
+          </span>
+          <span
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blush/55 text-lg text-brand-deep transition-transform group-open:rotate-180"
+            aria-hidden="true"
+          >
+            ↓
+          </span>
+        </span>
+      </summary>
+      <div className="mt-6 grid gap-5 border-t border-sand/70 pt-6 md:grid-cols-2">
+        <Advice title="构图建议" text={analysis.composition_advice} />
+        <Advice title="光线建议" text={analysis.lighting_advice} />
+        <Advice title="色彩建议" text={analysis.color_advice} />
+        <Advice title="下一步" text={analysis.next_step} />
+        <div className="md:col-span-2"><Advice title="下次拍摄建议" text={analysis.shooting_tips} /></div>
+      </div>
+    </details>
   );
 }
 

@@ -137,6 +137,38 @@ export type PhotoAnalysis = {
 
 export type Analysis = PhotoAnalysis;
 
+export type PracticeAttempt = {
+  id: number;
+  stage: "first" | "reshoot";
+  image_url: string;
+  self_reflection: string;
+  skill_score: number;
+  score_change: number | null;
+  strength: string;
+  key_issue: string;
+  action_step: string;
+  reshoot_task: string;
+  comparison_summary: string;
+  created_at: string;
+};
+
+export type PracticeSession = {
+  id: number;
+  week_key: string;
+  skill_focus: string;
+  title: string;
+  brief: string;
+  constraints: string[];
+  success_criteria: string[];
+  coach_note: string;
+  status: "active" | "completed";
+  progress: number;
+  attempts: PracticeAttempt[];
+  created_at: string;
+  updated_at: string;
+  completed_at?: string | null;
+};
+
 export type ChatMessage = {
   id: number;
   portfolio_item_id: number;
