@@ -24,6 +24,8 @@ class FakeResponse:
 
 
 class FakeClient:
+    last_post_json = None
+
     def __init__(self, *args, **kwargs):
         pass
 
@@ -34,6 +36,7 @@ class FakeClient:
         return False
 
     def post(self, *args, **kwargs):
+        type(self).last_post_json = kwargs.get("json")
         return FakeResponse(data={"data": [{"url": "https://images.example.com/generated.png"}]})
 
     def get(self, *args, **kwargs):
@@ -72,6 +75,7 @@ class ImageGeneratorTests(unittest.TestCase):
             self.assertTrue((Path(directory) / result["image_url"].removeprefix("/uploads/")).is_file())
             self.assertTrue(result["thumbnail_url"].endswith("_thumb.webp"))
             self.assertTrue((Path(directory) / result["thumbnail_url"].removeprefix("/uploads/")).is_file())
+            self.assertNotIn("sequential_image_generation", FakeClient.last_post_json)
 
 
 if __name__ == "__main__":

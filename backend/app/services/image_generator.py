@@ -73,7 +73,6 @@ def generate_edited_image(
         "prompt": prompt,
         "image": images[0] if len(images) == 1 else images,
         "size": settings.image_size,
-        "sequential_image_generation": "disabled",
         "stream": False,
         "response_format": "url",
         "watermark": settings.image_watermark,
