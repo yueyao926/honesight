@@ -11,7 +11,7 @@ from app.database import Base
 from app.models.practice import CoachMemory, PracticeProgress
 from app.models.preference import Preference
 from app.models.user import User
-from app.schemas.practice import PracticeAttemptCreate
+from app.schemas.practice import PracticeAttemptCreate, PracticeDifficultyUpdate
 from app.services.practice_coach import analyze_practice_source, build_attempt_feedback, choose_practice, current_week_key, select_least_practiced_ability
 from app.services.practice_templates import TASK_LIBRARY, get_task
 
@@ -113,3 +113,20 @@ def test_weekly_submission_completes_single_focus_and_advances_cycle(db, monkeyp
     assert memory.completed_sessions == 1
     assert progress is not None
     assert progress.cycle_week == 2
+
+
+def test_difficulty_rating_is_persisted_and_returned(db, monkeypatch) -> None:
+    session, user = db
+    monkeypatch.setattr(practice_api, "analyze_photo_context", lambda **_kwargs: analysis_report(73))
+    practice_api.submit_practice_attempt(
+        PracticeAttemptCreate(image_url="/uploads/rating.jpg", self_reflection="练习完成。"), user, session
+    )
+
+    rated = practice_api.update_practice_difficulty(
+        PracticeDifficultyUpdate(difficulty="just_right"), user, session
+    )
+    assert rated["attempts"][-1]["difficulty_feedback"] == "just_right"
+
+    session.expire_all()
+    overview = practice_api.get_practice_overview(user, session)
+    assert overview["current"]["attempts"][-1]["difficulty_feedback"] == "just_right"

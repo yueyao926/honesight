@@ -13,6 +13,19 @@ import type { PracticeOverview, PracticeProgress, PracticeSession } from "../typ
 
 const TARGETS = ["构图", "光线", "清晰度", "色彩", "不确定"] as const;
 const CATEGORIES = ["人像", "风景", "拍物"] as const;
+type DifficultyValue = "too_easy" | "just_right" | "too_hard";
+
+const DIFFICULTY_OPTIONS: Array<[DifficultyValue, string]> = [
+  ["too_easy", "太简单"],
+  ["just_right", "正合适"],
+  ["too_hard", "太难"],
+];
+
+const DIFFICULTY_CONFIRMATIONS: Record<DifficultyValue, string> = {
+  too_easy: "已记录：太简单。连续轻松达成后，后续练习会适当升级。",
+  just_right: "已记录：正合适。下周会继续当前节奏。",
+  too_hard: "已记录：太难。已为你准备 10 分钟简化版。",
+};
 
 function ChoiceButton({ selected, children, onClick }: { selected: boolean; children: ReactNode; onClick: () => void }) {
   return (
@@ -283,12 +296,21 @@ function TaskView({ session, onChange, onSubmit, submitting }: {
 
 function FeedbackView({ session, onRate, rating }: {
   session: PracticeSession;
-  onRate: (value: "too_easy" | "just_right" | "too_hard") => Promise<void>;
+  onRate: (value: DifficultyValue) => Promise<void>;
   rating: boolean;
 }) {
   const attempt = session.attempts[session.attempts.length - 1];
+  const [pendingRating, setPendingRating] = useState<DifficultyValue | null>(null);
   if (!attempt) return null;
   const rated = Boolean(attempt.difficulty_feedback);
+  const selectedRating = attempt.difficulty_feedback || pendingRating;
+
+  async function chooseRating(value: DifficultyValue) {
+    setPendingRating(value);
+    await onRate(value);
+    setPendingRating(null);
+  }
+
   return (
     <>
       <section className="card animate-fade-up">
@@ -323,18 +345,25 @@ function FeedbackView({ session, onRate, rating }: {
       )}
 
       <section className="mt-5 rounded-3xl bg-ink p-6 text-white sm:flex sm:items-center sm:justify-between sm:p-8">
-        <div><h3 className="font-display text-2xl font-semibold">这周难度怎么样？</h3><p className="mt-2 text-sm text-white/60">你的选择会影响下一周。</p></div>
-        <div className="mt-5 flex flex-wrap gap-2 sm:mt-0">
-          {([
-            ["too_easy", "太简单"], ["just_right", "正合适"], ["too_hard", "太难"],
-          ] as const).map(([value, label]) => (
+        <div>
+          <h3 className="font-display text-2xl font-semibold">这周难度怎么样？</h3>
+          <p className="mt-2 text-sm text-white/60">我们将根据你的选择调整下一周的练习。</p>
+          {selectedRating && (
+            <p className="mt-3 text-sm text-white" role="status">
+              {rating ? "正在记录你的选择…" : DIFFICULTY_CONFIRMATIONS[selectedRating]}
+            </p>
+          )}
+        </div>
+        <div className="mt-5 flex flex-wrap gap-2 sm:ml-6 sm:mt-0">
+          {DIFFICULTY_OPTIONS.map(([value, label]) => (
             <button
               key={value}
               type="button"
               disabled={rating || rated}
-              onClick={() => onRate(value)}
-              className={`rounded-full border px-4 py-2.5 text-sm transition ${attempt.difficulty_feedback === value ? "border-white bg-white text-ink" : "border-white/25 hover:bg-white/10 disabled:opacity-50"}`}
-            >{label}</button>
+              aria-pressed={selectedRating === value}
+              onClick={() => void chooseRating(value)}
+              className={`rounded-full border px-4 py-2.5 text-sm transition ${selectedRating === value ? "border-white bg-white text-ink opacity-100" : "border-white/25 hover:bg-white/10 disabled:opacity-50"}`}
+            >{selectedRating === value ? `✓ ${label}` : label}</button>
           ))}
         </div>
       </section>
@@ -421,11 +450,12 @@ export default function Practice() {
     }
   }
 
-  async function rate(value: "too_easy" | "just_right" | "too_hard") {
+  async function rate(value: DifficultyValue) {
     setWorking(true);
+    setError("");
     try {
-      await updatePracticeDifficulty(value);
-      setOverview(await getPracticeOverview());
+      const updatedSession = await updatePracticeDifficulty(value);
+      setOverview((current) => current ? { ...current, current: updatedSession } : current);
     } catch (err) {
       setError(err instanceof Error ? err.message : "难度反馈保存失败");
     } finally {
