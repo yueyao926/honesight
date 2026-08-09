@@ -105,7 +105,7 @@ export default function AvatarUploader({ onSave, onReset, onClose }: Props) {
           accept="image/jpeg,image/png,image/webp"
           onChange={choose}
         />
-        <p className="mt-2 text-xs text-muted">原图最大 10MB，裁剪后自动压缩至 1MB 内</p>
+        <p className="mt-2 text-xs text-muted">原图最大 10MB</p>
         {src && (
           <>
             <div className="mx-auto mt-6 h-64 w-64 overflow-hidden rounded-full bg-sand">

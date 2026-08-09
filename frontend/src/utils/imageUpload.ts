@@ -96,7 +96,7 @@ export async function optimizeImageForUpload(
     canvas.width = width;
     canvas.height = height;
     const context = canvas.getContext("2d");
-    if (!context) throw new Error("浏览器不支持图片压缩");
+    if (!context) throw new Error("浏览器不支持图片处理");
     context.drawImage(image, 0, 0, width, height);
 
     for (let quality = profile.initialQuality; quality >= 0.52; quality -= 0.06) {
@@ -112,5 +112,5 @@ export async function optimizeImageForUpload(
     height = Math.max(1, Math.round(height * 0.85));
   }
 
-  throw new Error(smallest ? "图片压缩后仍然过大，请换一张图片重试" : "图片压缩失败，请重试");
+  throw new Error(smallest ? "图片处理后仍然过大，请换一张图片重试" : "图片处理失败，请重试");
 }

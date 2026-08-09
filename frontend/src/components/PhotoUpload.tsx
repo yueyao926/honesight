@@ -29,7 +29,7 @@ export default function PhotoUpload({ value, onChange, label = "上传照片" }:
     }
   }
 
-  const statusText = stage === "optimizing" ? "正在优化图片…" : "正在上传…";
+  const statusText = stage === "optimizing" ? "正在处理图片…" : "正在上传…";
 
   return (
     <div className="space-y-4">
