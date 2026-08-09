@@ -59,7 +59,7 @@ def get_practice_overview(
     )
     return {
         "current": _session_to_dict(current) if current else None,
-        "history": [_session_to_dict(item) for item in history if not current or item.id != current.id],
+        "history": [_session_to_dict(item) for item in history],
         "progress": [_progress_to_dict(item) for item in progress],
     }
 

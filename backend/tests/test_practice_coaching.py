@@ -114,6 +114,10 @@ def test_weekly_submission_completes_single_focus_and_advances_cycle(db, monkeyp
     assert progress is not None
     assert progress.cycle_week == 2
 
+    overview = practice_api.get_practice_overview(user, session)
+    assert len(overview["history"]) == 1
+    assert overview["history"][0]["id"] == completed["id"]
+
 
 def test_difficulty_rating_is_persisted_and_returned(db, monkeypatch) -> None:
     session, user = db
