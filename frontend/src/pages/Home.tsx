@@ -33,7 +33,7 @@ const featureLinks = [
   {
     eyebrow: "Weekly Practice",
     title: "每周一练",
-    description: "上传一张照片，每周只练一个最值得先改的点。",
+    description: "上传一张照片，从最值得改变的地方开始。",
     label: "开始本周练习",
     to: "/practice",
     protected: true,

@@ -375,6 +375,11 @@ def _update_coach_memory(user_id: int, session: PracticeSession, feedback: dict,
 
 def _session_to_dict(session: PracticeSession) -> dict:
     attempts = list(session.attempts)
+    current_task = get_task(session.category, session.skill_focus, session.level, session.cycle_week)
+    task_steps = list(current_task["steps"])
+    saved_simplified_task = _json_object(session.simplified_task_json)
+    if saved_simplified_task:
+        saved_simplified_task = simplified_task(current_task)
     photo_analysis = None
     if session.entry_mode == "improve":
         photo_analysis = {
@@ -400,11 +405,11 @@ def _session_to_dict(session: PracticeSession) -> dict:
         "photo_analysis": photo_analysis,
         "title": session.title,
         "brief": session.brief,
-        "steps": _json_list(session.steps_json) or _json_list(session.constraints_json),
-        "constraints": _json_list(session.constraints_json),
+        "steps": task_steps,
+        "constraints": task_steps,
         "success_criteria": _json_list(session.success_criteria_json),
         "optional_challenge": session.optional_challenge,
-        "simplified_task": _json_object(session.simplified_task_json),
+        "simplified_task": saved_simplified_task,
         "coach_note": session.coach_note,
         "status": session.status,
         "progress": len(attempts),

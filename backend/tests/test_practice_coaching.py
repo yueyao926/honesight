@@ -13,7 +13,7 @@ from app.models.preference import Preference
 from app.models.user import User
 from app.schemas.practice import PracticeAttemptCreate
 from app.services.practice_coach import analyze_practice_source, build_attempt_feedback, choose_practice, current_week_key, select_least_practiced_ability
-from app.services.practice_templates import TASK_LIBRARY
+from app.services.practice_templates import TASK_LIBRARY, get_task
 
 
 def analysis_report(score: int) -> dict:
@@ -46,6 +46,13 @@ def test_library_contains_48_fixed_templates_and_user_goal_wins() -> None:
     assert result["photo_type"] == "风景"
     assert result["ability"] == "色彩"
     assert result["confidence"] == 0.88
+
+
+def test_shooting_suggestions_are_detailed_and_actionable() -> None:
+    task = get_task("人像", "构图", 1, 1)
+    assert len(task["steps"]) == 3
+    assert all(len(step) >= 30 for step in task["steps"])
+    assert "至少三大步" in task["steps"][0]
 
 
 def test_recommendation_finishes_active_four_week_cycle_first() -> None:

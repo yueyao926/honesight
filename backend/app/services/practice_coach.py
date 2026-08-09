@@ -84,7 +84,7 @@ def choose_practice(preference: Preference | None) -> tuple[str, dict[str, Any]]
         "brief": task["goal"],
         "constraints": task["steps"],
         "success_criteria": task["criteria"],
-        "coach_note": f"本周只看「{ability}」，先不处理其他问题。",
+        "coach_note": f"本周重点：{ability}。",
     }
 
 

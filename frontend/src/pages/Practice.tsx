@@ -216,7 +216,7 @@ function TaskView({ session, onChange, onSubmit, submitting }: {
             {session.source_image_url ? (
               <img className="h-44 w-full rounded-2xl object-cover ring-1 ring-white/20" src={getAssetUrl(session.source_image_url)} alt="本周目标原图" />
             ) : (
-              <p className="font-display text-2xl font-semibold text-white/70">每周只练一个点。</p>
+              <p className="font-display text-2xl font-semibold leading-relaxed text-white/70">光会路过，记得按下快门。</p>
             )}
           </div>
         </div>
@@ -237,10 +237,10 @@ function TaskView({ session, onChange, onSubmit, submitting }: {
         <div className="card-soft">
           <p className="section-eyebrow">目标</p>
           <h3 className="mt-3 font-display text-2xl font-semibold leading-tight">{session.coach_note}</h3>
-          <p className="mt-3 text-sm leading-7 text-muted">本周只看「{session.skill_focus}」，其他问题先不处理。</p>
+          <p className="mt-3 text-sm leading-7 text-muted">本周重点：{session.skill_focus}</p>
         </div>
         <div className="card">
-          <p className="section-eyebrow">拍法</p>
+          <p className="section-eyebrow">拍摄建议</p>
           <ol className="mt-5 space-y-4">
             {session.steps.slice(0, 3).map((step, index) => (
               <li key={step} className="flex items-start gap-4">
@@ -436,7 +436,7 @@ export default function Practice() {
       <header className="mb-8 animate-fade-up">
         <p className="section-eyebrow">LensCoach</p>
         <h1 className="page-title mt-2">每周一练</h1>
-        <p className="mt-3 text-base text-muted">每周只练一个点。</p>
+        <p className="mt-3 text-base text-muted">慢慢拍，也是在慢慢看见。</p>
       </header>
 
       {(!session || changing) && <PracticeStarter replacing={Boolean(session)} loading={working} onStart={start} />}
