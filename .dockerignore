@@ -1,0 +1,34 @@
+# Git
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Env files (不要打包进镜像)
+.env
+*.env
+!example.env
+
+# Uploads (运行时挂载)
+uploads/*
+!uploads/.gitkeep
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# IDE
+.idea/
+.vscode/
+.DS_Store
+
+# Docker
+.dockerignore
+docker-compose.yml

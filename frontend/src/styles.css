@@ -1,0 +1,459 @@
+@import url("https://fonts.googleapis.com/css2?family=Amatic+SC:wght@400;700&family=Caveat:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;500;600;700&display=swap");
+
+@font-face {
+  font-family: "JasonHandwriting";
+  src: url("/fonts/JasonHandwriting9.ttf") format("truetype");
+  font-display: swap;
+  font-weight: normal;
+  font-style: normal;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  min-width: 320px;
+  font-family: "Noto Sans SC", system-ui, sans-serif;
+  background:
+    radial-gradient(ellipse at 0% 0%, rgba(138, 143, 136, 0.14), transparent 50%),
+    radial-gradient(ellipse at 100% 20%, rgba(113, 90, 74, 0.08), transparent 42%),
+    linear-gradient(180deg, #f3f2ec 0%, #eae9e3 100%);
+  color: #272522;
+  accent-color: #31443b;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(167, 181, 138, 0.45);
+  color: #272522;
+}
+
+@layer components {
+  .inspiration-stage { @apply relative grid overflow-hidden rounded-[1.75rem] bg-ink text-white md:grid-cols-[1.6fr_0.8fr] md:rounded-3xl; box-shadow: 0 18px 60px rgba(39,37,34,.16); }
+  .inspiration-image { @apply block h-[300px] w-full overflow-hidden bg-ink text-left sm:h-[360px] md:h-[560px]; }
+  .inspiration-image img { @apply h-full w-full object-cover transition duration-500 hover:scale-[1.01]; }
+  .inspiration-copy { @apply flex flex-col justify-center bg-cream p-5 text-ink sm:p-7 md:p-10; }
+  .carousel-arrow { @apply absolute top-[150px] flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-ink/45 text-lg text-white backdrop-blur transition hover:bg-ink/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white md:top-1/2; }
+  .carousel-dot { @apply h-2.5 w-2.5 rounded-full bg-brand/30 transition focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2; }
+  .carousel-dot-active { @apply w-8 bg-accent; }
+  .inspiration-skeleton { @apply h-[460px] animate-pulse rounded-3xl bg-sand/70; }
+  .inspiration-dialog-backdrop { @apply fixed inset-0 z-50 flex items-end justify-center bg-ink/75 p-0 backdrop-blur-sm sm:items-center sm:p-3 md:p-8; }
+  .inspiration-dialog { @apply relative grid max-h-[96vh] w-full max-w-6xl overflow-hidden rounded-t-3xl bg-cream shadow-2xl sm:rounded-3xl md:grid-cols-[1.45fr_0.75fr]; }
+  .dialog-close { @apply absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-ink/60 text-2xl text-white; }
+  .community-folder { @apply flex items-center justify-between gap-5 rounded-3xl border border-white/70 bg-blush/55 p-7 md:p-9; box-shadow: 0 8px 32px rgba(39, 37, 34, 0.07); }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 md:px-8 md:py-10;
+  }
+
+  .card {
+    @apply rounded-[1.6rem] border border-white/60 bg-white/75 p-5 backdrop-blur-sm md:rounded-3xl md:p-8;
+    box-shadow: 0 8px 32px rgba(39, 37, 34, 0.07);
+  }
+
+  .card-soft {
+    @apply rounded-[1.6rem] bg-blush/50 p-5 md:rounded-3xl md:p-8;
+  }
+
+  .btn-primary {
+    @apply inline-flex min-h-11 items-center justify-center rounded-full bg-brand px-6 py-3 text-center text-sm font-medium tracking-wide text-white transition hover:bg-brand-deep focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose/50 disabled:cursor-not-allowed disabled:opacity-55;
+    box-shadow: 0 20px 60px rgba(113, 90, 74, 0.14);
+  }
+
+  .btn-primary:hover {
+    box-shadow: 0 0 40px rgba(113, 90, 74, 0.2);
+  }
+
+  .btn-secondary {
+    @apply inline-flex min-h-11 items-center justify-center rounded-full border border-sand bg-white/80 px-6 py-3 text-center text-sm font-medium text-ink transition hover:border-brand hover:text-brand-deep focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose/50 disabled:cursor-not-allowed disabled:opacity-55;
+  }
+
+  .btn-ghost {
+    @apply inline-flex min-h-11 items-center justify-center rounded-full px-4 py-2 text-sm text-muted transition hover:bg-blush/60 hover:text-ink focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose/50 disabled:cursor-not-allowed disabled:opacity-55;
+  }
+
+  .input {
+    @apply w-full rounded-2xl border border-sand bg-white/90 px-4 py-3.5 text-sm outline-none transition placeholder:text-muted/60 focus:border-brand focus:ring-4 focus:ring-rose/30;
+  }
+
+  .label {
+    @apply mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-muted;
+  }
+
+  .section-eyebrow {
+    @apply font-display text-sm font-medium italic tracking-wide text-accent;
+  }
+
+  .page-title {
+    @apply font-display text-4xl font-semibold leading-tight text-ink md:text-5xl;
+  }
+
+  .nav-link {
+    @apply relative px-3 py-1.5 text-sm text-muted transition hover:text-ink;
+  }
+
+  .nav-link-active {
+    @apply text-ink after:absolute after:bottom-0 after:left-3 after:right-3 after:h-px after:bg-accent;
+  }
+
+  .step-dot {
+    @apply flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium transition;
+  }
+
+  .step-dot-active {
+    @apply bg-brand text-white;
+    box-shadow: 0 20px 60px rgba(113, 90, 74, 0.14);
+  }
+
+  .step-dot-done {
+    @apply bg-matcha/45 text-ink;
+  }
+
+  .step-dot-pending {
+    @apply bg-sand text-muted;
+  }
+
+  .studio-flow {
+    @apply mt-10 space-y-14 md:mt-14 md:space-y-20;
+  }
+
+  .studio-step {
+    @apply relative grid scroll-mt-24 grid-cols-[2.5rem_minmax(0,1fr)] gap-3 md:grid-cols-[9rem_minmax(0,1fr)] md:gap-8;
+  }
+
+  .studio-step:not(:last-child)::before {
+    content: "";
+    @apply absolute left-[1.22rem] top-10 -bottom-14 w-px bg-sand md:left-5 md:-bottom-20;
+  }
+
+  .studio-step-rail {
+    @apply sticky top-24 z-10 flex h-fit items-center gap-3 self-start md:top-28;
+  }
+
+  .studio-step-number {
+    @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-sand bg-cream text-sm font-semibold text-muted transition;
+  }
+
+  .studio-step-label {
+    @apply hidden text-sm font-medium text-muted md:block;
+  }
+
+  .studio-step-active .studio-step-number {
+    @apply border-brand bg-brand text-white;
+    box-shadow: 0 10px 28px rgba(113, 90, 74, 0.2);
+  }
+
+  .studio-step-active .studio-step-label {
+    @apply text-ink;
+  }
+
+  .studio-step-done .studio-step-number {
+    @apply border-matcha/60 bg-matcha/45 text-ink;
+  }
+
+  .studio-step-card {
+    @apply max-w-4xl;
+  }
+
+  .studio-step-placeholder {
+    @apply max-w-4xl rounded-3xl border border-dashed border-sand/80 bg-white/35 px-6 py-8 text-sm text-muted;
+  }
+
+  .ins-grid {
+    @apply grid gap-4 md:grid-cols-2 lg:grid-cols-3;
+  }
+
+  .photo-frame {
+    @apply overflow-hidden rounded-3xl border-4 border-white;
+    box-shadow: 0 8px 32px rgba(39, 37, 34, 0.07);
+  }
+
+  .home-logo-type {
+    font-family: "Amatic SC", "JasonHandwriting", cursive;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    line-height: 0.92;
+    text-transform: uppercase;
+  }
+
+  /* Handwritten type — 清松手写体9 for Chinese, Amatic for Latin */
+  .home-marker-type {
+    font-family: "JasonHandwriting", "Amatic SC", cursive;
+    font-weight: normal;
+    letter-spacing: 0;
+    line-height: 1.05;
+    color: #272522;
+  }
+
+  .home-logo-tagline {
+    font-family: "Caveat", cursive;
+    font-weight: 500;
+    font-size: 1.35rem;
+    line-height: 1.15;
+    letter-spacing: 0.02em;
+    color: #272522;
+    transform: rotate(-1.5deg);
+  }
+
+  @media (min-width: 640px) {
+    .home-logo-tagline {
+      font-size: 1.6rem;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .home-logo-tagline {
+      font-size: 1.85rem;
+    }
+  }
+
+  .home-icon-chip {
+    @apply flex flex-col items-center gap-2 transition-transform duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose/50;
+  }
+
+  .home-icon-chip:nth-child(1) {
+    transform: rotate(-3deg);
+  }
+
+  .home-icon-chip:nth-child(1):hover {
+    transform: rotate(-3deg) translateY(-4px);
+  }
+
+  .home-icon-chip:nth-child(2) {
+    transform: rotate(2deg) translateY(5px);
+  }
+
+  .home-icon-chip:nth-child(2):hover {
+    transform: rotate(2deg) translateY(1px);
+  }
+
+  .home-icon-chip:nth-child(3) {
+    transform: rotate(-1deg) translateY(-4px);
+  }
+
+  .home-icon-chip:nth-child(3):hover {
+    transform: rotate(-1deg) translateY(-8px);
+  }
+
+  .home-icon-chip:nth-child(4) {
+    transform: rotate(3deg);
+  }
+
+  .home-icon-chip:nth-child(4):hover {
+    transform: rotate(3deg) translateY(-4px);
+  }
+
+  .home-icon-chip:nth-child(5) {
+    transform: rotate(-2deg) translateY(6px);
+  }
+
+  .home-icon-chip:nth-child(5):hover {
+    transform: rotate(-2deg) translateY(2px);
+  }
+
+  .home-icon-chip-label {
+    @apply font-sans text-[0.65rem] font-medium lowercase tracking-wide text-muted;
+  }
+
+  .home-icon-chip-box {
+    @apply flex h-14 w-14 items-center justify-center rounded-2xl border border-sand/80 bg-white/80 text-ink shadow-card sm:h-16 sm:w-16;
+  }
+
+  .home-practice-card {
+    @apply w-full;
+  }
+
+  .home-practice-card-frame {
+    @apply relative w-full;
+  }
+
+  .home-practice-card-border {
+    @apply pointer-events-none absolute inset-0 z-0 h-full w-full object-fill;
+  }
+
+  .home-practice-card-inner {
+    @apply relative z-10;
+    font-family: "JasonHandwriting", "Amatic SC", cursive;
+    font-weight: normal;
+    letter-spacing: 0;
+    line-height: 1.08;
+    color: #272522;
+    padding-block: clamp(2.5rem, 7vw, 3.75rem);
+    padding-inline: clamp(2.25rem, 6vw, 3.75rem);
+  }
+
+  .home-practice-card-eyebrow {
+    @apply mb-0 block text-xl text-muted sm:text-2xl;
+  }
+
+  .home-practice-card-title {
+    @apply mt-5 max-w-3xl text-2xl sm:text-3xl md:text-4xl;
+    line-height: 1.1;
+  }
+
+  .home-practice-card-inner .btn-primary,
+  .home-practice-card-cta {
+    @apply text-base sm:text-lg;
+    font-family: inherit;
+    font-weight: inherit;
+    letter-spacing: inherit;
+  }
+
+  .daily-inspiration-section {
+    font-family: "JasonHandwriting", "Amatic SC", cursive;
+    font-weight: normal;
+    letter-spacing: 0;
+    line-height: 1.08;
+    color: #272522;
+  }
+
+  .daily-inspiration-section .section-eyebrow {
+    font-family: inherit;
+    font-style: normal;
+    font-weight: normal;
+    @apply text-xl text-muted sm:text-2xl;
+  }
+
+  .daily-inspiration-section .daily-inspiration-heading {
+    @apply mt-2 text-2xl sm:text-3xl;
+    font-family: inherit;
+    font-weight: normal;
+    line-height: 1.1;
+  }
+
+  .daily-inspiration-section .daily-inspiration-subtitle,
+  .daily-inspiration-section .daily-inspiration-body {
+    font-family: inherit;
+    font-weight: normal;
+    letter-spacing: inherit;
+    @apply text-base leading-relaxed text-muted sm:text-lg;
+  }
+
+  .daily-inspiration-card {
+    @apply mt-4 w-full;
+  }
+
+  .daily-inspiration-card-frame {
+    @apply relative w-full;
+    aspect-ratio: 4289 / 2066;
+  }
+
+  .daily-inspiration-card-border {
+    @apply pointer-events-none absolute inset-0 z-0 h-full w-full object-fill;
+  }
+
+  .daily-inspiration-card-inner {
+    @apply absolute inset-0 z-10 flex flex-col items-center justify-center text-center;
+    padding-block: 14%;
+    padding-inline: 16%;
+  }
+
+  .daily-inspiration-card-inner .daily-inspiration-body {
+    @apply max-w-md;
+  }
+
+  .daily-inspiration-section .inspiration-copy {
+    font-family: inherit;
+    font-weight: normal;
+    letter-spacing: inherit;
+  }
+
+  .daily-inspiration-section .inspiration-copy .daily-inspiration-quote {
+    @apply text-xl leading-relaxed sm:text-2xl;
+    font-family: inherit;
+    font-style: normal;
+    font-weight: normal;
+  }
+
+  .daily-inspiration-section .btn-secondary,
+  .daily-inspiration-section .btn-primary {
+    font-family: inherit;
+    font-weight: inherit;
+    letter-spacing: inherit;
+    @apply text-base sm:text-lg;
+  }
+
+  .home-drawn-btn-group {
+    @apply flex flex-wrap items-center;
+    gap: 0.75rem;
+  }
+
+  .home-drawn-btn {
+    @apply relative inline-flex shrink-0 items-center justify-center overflow-hidden text-base text-ink no-underline transition hover:opacity-75 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose/50 sm:text-lg;
+    width: fit-content;
+    font-family: inherit;
+    font-weight: inherit;
+    letter-spacing: inherit;
+    line-height: 1;
+    background: transparent;
+    border: none;
+  }
+
+  .home-drawn-btn--box1 {
+    min-height: 2.35rem;
+    padding-inline: 2.05rem 2.15rem;
+    padding-block: 0.5rem;
+  }
+
+  @media (min-width: 640px) {
+    .home-drawn-btn--box1 {
+      padding-inline: 2.3rem 2.4rem;
+      padding-block: 0.55rem;
+    }
+  }
+
+  .home-drawn-btn--box2 {
+    width: fit-content;
+    min-width: 11.75rem;
+    padding-inline: 2.75rem 2.9rem;
+    padding-block: 0.55rem 0.65rem;
+    min-height: 3.2rem;
+  }
+
+  .home-drawn-btn--box2 .home-drawn-btn-border {
+    top: 2px;
+    right: 6px;
+    bottom: 0;
+    left: 6px;
+    width: auto;
+    height: auto;
+  }
+
+  @media (min-width: 640px) {
+    .home-drawn-btn--box2 {
+      min-width: 12.25rem;
+      min-height: 3.35rem;
+      padding-inline: 3rem 3.15rem;
+      padding-block: 0.6rem 0.7rem;
+    }
+
+    .home-drawn-btn--box2 .home-drawn-btn-border {
+      top: 2px;
+      right: 7px;
+      bottom: 0;
+      left: 7px;
+    }
+  }
+
+  .home-drawn-btn-label {
+    @apply relative z-10 whitespace-nowrap;
+    line-height: 1;
+    transform: translateY(-0.04em);
+    pointer-events: none;
+  }
+
+  .home-drawn-btn-border {
+    @apply pointer-events-none absolute inset-0 h-full w-full text-ink;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
