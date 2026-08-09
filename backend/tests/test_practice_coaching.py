@@ -12,7 +12,7 @@ from app.models.practice import CoachMemory, PracticeProgress
 from app.models.preference import Preference
 from app.models.user import User
 from app.schemas.practice import PracticeAttemptCreate
-from app.services.practice_coach import analyze_practice_source, build_attempt_feedback, choose_practice, current_week_key
+from app.services.practice_coach import analyze_practice_source, build_attempt_feedback, choose_practice, current_week_key, select_least_practiced_ability
 from app.services.practice_templates import TASK_LIBRARY
 
 
@@ -46,6 +46,16 @@ def test_library_contains_48_fixed_templates_and_user_goal_wins() -> None:
     assert result["photo_type"] == "风景"
     assert result["ability"] == "色彩"
     assert result["confidence"] == 0.88
+
+
+def test_recommendation_finishes_active_four_week_cycle_first() -> None:
+    class Progress:
+        ability = "光线"
+        cycle_week = 3
+        completed_count = 0
+        last_practiced_at = None
+
+    assert select_least_practiced_ability([Progress()]) == "光线"
 
 
 def test_feedback_compares_reshoot_with_first_attempt() -> None:

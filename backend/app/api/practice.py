@@ -106,6 +106,9 @@ def start_practice_session(
     if payload.entry_mode == "improve" and payload.source_image_url and not progress.cycle_source_image_url:
         progress.cycle_source_image_url = payload.source_image_url
     task = get_task(category, ability, progress.level, progress.cycle_week)
+    source_image_url = payload.source_image_url
+    if progress.cycle_week == 4 and progress.cycle_source_image_url:
+        source_image_url = progress.cycle_source_image_url
     preferred_minutes = preference.weekly_practice_minutes if preference else 20
     time_minutes = min(int(task["time_minutes"]), int(preferred_minutes or 20))
     time_minutes = 10 if time_minutes < 20 else 20 if time_minutes < 40 else 40
@@ -121,7 +124,7 @@ def start_practice_session(
         "level": progress.level,
         "cycle_week": progress.cycle_week,
         "time_minutes": time_minutes,
-        "source_image_url": payload.source_image_url,
+        "source_image_url": source_image_url,
         "target_goal": payload.target_goal,
         "photo_intent": str(photo_analysis["intent"] if photo_analysis else f"练习{category}拍摄。"),
         "priority_issue": priority_issue,

@@ -90,6 +90,19 @@ def choose_practice(preference: Preference | None) -> tuple[str, dict[str, Any]]
 
 def select_least_practiced_ability(progress_rows: list[Any]) -> str:
     by_ability = {row.ability: row for row in progress_rows}
+    active_cycles = [
+        row for row in progress_rows
+        if 1 < int(row.cycle_week or 1) <= 4 and row.ability in ABILITIES
+    ]
+    if active_cycles:
+        # Finish the four-week micro-cycle before introducing a new ability.
+        return max(
+            active_cycles,
+            key=lambda row: (
+                row.last_practiced_at.isoformat() if row.last_practiced_at else "",
+                int(row.cycle_week or 1),
+            ),
+        ).ability
     return min(
         ABILITIES,
         key=lambda ability: (
