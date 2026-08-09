@@ -31,6 +31,15 @@ const productSteps = [
 
 const featureLinks = [
   {
+    eyebrow: "Weekly Practice",
+    title: "每周一练",
+    description: "上传一张照片，每周只练一个最值得先改的点。",
+    label: "开始本周练习",
+    to: "/practice",
+    protected: true,
+    accent: "bg-sage/45 text-ink",
+  },
+  {
     eyebrow: "AI Coach",
     title: "分析与精修",
     description: "上传照片，获得四维分析、调色建议和 AI 精修版本。",
@@ -56,15 +65,6 @@ const featureLinks = [
     to: "/community",
     protected: false,
     accent: "bg-sand text-ink",
-  },
-  {
-    eyebrow: "Profile",
-    title: "完善个人主页",
-    description: "记录常拍题材、偏好风格和你的摄影签名。",
-    label: "打开个人主页",
-    to: "/profile",
-    protected: true,
-    accent: "bg-blush text-ink",
   },
 ];
 
@@ -144,18 +144,18 @@ function MemberHero() {
     <section className="container-page !py-6 sm:!py-10">
       <div className="relative grid overflow-hidden rounded-[2rem] bg-ink text-white md:grid-cols-[1.1fr_0.9fr] md:rounded-[2.5rem]">
         <div className="relative z-10 px-6 py-9 sm:px-9 sm:py-12 lg:px-12 lg:py-14">
-          <p className="font-display text-sm italic tracking-wide text-rose">今天的摄影练习</p>
+          <p className="font-display text-sm italic tracking-wide text-rose">本周练习</p>
           <h1 className="mt-3 max-w-2xl font-display text-[2.35rem] font-semibold leading-[1.08] sm:text-5xl lg:text-6xl">
-            把一张喜欢的照片，
+            这一周，
             <br className="hidden sm:block" />
-            再往前推一步。
+            只练一个点。
           </h1>
           <p className="mt-5 max-w-lg text-sm leading-7 text-white/65 sm:text-base">
-            从上传、分析到精修，清晰完成一次创作，也可以先看看今天为你挑选的摄影灵感。
+            上传一张想拍得更好的照片，LensCoach 会把最优先的问题变成一个可完成的任务。
           </p>
           <div className="mt-7 grid gap-3 sm:flex sm:flex-wrap">
-            <Link to="/ai" className="inline-flex min-h-12 items-center justify-center rounded-full bg-white px-6 text-sm font-medium text-ink transition hover:bg-blush">
-              上传照片开始分析
+            <Link to="/practice" className="inline-flex min-h-12 items-center justify-center rounded-full bg-white px-6 text-sm font-medium text-ink transition hover:bg-blush">
+              开始本周练习
             </Link>
             <a href="#daily-inspiration" className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/25 px-6 text-sm font-medium text-white transition hover:bg-white/10">
               看今日灵感
@@ -174,8 +174,8 @@ function MemberHero() {
           />
           <div className="absolute inset-0 bg-gradient-to-b from-ink/15 via-transparent to-ink/70 md:bg-gradient-to-r md:from-ink md:via-ink/15 md:to-transparent" />
           <div className="absolute bottom-5 left-5 right-5 rounded-2xl border border-white/15 bg-ink/30 p-4 backdrop-blur-md sm:bottom-7 sm:left-7 sm:right-7">
-            <p className="text-xs text-white/60">推荐练习</p>
-            <p className="mt-1 text-sm font-medium">尝试用冷暖对比，让夜景更有叙事感</p>
+            <p className="text-xs text-white/60">每周一练</p>
+            <p className="mt-1 text-sm font-medium">一个目标 · 三个步骤 · 两个标准</p>
           </div>
         </div>
       </div>

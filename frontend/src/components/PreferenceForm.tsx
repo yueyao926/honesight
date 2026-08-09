@@ -1,14 +1,45 @@
-import { FormEvent } from "react";
+import { FormEvent, useState } from "react";
+import type { PreferencePayload } from "../api/preferences";
 import type { Preference } from "../types";
 
-const fields = [
-  ["skill_level", "摄影水平", "新手 / 有一点基础 / 进阶"],
-  ["target_platform", "主要发布平台", "小红书 / 朋友圈 / Instagram / 作品集 / 商业约拍"],
-  ["preferred_styles", "偏好风格", "清新自然, 日系, 胶片感"],
-  ["common_subjects", "常拍内容", "人像, 风景, 美食, 校园"],
-  ["improvement_goals", "想提升能力", "构图, 光线, 调色"],
-  ["editing_tools", "常用修图工具", "Lightroom, 醒图, VSCO"],
-] as const;
+const LEVELS = ["刚开始", "有基础", "较熟练", "进阶创作"];
+const CATEGORIES = ["人像", "风景", "拍物", "都想练"];
+const DEVICES = ["手机", "相机", "都会使用"];
+const TIMES = [10, 20, 40];
+const DAYS = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+
+function OptionGroup<T extends string | number>({
+  value,
+  options,
+  onChange,
+  format = (item) => String(item),
+}: {
+  value: T;
+  options: T[];
+  onChange: (value: T) => void;
+  format?: (item: T) => string;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {options.map((option) => {
+        const selected = value === option;
+        return (
+          <button
+            key={option}
+            type="button"
+            className={`min-h-12 rounded-2xl border px-3 text-sm transition ${
+              selected ? "border-brand bg-brand text-white" : "border-sand bg-white/65 text-ink hover:border-brand/60"
+            }`}
+            aria-pressed={selected}
+            onClick={() => onChange(option)}
+          >
+            {format(option)}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function PreferenceForm({
   initial,
@@ -16,30 +47,97 @@ export default function PreferenceForm({
   submitText,
 }: {
   initial?: Partial<Preference> | null;
-  onSubmit: (payload: Record<string, string>) => Promise<void>;
+  onSubmit: (payload: PreferencePayload) => Promise<void>;
   submitText: string;
 }) {
+  const initialCategory = initial?.photography_categories?.length === 3
+    ? "都想练"
+    : initial?.photography_categories?.[0] || initial?.common_subjects || "都想练";
+  const initialDevice = initial?.shooting_devices?.length === 2
+    ? "都会使用"
+    : initial?.shooting_devices?.[0] || "手机";
+  const [level, setLevel] = useState(initial?.skill_level || "刚开始");
+  const [category, setCategory] = useState(initialCategory);
+  const [device, setDevice] = useState(initialDevice);
+  const [minutes, setMinutes] = useState(initial?.weekly_practice_minutes || 20);
+  const [practiceDay, setPracticeDay] = useState(initial?.weekly_practice_day || 1);
+  const [reminderEnabled, setReminderEnabled] = useState(initial?.weekly_reminder_enabled ?? true);
+  const [submitting, setSubmitting] = useState(false);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const payload: Record<string, string> = {};
-    fields.forEach(([key]) => {
-      payload[key] = String(form.get(key) || "");
-    });
-    await onSubmit(payload);
+    setSubmitting(true);
+    try {
+      const categories = category === "都想练" ? ["人像", "风景", "拍物"] : [category];
+      const devices = device === "都会使用" ? ["手机", "相机"] : [device];
+      await onSubmit({
+        skill_level: level,
+        common_subjects: category,
+        photography_categories: categories,
+        shooting_devices: devices,
+        weekly_practice_minutes: minutes,
+        weekly_practice_day: practiceDay,
+        weekly_reminder_enabled: reminderEnabled,
+      });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
-    <form className="grid gap-5 md:grid-cols-2" onSubmit={handleSubmit}>
-      {fields.map(([key, label, placeholder]) => (
-        <div key={key}>
-          <label className="label">{label}</label>
-          <input className="input" name={key} defaultValue={(initial?.[key] as string) || ""} placeholder={placeholder} />
-        </div>
-      ))}
-      <div className="md:col-span-2">
-        <button className="btn-primary" type="submit">{submitText}</button>
-      </div>
+    <form className="space-y-7" onSubmit={handleSubmit}>
+      <fieldset>
+        <legend className="mb-3 text-sm font-medium">你现在更接近哪种状态？</legend>
+        <OptionGroup value={level} options={LEVELS} onChange={setLevel} />
+      </fieldset>
+      <fieldset>
+        <legend className="mb-3 text-sm font-medium">你常拍什么？</legend>
+        <OptionGroup value={category} options={CATEGORIES} onChange={setCategory} />
+      </fieldset>
+      <fieldset>
+        <legend className="mb-3 text-sm font-medium">你使用什么设备？</legend>
+        <OptionGroup value={device} options={DEVICES} onChange={setDevice} />
+      </fieldset>
+      <fieldset>
+        <legend className="mb-3 text-sm font-medium">每周想留多少时间？</legend>
+        <OptionGroup
+          value={minutes}
+          options={TIMES}
+          onChange={setMinutes}
+          format={(item) => Number(item) >= 40 ? "40分钟以上" : `${item}分钟`}
+        />
+      </fieldset>
+      {initial && (
+        <fieldset className="rounded-3xl border border-sand bg-white/45 p-5">
+          <div className="flex items-center justify-between gap-4">
+            <div><legend className="text-sm font-medium">每周提醒</legend><p className="mt-1 text-xs text-muted">最多两次，完成后停止。</p></div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={reminderEnabled}
+              className={`relative h-7 w-12 rounded-full transition ${reminderEnabled ? "bg-brand" : "bg-sand"}`}
+              onClick={() => setReminderEnabled((value) => !value)}
+            >
+              <span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${reminderEnabled ? "left-6" : "left-1"}`} />
+            </button>
+          </div>
+          {reminderEnabled && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {DAYS.map((day, index) => (
+                <button
+                  key={day}
+                  type="button"
+                  className={`rounded-full px-3 py-2 text-xs ${practiceDay === index + 1 ? "bg-brand text-white" : "bg-sand/60 text-muted"}`}
+                  onClick={() => setPracticeDay(index + 1)}
+                >{day}</button>
+              ))}
+            </div>
+          )}
+        </fieldset>
+      )}
+      <button className="btn-primary w-full sm:w-auto" type="submit" disabled={submitting}>
+        {submitting ? "正在保存…" : submitText}
+      </button>
     </form>
   );
 }

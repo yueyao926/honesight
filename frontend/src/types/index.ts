@@ -33,6 +33,9 @@ export type Preference = {
   aesthetic_styles: string[];
   editing_software: string[];
   shooting_devices: string[];
+  weekly_practice_minutes: number;
+  weekly_practice_day: number;
+  weekly_reminder_enabled: boolean;
   daily_recommendation_enabled: boolean;
   daily_recommendation_count: number;
   use_favorite_behavior: boolean;
@@ -139,11 +142,16 @@ export type Analysis = PhotoAnalysis;
 
 export type PracticeAttempt = {
   id: number;
-  stage: "first" | "reshoot";
+  stage: "weekly" | "first" | "reshoot";
   image_url: string;
+  image_urls: string[];
   self_reflection: string;
   skill_score: number;
   score_change: number | null;
+  achieved_count: number;
+  criteria_total: number;
+  criterion_results: Array<{ criterion: string; achieved: boolean }>;
+  difficulty_feedback?: "too_easy" | "just_right" | "too_hard" | null;
   strength: string;
   key_issue: string;
   action_step: string;
@@ -155,11 +163,30 @@ export type PracticeAttempt = {
 export type PracticeSession = {
   id: number;
   week_key: string;
+  entry_mode: "improve" | "category";
+  category: "人像" | "风景" | "拍物";
   skill_focus: string;
+  level: number;
+  cycle_week: number;
+  cycle_label: string;
+  time_minutes: number;
+  source_image_url?: string | null;
+  target_goal: string;
+  photo_analysis?: {
+    photo_type: string;
+    intent: string;
+    priority_issue: string;
+    ability: string;
+    recommended_level: number;
+    confidence: number;
+  } | null;
   title: string;
   brief: string;
+  steps: string[];
   constraints: string[];
   success_criteria: string[];
+  optional_challenge: string;
+  simplified_task: { title?: string; time_minutes?: number; steps?: string[] };
   coach_note: string;
   status: "active" | "completed";
   progress: number;
@@ -167,6 +194,21 @@ export type PracticeSession = {
   created_at: string;
   updated_at: string;
   completed_at?: string | null;
+};
+
+export type PracticeProgress = {
+  category: "人像" | "风景" | "拍物";
+  ability: string;
+  level: number;
+  cycle_week: number;
+  completed_count: number;
+  remaining_for_level: number;
+};
+
+export type PracticeOverview = {
+  current: PracticeSession | null;
+  history: PracticeSession[];
+  progress: PracticeProgress[];
 };
 
 export type ChatMessage = {

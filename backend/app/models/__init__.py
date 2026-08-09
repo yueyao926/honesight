@@ -5,7 +5,7 @@ from app.models.community import CommunityPost, PostImage, Tag, PostTag, PostLik
 from app.models.messaging import ConversationUserState, DirectConversation, DirectMessage, MessageReport
 from app.models.search import PostSearchDocument, SearchHistory
 from app.models.preference import Preference
-from app.models.practice import CoachMemory, PracticeAttempt, PracticeSession
+from app.models.practice import CoachMemory, PracticeAttempt, PracticeProgress, PracticeSession
 from app.models.user import User
 from app.models.inspiration import DailyInspirationRecommendation, InspirationFavorite, InspirationPhoto
 
@@ -24,6 +24,7 @@ __all__ = [
     "Preference",
     "CoachMemory",
     "PracticeAttempt",
+    "PracticeProgress",
     "PracticeSession",
     "User",
 ]

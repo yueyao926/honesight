@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class PreferenceBase(BaseModel):
@@ -14,6 +14,9 @@ class PreferenceBase(BaseModel):
     aesthetic_styles: list[str] = []
     editing_software: list[str] = []
     shooting_devices: list[str] = []
+    weekly_practice_minutes: int = Field(default=20, ge=10, le=60)
+    weekly_practice_day: int = Field(default=1, ge=1, le=7)
+    weekly_reminder_enabled: bool = True
     daily_recommendation_enabled: bool = True
     daily_recommendation_count: int = 5
     use_favorite_behavior: bool = True

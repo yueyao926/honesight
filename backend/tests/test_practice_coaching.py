@@ -8,11 +8,12 @@ from sqlalchemy.pool import StaticPool
 import app.models  # noqa: F401
 from app.api import practice as practice_api
 from app.database import Base
-from app.models.practice import CoachMemory
+from app.models.practice import CoachMemory, PracticeProgress
 from app.models.preference import Preference
 from app.models.user import User
 from app.schemas.practice import PracticeAttemptCreate
-from app.services.practice_coach import build_attempt_feedback, choose_practice, current_week_key
+from app.services.practice_coach import analyze_practice_source, build_attempt_feedback, choose_practice, current_week_key
+from app.services.practice_templates import TASK_LIBRARY
 
 
 def analysis_report(score: int) -> dict:
@@ -34,7 +35,17 @@ def test_week_key_and_preference_choose_one_focus() -> None:
     preference = Preference(user_id=1, improvement_goals="我想先提升光线和曝光")
     focus, task = choose_practice(preference)
     assert focus == "光线"
-    assert task["title"] == "用光线把主体说明白"
+    assert task["ability"] == "光线"
+
+
+def test_library_contains_48_fixed_templates_and_user_goal_wins() -> None:
+    assert len(TASK_LIBRARY) == 48
+    report = analysis_report(80)
+    report.update({"photo_type": "landscape", "exposure_score": 20, "style_confidence": "0.88"})
+    result = analyze_practice_source(report, "色彩")
+    assert result["photo_type"] == "风景"
+    assert result["ability"] == "色彩"
+    assert result["confidence"] == 0.88
 
 
 def test_feedback_compares_reshoot_with_first_attempt() -> None:
@@ -42,7 +53,7 @@ def test_feedback_compares_reshoot_with_first_attempt() -> None:
     reshoot = build_attempt_feedback(analysis_report(76), "构图", int(first["skill_score"]))
     assert first["key_issue"] == "人物头部与背景路灯重叠。"
     assert reshoot["skill_score"] == 76
-    assert "提高了 8 分" in str(reshoot["comparison_summary"])
+    assert "构图表现提升" in str(reshoot["comparison_summary"])
 
 
 @pytest.fixture()
@@ -62,24 +73,20 @@ def db():
         session.close()
 
 
-def test_first_attempt_then_reshoot_completes_loop(db, monkeypatch) -> None:
+def test_weekly_submission_completes_single_focus_and_advances_cycle(db, monkeypatch) -> None:
     session, user = db
-    scores = iter((64, 73))
-    monkeypatch.setattr(practice_api, "analyze_photo_context", lambda **_kwargs: analysis_report(next(scores)))
-
-    first = practice_api.submit_practice_attempt(
-        PracticeAttemptCreate(image_url="/uploads/first.jpg", self_reflection="背景有一点乱。"), user, session
-    )
-    assert first["progress"] == 1
-    assert first["status"] == "active"
-    assert first["attempts"][0]["stage"] == "first"
+    monkeypatch.setattr(practice_api, "analyze_photo_context", lambda **_kwargs: analysis_report(73))
 
     completed = practice_api.submit_practice_attempt(
-        PracticeAttemptCreate(image_url="/uploads/reshoot.jpg", self_reflection="我向左移动了两步。"), user, session
+        PracticeAttemptCreate(image_url="/uploads/first.jpg", self_reflection="背景有一点乱。"), user, session
     )
-    assert completed["progress"] == 2
     assert completed["status"] == "completed"
-    assert completed["attempts"][1]["score_change"] == 9
+    assert completed["progress"] == 1
+    assert completed["attempts"][0]["stage"] == "weekly"
+    assert completed["attempts"][0]["criteria_total"] == 2
     memory = session.scalar(select(CoachMemory).where(CoachMemory.user_id == user.id))
+    progress = session.scalar(select(PracticeProgress).where(PracticeProgress.user_id == user.id))
     assert memory is not None
     assert memory.completed_sessions == 1
+    assert progress is not None
+    assert progress.cycle_week == 2

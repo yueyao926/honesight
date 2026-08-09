@@ -9,12 +9,12 @@ export default function Onboarding() {
   return (
     <main className="container-page max-w-3xl">
       <div className="card animate-fade-up">
-        <p className="section-eyebrow">Onboarding</p>
-        <h1 className="mt-2 font-display text-4xl font-semibold">告诉我们你的摄影偏好</h1>
-        <p className="mt-3 text-muted">这些信息会用于生成更贴近你目标的作品分析报告。</p>
+        <p className="section-eyebrow">开始每周一练</p>
+        <h1 className="mt-2 font-display text-4xl font-semibold">先认识一下你</h1>
+        <p className="mt-3 text-muted">只问四项，用来安排第一周难度。</p>
         <div className="mt-8">
           <PreferenceForm
-            submitText="保存并进入控制台"
+            submitText="保存并开始"
             onSubmit={async (payload) => {
               try {
                 await createMyPreferences(payload);
