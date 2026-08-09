@@ -142,7 +142,7 @@ export type Analysis = PhotoAnalysis;
 
 export type PracticeAttempt = {
   id: number;
-  stage: "weekly" | "first" | "reshoot";
+  stage: string;
   image_url: string;
   image_urls: string[];
   self_reflection: string;

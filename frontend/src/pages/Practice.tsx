@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { getAssetUrl } from "../api/client";
 import {
+  completePracticeSession,
   getPracticeOverview,
   startPracticeSession,
   submitPracticeAttempt,
@@ -13,6 +14,7 @@ import type { PracticeOverview, PracticeProgress, PracticeSession } from "../typ
 
 const TARGETS = ["构图", "光线", "清晰度", "色彩", "不确定"] as const;
 const CATEGORIES = ["人像", "风景", "拍物"] as const;
+const MAX_PRACTICE_ROUNDS = 3;
 type DifficultyValue = "too_easy" | "just_right" | "too_hard";
 
 const DIFFICULTY_OPTIONS: Array<[DifficultyValue, string]> = [
@@ -150,7 +152,7 @@ function CycleProgress({ week }: { week: number }) {
   );
 }
 
-function SubmissionForm({ onSubmit, loading }: { onSubmit: (images: string[], reflection: string) => Promise<void>; loading: boolean }) {
+function SubmissionForm({ onSubmit, loading }: { onSubmit: (images: string[], reflection: string) => Promise<boolean>; loading: boolean }) {
   const [images, setImages] = useState<Array<string | null>>([null]);
   const [reflection, setReflection] = useState("");
 
@@ -199,7 +201,7 @@ function SubmissionForm({ onSubmit, loading }: { onSubmit: (images: string[], re
 function TaskView({ session, onChange, onSubmit, submitting }: {
   session: PracticeSession;
   onChange: () => void;
-  onSubmit: (images: string[], reflection: string) => Promise<void>;
+  onSubmit: (images: string[], reflection: string) => Promise<boolean>;
   submitting: boolean;
 }) {
   const [started, setStarted] = useState(false);
@@ -294,16 +296,26 @@ function TaskView({ session, onChange, onSubmit, submitting }: {
   );
 }
 
-function FeedbackView({ session, onRate, rating }: {
+function FeedbackView({ session, onRate, onComplete, onSubmit, working }: {
   session: PracticeSession;
   onRate: (value: DifficultyValue) => Promise<void>;
-  rating: boolean;
+  onComplete: () => Promise<void>;
+  onSubmit: (images: string[], reflection: string) => Promise<boolean>;
+  working: boolean;
 }) {
   const attempt = session.attempts[session.attempts.length - 1];
   const [pendingRating, setPendingRating] = useState<DifficultyValue | null>(null);
+  const [retrying, setRetrying] = useState(false);
   if (!attempt) return null;
-  const rated = Boolean(attempt.difficulty_feedback);
-  const selectedRating = attempt.difficulty_feedback || pendingRating;
+  const savedRating = [...session.attempts].reverse().find((item) => item.difficulty_feedback)?.difficulty_feedback || null;
+  const rated = Boolean(savedRating);
+  const selectedRating = savedRating || pendingRating;
+  const roundCount = session.attempts.length;
+  const canRetry = roundCount < MAX_PRACTICE_ROUNDS;
+  const completed = session.status === "completed";
+  const previousAttempt = roundCount > 1 ? session.attempts[roundCount - 2] : null;
+  const comparisonImage = previousAttempt?.image_urls[0] || session.source_image_url;
+  const comparisonLabel = previousAttempt ? "上一轮" : "练习前";
 
   async function chooseRating(value: DifficultyValue) {
     setPendingRating(value);
@@ -311,12 +323,18 @@ function FeedbackView({ session, onRate, rating }: {
     setPendingRating(null);
   }
 
+  async function submitAnotherRound(images: string[], reflection: string) {
+    const saved = await onSubmit(images, reflection);
+    if (saved) setRetrying(false);
+    return saved;
+  }
+
   return (
     <>
       <section className="card animate-fade-up">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="section-eyebrow">本周目标</p>
+            <p className="section-eyebrow">第 {roundCount} 轮 · 本周目标</p>
             <h2 className="mt-2 font-display text-4xl font-semibold">达成 {attempt.achieved_count}/{attempt.criteria_total}</h2>
           </div>
           <span className="rounded-full bg-sage/40 px-4 py-2 text-sm">{session.category} · {session.skill_focus}</span>
@@ -333,24 +351,38 @@ function FeedbackView({ session, onRate, rating }: {
           <div className="rounded-2xl bg-blush/70 p-5"><p className="text-xs text-muted">再试一点</p><p className="mt-2 text-sm leading-7">{attempt.key_issue}</p></div>
           <div className="rounded-2xl bg-white p-5"><p className="text-xs text-muted">下一步</p><p className="mt-2 text-sm leading-7">{attempt.action_step}</p></div>
         </div>
+        {attempt.comparison_summary && <p className="mt-5 rounded-2xl bg-sand/50 px-4 py-3 text-sm text-muted">{attempt.comparison_summary}</p>}
       </section>
 
-      {(session.source_image_url || attempt.image_urls.length) && (
+      {(comparisonImage || attempt.image_urls.length) && (
         <section className="mt-5 grid gap-4 sm:grid-cols-2">
-          {session.source_image_url && (
-            <figure className="overflow-hidden rounded-3xl bg-ink"><img className="aspect-[4/3] w-full object-cover" src={getAssetUrl(session.source_image_url)} alt="练习前" /><figcaption className="px-4 py-3 text-sm text-white">练习前</figcaption></figure>
+          {comparisonImage && (
+            <figure className="overflow-hidden rounded-3xl bg-ink"><img className="aspect-[4/3] w-full object-cover" src={getAssetUrl(comparisonImage)} alt={comparisonLabel} /><figcaption className="px-4 py-3 text-sm text-white">{comparisonLabel}</figcaption></figure>
           )}
-          <figure className="overflow-hidden rounded-3xl bg-ink"><img className="aspect-[4/3] w-full object-cover" src={getAssetUrl(attempt.image_urls[0])} alt="本周练习" /><figcaption className="px-4 py-3 text-sm text-white">本周练习</figcaption></figure>
+          <figure className="overflow-hidden rounded-3xl bg-ink"><img className="aspect-[4/3] w-full object-cover" src={getAssetUrl(attempt.image_urls[0])} alt={`第 ${roundCount} 轮`} /><figcaption className="px-4 py-3 text-sm text-white">第 {roundCount} 轮</figcaption></figure>
         </section>
       )}
 
-      <section className="mt-5 rounded-3xl bg-ink p-6 text-white sm:flex sm:items-center sm:justify-between sm:p-8">
+      <section className="mt-5 rounded-3xl border border-sand bg-white/60 p-6 sm:flex sm:items-center sm:justify-between sm:p-8">
+        <div>
+          <h3 className="font-display text-2xl font-semibold">本周已练 {roundCount}/{MAX_PRACTICE_ROUNDS} 轮</h3>
+          <p className="mt-2 text-sm text-muted">每一轮都继续练「{session.skill_focus}」。</p>
+        </div>
+        <div className="mt-5 flex flex-wrap gap-3 sm:ml-6 sm:mt-0">
+          {canRetry && <button type="button" className="btn-primary" disabled={working} onClick={() => setRetrying(true)}>再练一轮</button>}
+          {!completed && <button type="button" className={canRetry ? "btn-secondary" : "btn-primary"} disabled={working} onClick={() => void onComplete()}>完成本周</button>}
+        </div>
+      </section>
+
+      {retrying && <div className="mt-5"><SubmissionForm onSubmit={submitAnotherRound} loading={working} /></div>}
+
+      {completed && <section className="mt-5 rounded-3xl bg-ink p-6 text-white sm:flex sm:items-center sm:justify-between sm:p-8">
         <div>
           <h3 className="font-display text-2xl font-semibold">这周难度怎么样？</h3>
           <p className="mt-2 text-sm text-white/60">我们将根据你的选择调整下一周的练习。</p>
           {selectedRating && (
             <p className="mt-3 text-sm text-white" role="status">
-              {rating ? "正在记录你的选择…" : DIFFICULTY_CONFIRMATIONS[selectedRating]}
+              {pendingRating && working ? "正在记录你的选择…" : DIFFICULTY_CONFIRMATIONS[selectedRating]}
             </p>
           )}
         </div>
@@ -359,14 +391,14 @@ function FeedbackView({ session, onRate, rating }: {
             <button
               key={value}
               type="button"
-              disabled={rating || rated}
+              disabled={working || rated}
               aria-pressed={selectedRating === value}
               onClick={() => void chooseRating(value)}
               className={`rounded-full border px-4 py-2.5 text-sm transition ${selectedRating === value ? "border-white bg-white text-ink opacity-100" : "border-white/25 hover:bg-white/10 disabled:opacity-50"}`}
             >{selectedRating === value ? `✓ ${label}` : label}</button>
           ))}
         </div>
-      </section>
+      </section>}
 
       {session.simplified_task.steps && (
         <section className="mt-5 rounded-3xl border border-brand/25 bg-blush/55 p-6">
@@ -397,12 +429,15 @@ function GrowthSummary({ progress, history }: { progress: PracticeProgress[]; hi
       <div>
         <p className="section-eyebrow">最近练习</p>
         <div className="mt-4 space-y-3">
-          {history.length ? history.slice(0, 4).map((item) => (
-            <div key={item.id} className="flex items-center justify-between rounded-2xl border border-white/70 bg-white/60 p-4">
-              <div><strong className="text-sm">{item.title}</strong><p className="mt-1 text-xs text-muted">{item.category} · {item.time_minutes}分钟 · L{item.level}</p></div>
-              <span className="text-xs text-accent">已完成</span>
-            </div>
-          )) : <p className="rounded-2xl bg-white/50 p-5 text-sm text-muted">还没有历史练习，先完成本周任务。</p>}
+          {history.length ? history.slice(0, 4).map((item) => {
+            const best = [...item.attempts].sort((a, b) => b.achieved_count - a.achieved_count)[0];
+            return (
+              <div key={item.id} className="flex items-center justify-between rounded-2xl border border-white/70 bg-white/60 p-4">
+                <div><strong className="text-sm">{item.title}</strong><p className="mt-1 text-xs text-muted">{item.category} · {item.time_minutes}分钟 · L{item.level} · {item.attempts.length}轮</p></div>
+                <span className="text-xs text-accent">最佳 {best?.achieved_count || 0}/{best?.criteria_total || 0}</span>
+              </div>
+            );
+          }) : <p className="rounded-2xl bg-white/50 p-5 text-sm text-muted">还没有历史练习，先完成本周任务。</p>}
         </div>
       </div>
     </section>
@@ -437,14 +472,29 @@ export default function Practice() {
     }
   }
 
-  async function submit(images: string[], reflection: string) {
+  async function submit(images: string[], reflection: string): Promise<boolean> {
     setWorking(true);
     setError("");
     try {
       await submitPracticeAttempt({ image_urls: images, self_reflection: reflection });
       setOverview(await getPracticeOverview());
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "提交失败，请稍后重试");
+      return false;
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  async function complete() {
+    setWorking(true);
+    setError("");
+    try {
+      await completePracticeSession();
+      setOverview(await getPracticeOverview());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "完成状态保存失败");
     } finally {
       setWorking(false);
     }
@@ -475,10 +525,12 @@ export default function Practice() {
       </header>
 
       {(!session || changing) && <PracticeStarter replacing={Boolean(session)} loading={working} onStart={start} />}
-      {session && !changing && session.status === "active" && (
+      {session && !changing && session.attempts.length === 0 && (
         <TaskView session={session} onChange={() => setChanging(true)} onSubmit={submit} submitting={working} />
       )}
-      {session && !changing && session.status === "completed" && <FeedbackView session={session} onRate={rate} rating={working} />}
+      {session && !changing && session.attempts.length > 0 && (
+        <FeedbackView session={session} onRate={rate} onComplete={complete} onSubmit={submit} working={working} />
+      )}
 
       {error && <p className="mt-5 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
       <GrowthSummary progress={overview?.progress || []} history={overview?.history || []} />

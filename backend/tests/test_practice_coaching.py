@@ -96,17 +96,21 @@ def db():
         session.close()
 
 
-def test_weekly_submission_completes_single_focus_and_advances_cycle(db, monkeypatch) -> None:
+def test_weekly_submission_waits_for_user_to_complete_and_advances_once(db, monkeypatch) -> None:
     session, user = db
     monkeypatch.setattr(practice_api, "analyze_photo_context", lambda **_kwargs: analysis_report(73))
 
-    completed = practice_api.submit_practice_attempt(
+    first_round = practice_api.submit_practice_attempt(
         PracticeAttemptCreate(image_url="/uploads/first.jpg", self_reflection="背景有一点乱。"), user, session
     )
+    assert first_round["status"] == "active"
+    assert first_round["progress"] == 1
+    assert first_round["attempts"][0]["stage"] == "weekly"
+    assert first_round["attempts"][0]["criteria_total"] == 2
+    assert session.scalar(select(CoachMemory).where(CoachMemory.user_id == user.id)) is None
+
+    completed = practice_api.complete_practice_session(user, session)
     assert completed["status"] == "completed"
-    assert completed["progress"] == 1
-    assert completed["attempts"][0]["stage"] == "weekly"
-    assert completed["attempts"][0]["criteria_total"] == 2
     memory = session.scalar(select(CoachMemory).where(CoachMemory.user_id == user.id))
     progress = session.scalar(select(PracticeProgress).where(PracticeProgress.user_id == user.id))
     assert memory is not None
@@ -119,12 +123,35 @@ def test_weekly_submission_completes_single_focus_and_advances_cycle(db, monkeyp
     assert overview["history"][0]["id"] == completed["id"]
 
 
+def test_weekly_practice_accepts_three_rounds_and_compares_previous_round(db, monkeypatch) -> None:
+    session, user = db
+    scores = iter((65, 73, 80))
+    monkeypatch.setattr(practice_api, "analyze_photo_context", lambda **_kwargs: analysis_report(next(scores)))
+
+    for round_number in range(1, 4):
+        weekly = practice_api.submit_practice_attempt(
+            PracticeAttemptCreate(image_url=f"/uploads/round-{round_number}.jpg"), user, session
+        )
+
+    assert weekly["status"] == "active"
+    assert len(weekly["attempts"]) == 3
+    assert [item["stage"] for item in weekly["attempts"]] == ["weekly", "weekly_2", "weekly_3"]
+    assert "与上一轮相比" in weekly["attempts"][-1]["comparison_summary"]
+
+    with pytest.raises(Exception) as exc_info:
+        practice_api.submit_practice_attempt(
+            PracticeAttemptCreate(image_url="/uploads/round-4.jpg"), user, session
+        )
+    assert getattr(exc_info.value, "status_code", None) == 409
+
+
 def test_difficulty_rating_is_persisted_and_returned(db, monkeypatch) -> None:
     session, user = db
     monkeypatch.setattr(practice_api, "analyze_photo_context", lambda **_kwargs: analysis_report(73))
     practice_api.submit_practice_attempt(
         PracticeAttemptCreate(image_url="/uploads/rating.jpg", self_reflection="练习完成。"), user, session
     )
+    practice_api.complete_practice_session(user, session)
 
     rated = practice_api.update_practice_difficulty(
         PracticeDifficultyUpdate(difficulty="just_right"), user, session

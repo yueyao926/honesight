@@ -31,6 +31,12 @@ export function submitPracticeAttempt(payload: { image_urls: string[]; self_refl
   });
 }
 
+export function completePracticeSession() {
+  return apiRequest<PracticeSession>("/practice/current/complete", {
+    method: "POST",
+  });
+}
+
 export function updatePracticeDifficulty(difficulty: "too_easy" | "just_right" | "too_hard") {
   return apiRequest<PracticeSession>("/practice/current/difficulty", {
     method: "PATCH",

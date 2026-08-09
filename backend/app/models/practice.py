@@ -43,7 +43,7 @@ class PracticeSession(Base):
         "PracticeAttempt",
         back_populates="session",
         cascade="all, delete-orphan",
-        order_by="PracticeAttempt.created_at",
+        order_by="PracticeAttempt.id",
     )
 
 

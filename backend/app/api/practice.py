@@ -33,6 +33,7 @@ from app.services.practice_templates import CYCLE_LABELS, get_task, simplified_t
 
 
 router = APIRouter(prefix="/practice", tags=["practice"])
+MAX_PRACTICE_ROUNDS = 3
 
 
 @router.get("/overview", response_model=PracticeOverviewRead)
@@ -173,8 +174,9 @@ def submit_practice_attempt(
     db: Session = Depends(get_db),
 ) -> dict:
     session = _get_current_week_session(current_user.id, db) or _create_legacy_session(current_user, db)
-    if session.status == "completed" or session.attempts:
-        raise HTTPException(status_code=409, detail="本周练习已经提交")
+    previous_attempts = list(session.attempts)
+    if len(previous_attempts) >= MAX_PRACTICE_ROUNDS:
+        raise HTTPException(status_code=409, detail="本周已完成三轮练习")
 
     preference = db.scalar(select(Preference).where(Preference.user_id == current_user.id))
     image_urls = list(dict.fromkeys(payload.image_urls))[:3]
@@ -188,7 +190,11 @@ def submit_practice_attempt(
         category=session.category,
     )
     first_score: int | None = None
-    if session.source_image_url:
+    comparison_label = "原图"
+    if previous_attempts:
+        first_score = int(previous_attempts[-1].skill_score)
+        comparison_label = "上一轮"
+    elif session.source_image_url:
         original_report = analyze_photo_context(
             image_url=session.source_image_url,
             preference=preference,
@@ -211,11 +217,13 @@ def submit_practice_attempt(
         first_score,
         _json_list(session.success_criteria_json),
         session.level,
+        comparison_label,
     )
+    round_number = len(previous_attempts) + 1
     attempt = PracticeAttempt(
         session_id=session.id,
         user_id=current_user.id,
-        stage="weekly",
+        stage="weekly" if round_number == 1 else f"weekly_{round_number}",
         image_url=image_urls[0],
         image_urls_json=json.dumps(image_urls, ensure_ascii=False),
         self_reflection=payload.self_reflection.strip(),
@@ -231,9 +239,33 @@ def submit_practice_attempt(
         analysis_snapshot_json=json.dumps(report, ensure_ascii=False, default=str),
     )
     db.add(attempt)
+    session.coach_note = str(feedback["action_step"])
+    db.commit()
+    return _session_to_dict(_load_session(session.id, db) or session)
+
+
+@router.post("/current/complete", response_model=PracticeSessionRead)
+def complete_practice_session(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    session = _get_current_week_session(current_user.id, db)
+    if not session or not session.attempts:
+        raise HTTPException(status_code=409, detail="请先完成至少一轮练习")
+    if session.status == "completed":
+        return _session_to_dict(session)
+
+    latest_attempt = session.attempts[-1]
+    best_attempt = max(session.attempts, key=lambda item: (item.achieved_count, item.skill_score))
+    feedback = {
+        "skill_score": best_attempt.skill_score,
+        "achieved_count": best_attempt.achieved_count,
+        "criteria_total": best_attempt.criteria_total,
+        "key_issue": latest_attempt.key_issue,
+        "action_step": latest_attempt.action_step,
+    }
     session.status = "completed"
     session.completed_at = datetime.now(timezone.utc)
-    session.coach_note = str(feedback["action_step"])
     _advance_progress(current_user.id, session, feedback, db)
     _update_coach_memory(current_user.id, session, feedback, db)
     db.commit()
@@ -249,9 +281,11 @@ def update_practice_difficulty(
     session = _get_current_week_session(current_user.id, db)
     if not session or not session.attempts:
         raise HTTPException(status_code=409, detail="请先提交本周练习")
-    attempt = session.attempts[-1]
-    if attempt.difficulty_feedback:
+    if session.status != "completed":
+        raise HTTPException(status_code=409, detail="请先完成本周练习")
+    if any(item.difficulty_feedback for item in session.attempts):
         return _session_to_dict(session)
+    attempt = max(session.attempts, key=lambda item: (item.achieved_count, item.skill_score))
     attempt.difficulty_feedback = payload.difficulty
     progress = db.scalar(
         select(PracticeProgress).where(

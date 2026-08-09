@@ -119,6 +119,7 @@ def build_attempt_feedback(
     first_score: int | None = None,
     criteria: list[str] | None = None,
     level: int = 1,
+    comparison_label: str = "原图",
 ) -> dict[str, Any]:
     ability = "清晰度" if skill_focus == "对焦" else skill_focus
     dimension_key = DIMENSION_KEYS.get(ability, "composition")
@@ -152,7 +153,7 @@ def build_attempt_feedback(
     comparison = ""
     if first_score is not None:
         change = score - first_score
-        comparison = f"与原图相比，{ability}表现{'提升' if change > 0 else '基本稳定' if change == 0 else '仍需稳定'}。"
+        comparison = f"与{comparison_label}相比，{ability}表现{'提升' if change > 0 else '基本稳定' if change == 0 else '仍需稳定'}。"
     return {
         "skill_score": score,
         "achieved_count": achieved_count,
