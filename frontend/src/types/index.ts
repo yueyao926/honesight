@@ -182,6 +182,7 @@ export type PracticeSession = {
   } | null;
   title: string;
   brief: string;
+  recommendation_basis: string;
   steps: string[];
   constraints: string[];
   success_criteria: string[];

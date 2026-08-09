@@ -222,6 +222,11 @@ function TaskView({ session, onChange, onSubmit, submitting }: {
         </div>
       </section>
 
+      <div className="mt-4 flex gap-3 rounded-2xl border border-sand bg-white/55 px-5 py-4 text-sm leading-6">
+        <span className="shrink-0 font-medium text-ink">推荐依据</span>
+        <p className="text-muted">{session.recommendation_basis}</p>
+      </div>
+
       {session.photo_analysis && (
         <details className="mt-4 rounded-2xl border border-sand bg-white/55 px-5 py-4 text-sm">
           <summary className="cursor-pointer font-medium text-ink">为什么推荐这个练习？</summary>

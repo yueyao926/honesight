@@ -86,6 +86,7 @@ class PracticeSessionRead(BaseModel):
     photo_analysis: PhotoPracticeAnalysis | None = None
     title: str
     brief: str
+    recommendation_basis: str
     steps: list[str]
     constraints: list[str]
     success_criteria: list[str]

@@ -55,6 +55,12 @@ def test_shooting_suggestions_are_detailed_and_actionable() -> None:
     assert "至少三大步" in task["steps"][0]
 
 
+def test_recommendation_basis_explains_category_selection(db) -> None:
+    session, user = db
+    weekly = practice_api.get_current_practice(user, session)
+    assert weekly["recommendation_basis"] == "根据你选择的「人像」，优先安排近期练得较少的「构图」。"
+
+
 def test_recommendation_finishes_active_four_week_cycle_first() -> None:
     class Progress:
         ability = "光线"

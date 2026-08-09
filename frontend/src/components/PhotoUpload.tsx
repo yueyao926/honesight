@@ -58,7 +58,6 @@ export default function PhotoUpload({ value, onChange, label = "上传照片" }:
           <span className="font-display text-4xl font-light text-brand">+</span>
           <span className="mt-2 text-sm text-muted">{stage ? statusText : label}</span>
           <span className="mt-1 text-xs text-muted">JPG / PNG / WebP，单张最大 10MB</span>
-          <span className="mt-1 text-xs text-muted">上传前自动优化，不影响分析清晰度</span>
         </button>
       )}
       <input

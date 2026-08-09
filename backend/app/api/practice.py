@@ -405,6 +405,7 @@ def _session_to_dict(session: PracticeSession) -> dict:
         "photo_analysis": photo_analysis,
         "title": session.title,
         "brief": session.brief,
+        "recommendation_basis": _recommendation_basis(session),
         "steps": task_steps,
         "constraints": task_steps,
         "success_criteria": _json_list(session.success_criteria_json),
@@ -418,6 +419,16 @@ def _session_to_dict(session: PracticeSession) -> dict:
         "updated_at": session.updated_at,
         "completed_at": session.completed_at,
     }
+
+
+def _recommendation_basis(session: PracticeSession) -> str:
+    if session.entry_mode == "improve":
+        if session.target_goal in {"构图", "光线", "清晰度", "色彩"}:
+            return f"优先按你选择的「{session.target_goal}」，再结合照片问题、当前等级和每周时间安排。"
+        return f"根据照片中最需要改善的「{session.skill_focus}」，再结合当前等级和每周时间安排。"
+    if session.cycle_week > 1:
+        return f"延续「{session.skill_focus}」四周练习，并结合当前等级和每周时间安排本周难度。"
+    return f"根据你选择的「{session.category}」，优先安排近期练得较少的「{session.skill_focus}」。"
 
 
 def _attempt_to_dict(attempt: PracticeAttempt) -> dict:
