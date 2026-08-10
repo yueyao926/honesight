@@ -9,6 +9,7 @@ from sqlalchemy.pool import StaticPool
 
 import app.models  # noqa: F401
 from app.database import Base
+from app.core.config import Settings
 from app.models.user import User
 from app.services import analysis_cache, signed_media, vision_analyzer
 from app.services.analysis_cache import build_analysis_cache_key, run_cached_analysis
@@ -87,6 +88,21 @@ def test_signed_ai_media_url_is_short_lived_and_tamper_protected(tmp_path, monke
     token = url.rsplit("/", 1)[-1]
     assert signed_media.resolve_ai_media_token(token) == image_path.resolve()
     assert signed_media.resolve_ai_media_token(f"{token}x") is None
+
+
+def test_public_ai_media_url_is_never_inferred_from_cors() -> None:
+    settings = Settings(
+        BACKEND_CORS_ORIGINS="https://lens.example",
+        AI_PUBLIC_API_BASE_URL="",
+    )
+
+    assert settings.resolved_ai_public_api_base_url == ""
+
+
+def test_explicit_public_ai_media_url_is_normalized() -> None:
+    settings = Settings(AI_PUBLIC_API_BASE_URL="https://lens.example/api/")
+
+    assert settings.resolved_ai_public_api_base_url == "https://lens.example/api"
 
 
 def test_valid_analysis_webp_is_not_encoded_twice(tmp_path) -> None:

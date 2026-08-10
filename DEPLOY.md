@@ -142,7 +142,8 @@ AI_API_KEY=
 ARK_API_KEY=
 # 留空时每周练习沿用主视觉模型
 AI_PRACTICE_MODEL=
-# 建议填写 https://你的域名/api，避免将图片编码成 Base64 发送
+# 可选；只有确认 AI 服务商能从公网访问该地址时才填写，例如 https://你的域名/api
+# 留空会在 AI 请求中直接发送压缩后的图片，是默认且更稳妥的方式
 AI_PUBLIC_API_BASE_URL=
 ANALYSIS_CACHE_TTL_HOURS=720
 ```

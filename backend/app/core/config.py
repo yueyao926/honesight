@@ -84,14 +84,10 @@ class Settings(BaseSettings):
 
     @property
     def resolved_ai_public_api_base_url(self) -> str:
-        explicit = self.ai_public_api_base_url.strip().rstrip("/")
-        if explicit:
-            return explicit
-        for origin in self.cors_origins:
-            normalized = origin.rstrip("/")
-            if normalized.startswith("https://") and "localhost" not in normalized:
-                return f"{normalized}/api"
-        return ""
+        # A browser CORS origin does not prove that the matching /api route is
+        # reachable by the external model provider. Keep direct image transport
+        # as the safe default unless a public media base is explicitly set.
+        return self.ai_public_api_base_url.strip().rstrip("/")
 
     @property
     def resolved_image_api_key(self) -> str | None:
