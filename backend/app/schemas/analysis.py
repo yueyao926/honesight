@@ -25,6 +25,13 @@ class PreviewAnalyzeRequest(BaseModel):
     category: str | None = None
 
 
+class AnalysisDetailsRequest(BaseModel):
+    image_url: str
+    target_style: str
+    target_platform: str
+    analysis_summary: str = ""
+
+
 class AnalysisRead(BaseModel):
     id: int
     portfolio_item_id: int
@@ -85,14 +92,35 @@ class AnalysisRead(BaseModel):
         return _json_loads(value)
 
 
+class QuickAnalysisRead(BaseModel):
+    photo_type: str
+    intent: str = ""
+    detected_style: str = ""
+    priority_issue: str
+    primary_ability: str
+    summary: str
+    suggestion: str
+    confidence: float
+    model_used: str
+    elapsed_ms: int = 0
+
+
+class AnalysisDetailsRead(BaseModel):
+    editing_params: dict[str, Any]
+    platform_suggestions: dict[str, Any]
+    model_used: str
+    elapsed_ms: int = 0
+
+
 class AnalysisJobRead(BaseModel):
     id: str
     status: str
     stage: str
     progress: int
     cache_hit: bool = False
-    result: AnalysisRead | None = None
+    result: AnalysisRead | QuickAnalysisRead | AnalysisDetailsRead | None = None
     error: str | None = None
+    elapsed_ms: int = 0
     created_at: datetime
     updated_at: datetime
 

@@ -1,6 +1,12 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
-import { startPreviewAnalysis, waitForAnalysisJob } from "../api/analyze";
+import {
+  startAnalysisDetails,
+  startPreviewAnalysis,
+  startQuickAnalysis,
+  waitForAnalysisJob,
+} from "../api/analyze";
+import type { QuickAnalysis } from "../api/analyze";
 import { getAssetUrl } from "../api/client";
 import { generateProcessedImage } from "../api/imageProcess";
 import { listPortfolio, savePhotoToPortfolio } from "../api/portfolio";
@@ -109,6 +115,7 @@ export default function AiStudio() {
   const [targetStyle, setTargetStyle] = useState("清新自然");
   const [targetPlatform, setTargetPlatform] = useState("小红书");
   const [analysis, setAnalysis] = useState<PhotoAnalysis | null>(null);
+  const [quickAnalysis, setQuickAnalysis] = useState<QuickAnalysis | null>(null);
   const [saveCandidate, setSaveCandidate] = useState<SaveCandidate | null>(null);
   const [collections, setCollections] = useState<PortfolioCollection[]>([]);
   const [collectionChoice, setCollectionChoice] = useState("");
@@ -117,6 +124,9 @@ export default function AiStudio() {
   const [saveError, setSaveError] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [deepLoading, setDeepLoading] = useState(false);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsError, setDetailsError] = useState("");
   const [analysisStage, setAnalysisStage] = useState("正在准备分析…");
   const [saving, setSaving] = useState(false);
   const [generatingImage, setGeneratingImage] = useState(false);
@@ -130,6 +140,7 @@ export default function AiStudio() {
   const stepTwoRef = useRef<HTMLElement>(null);
   const stepThreeRef = useRef<HTMLElement>(null);
   const analysisControllerRef = useRef<AbortController | null>(null);
+  const detailsControllerRef = useRef<AbortController | null>(null);
   const analysisRequestIdRef = useRef(0);
 
   useEffect(() => {
@@ -142,14 +153,20 @@ export default function AiStudio() {
 
     return () => {
       analysisControllerRef.current?.abort();
+      detailsControllerRef.current?.abort();
     };
   }, []);
 
   function cancelAnalysis() {
     analysisRequestIdRef.current += 1;
     analysisControllerRef.current?.abort();
+    detailsControllerRef.current?.abort();
     analysisControllerRef.current = null;
+    detailsControllerRef.current = null;
     setLoading(false);
+    setDeepLoading(false);
+    setDetailsLoading(false);
+    setDetailsError("");
     setAnalysisStage("正在准备分析…");
   }
 
@@ -160,6 +177,7 @@ export default function AiStudio() {
     if (!url) {
       setStep(1);
       setAnalysis(null);
+      setQuickAnalysis(null);
       setGeneratedImages([]); setExpandedStrategies(new Set());
       setSelectedGeneratedImageUrl(null);
       setRefinementInstructions([]);
@@ -167,6 +185,7 @@ export default function AiStudio() {
     }
     setStep(2);
     setAnalysis(null);
+    setQuickAnalysis(null);
     setGeneratedImages([]); setExpandedStrategies(new Set());
     setSelectedGeneratedImageUrl(null);
     setRefinementInstructions([]);
@@ -192,6 +211,7 @@ export default function AiStudio() {
     cancelAnalysis();
     if (analysis) setStep(2);
     setAnalysis(null);
+    setQuickAnalysis(null);
     setGeneratedImages([]); setExpandedStrategies(new Set());
     setSelectedGeneratedImageUrl(null);
     setRefinementInstructions([]);
@@ -206,30 +226,62 @@ export default function AiStudio() {
     const requestId = ++analysisRequestIdRef.current;
     analysisControllerRef.current = controller;
     setLoading(true);
+    setDeepLoading(false);
+    setQuickAnalysis(null);
+    setAnalysis(null);
+    setDetailsError("");
     setAnalysisStage("正在准备分析…");
     setError("");
+    const payload = {
+      image_url: photoUrl,
+      style_reference_image_urls: styleRefs,
+      target_style: targetStyle,
+      target_platform: targetPlatform,
+    };
+    let showedQuickResult = false;
     try {
-      const job = await startPreviewAnalysis({
-        image_url: photoUrl,
-        style_reference_image_urls: styleRefs,
-        target_style: targetStyle,
-        target_platform: targetPlatform,
-      }, controller.signal);
-      const data = await waitForAnalysisJob(job, controller.signal, (current) => {
+      try {
+        const quickJob = await startQuickAnalysis(payload, controller.signal);
+        const quick = await waitForAnalysisJob(quickJob, controller.signal, (current) => {
+          const labels: Record<string, string> = {
+            preparing: "正在准备照片…",
+            queued: "正在等待分析…",
+            quick_analyzing: "正在寻找最值得先改的一点…",
+            completed: current.cache_hit ? "已找到相同照片的分析结果" : "分析完成",
+          };
+          setAnalysisStage(labels[current.stage] || "正在分析…");
+        });
+        if (requestId !== analysisRequestIdRef.current) return;
+        showedQuickResult = true;
+        setQuickAnalysis(quick);
+        setSaveSuccess("");
+        setStep(3);
+        setLoading(false);
+        scrollToStep(stepThreeRef);
+      } catch (quickError) {
+        if (quickError instanceof DOMException && quickError.name === "AbortError") return;
+        if (requestId !== analysisRequestIdRef.current) return;
+        setLoading(false);
+        setAnalysisStage("快速判断未返回，正在直接完成详细分析…");
+      }
+
+      setDeepLoading(true);
+      if (showedQuickResult) setAnalysisStage("核心判断已完成，正在补充详细分析…");
+      const deepJob = await startPreviewAnalysis(payload, controller.signal);
+      const data = await waitForAnalysisJob(deepJob, controller.signal, (current) => {
         const labels: Record<string, string> = {
-          preparing: "正在准备照片…",
-          queued: "正在等待分析…",
-          analyzing: "正在理解画面与拍摄目标…",
-          organizing: "正在整理具体建议…",
-          completed: current.cache_hit ? "已找到相同照片的分析结果" : "分析完成",
+          preparing: "正在准备详细分析…",
+          queued: "详细分析正在排队…",
+          analyzing: "正在分析曝光、对焦、构图与色彩…",
+          organizing: "正在整理拍摄建议…",
+          completed: current.cache_hit ? "已读取详细分析" : "详细分析完成",
         };
-        setAnalysisStage(labels[current.stage] || "正在分析…");
+        setAnalysisStage(labels[current.stage] || "正在补充详细分析…");
       });
       if (requestId !== analysisRequestIdRef.current) return;
       setAnalysis(data);
-      setSaveSuccess("");
       setStep(3);
-      scrollToStep(stepThreeRef);
+      if (!showedQuickResult) scrollToStep(stepThreeRef);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       if (requestId !== analysisRequestIdRef.current) return;
@@ -238,7 +290,39 @@ export default function AiStudio() {
       if (requestId === analysisRequestIdRef.current) {
         analysisControllerRef.current = null;
         setLoading(false);
+        setDeepLoading(false);
       }
+    }
+  }
+
+  async function handleLoadDetails() {
+    if (!photoUrl || !analysis || detailsLoading) return;
+    detailsControllerRef.current?.abort();
+    const controller = new AbortController();
+    detailsControllerRef.current = controller;
+    setDetailsLoading(true);
+    setDetailsError("");
+    try {
+      const job = await startAnalysisDetails({
+        image_url: photoUrl,
+        target_style: targetStyle,
+        target_platform: targetPlatform,
+        analysis_summary: [analysis.summary, analysis.composition_advice, analysis.lighting_advice, analysis.color_advice]
+          .filter(Boolean)
+          .join(" "),
+      }, controller.signal);
+      const details = await waitForAnalysisJob(job, controller.signal, () => undefined);
+      setAnalysis((current) => current ? {
+        ...current,
+        editing_params: details.editing_params,
+        platform_suggestions: details.platform_suggestions,
+      } : current);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      setDetailsError(err instanceof Error ? err.message : "详细参数生成失败，请稍后重试");
+    } finally {
+      if (detailsControllerRef.current === controller) detailsControllerRef.current = null;
+      setDetailsLoading(false);
     }
   }
 
@@ -367,6 +451,7 @@ export default function AiStudio() {
     setPhotoUrl(null);
     setStyleRefs([]);
     setAnalysis(null);
+    setQuickAnalysis(null);
     setGeneratedImages([]); setExpandedStrategies(new Set());
     setSelectedGeneratedImageUrl(null);
     setRefinementInstructions([]);
@@ -446,17 +531,17 @@ export default function AiStudio() {
               </div>
 
               <div className="mt-7 flex flex-wrap items-center gap-3">
-                <button className="btn-primary" type="button" onClick={handleAnalyze} disabled={loading}>
-                  {loading ? "正在分析…" : analysis ? "重新分析" : "开始分析"}
+                <button className="btn-primary" type="button" onClick={handleAnalyze} disabled={loading || deepLoading}>
+                  {loading ? "正在快速分析…" : deepLoading ? "正在补充分析…" : analysis || quickAnalysis ? "重新分析" : "开始分析"}
                 </button>
                 <button className="btn-ghost" type="button" onClick={() => handlePhotoChange(null)}>更换照片</button>
               </div>
 
-              {loading && (
+              {(loading || deepLoading) && (
                 <div className="mt-5 flex items-center gap-3 rounded-2xl bg-blush/35 px-4 py-3 text-sm text-brand-deep" role="status">
                   <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-brand border-t-transparent" />
                   <span>{analysisStage}</span>
-                  <span className="ml-auto text-xs text-brand-deep/70">可以留在当前页面等待</span>
+                  <span className="ml-auto text-xs text-brand-deep/70">分析会在后台继续</span>
                 </div>
               )}
               {error && step === 2 && <p className="mt-4 text-sm text-red-500">{error}</p>}
@@ -467,13 +552,62 @@ export default function AiStudio() {
         </StepSection>
 
         <StepSection number={3} title={steps[2]} state={step === 3 ? "active" : "pending"} sectionRef={stepThreeRef}>
-          {analysis && photoUrl ? (
+          {(quickAnalysis || analysis) && photoUrl ? (
             <div className="space-y-5 animate-fade-up">
-              <BenchmarkOverview analysis={analysis} targetPlatform={targetPlatform} />
-              <DimensionCards analysis={analysis} />
-              <AdvicePanel analysis={analysis} />
-              <ParamsPanel analysis={analysis} />
-              <StylePanel analysis={analysis} />
+              {quickAnalysis && (
+                <div className="card border border-brand/20 bg-gradient-to-br from-white to-blush/25">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="section-eyebrow">先看这一点</p>
+                      <h2 className="mt-1 font-display text-2xl font-semibold">{quickAnalysis.priority_issue}</h2>
+                    </div>
+                    <span className="rounded-full bg-brand px-3 py-1 text-xs font-medium text-white">
+                      {quickAnalysis.primary_ability}
+                    </span>
+                  </div>
+                  <p className="mt-4 text-sm leading-7 text-muted">{quickAnalysis.summary}</p>
+                  <div className="mt-4 rounded-2xl bg-white/75 px-4 py-3">
+                    <p className="text-xs font-medium text-brand-deep">现在可以先这样拍</p>
+                    <p className="mt-1 text-sm leading-7 text-ink">{quickAnalysis.suggestion}</p>
+                  </div>
+                  <p className="mt-3 text-xs text-muted">
+                    {quickAnalysis.photo_type} · {quickAnalysis.detected_style || "风格识别中"}
+                    {quickAnalysis.elapsed_ms > 0 ? ` · ${(quickAnalysis.elapsed_ms / 1000).toFixed(1)} 秒` : ""}
+                  </p>
+                </div>
+              )}
+
+              {deepLoading && (
+                <div className="flex items-center gap-3 rounded-2xl bg-blush/35 px-4 py-3 text-sm text-brand-deep" role="status">
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-brand border-t-transparent" />
+                  <span>{analysisStage}</span>
+                  <span className="ml-auto text-xs text-brand-deep/70">核心建议已经可以先看</span>
+                </div>
+              )}
+
+              {analysis && (
+                <>
+                  <BenchmarkOverview analysis={analysis} targetPlatform={targetPlatform} />
+                  <DimensionCards analysis={analysis} />
+                  <AdvicePanel analysis={analysis} />
+                  <StylePanel analysis={analysis} />
+                  {Object.keys(analysis.editing_params || {}).length > 0 ? (
+                    <ParamsPanel analysis={analysis} />
+                  ) : (
+                    <div className="card">
+                      <p className="section-eyebrow">需要时再生成</p>
+                      <h2 className="mt-1 font-display text-2xl font-semibold">修图参数与发布建议</h2>
+                      <p className="mt-2 text-sm leading-7 text-muted">
+                        这部分不会阻塞照片分析。需要具体参数时再生成，可以更快看到核心建议。
+                      </p>
+                      <button className="btn-secondary mt-5" type="button" onClick={handleLoadDetails} disabled={detailsLoading}>
+                        {detailsLoading ? "正在生成参数…" : "生成详细参数"}
+                      </button>
+                      {detailsError && <p className="mt-3 text-sm text-red-500">{detailsError}</p>}
+                    </div>
+                  )}
+                </>
+              )}
               {generatedImages.length > 0 && (
                 <div className="card-soft">
                   <p className="section-eyebrow">生成结果</p>

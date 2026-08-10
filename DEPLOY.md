@@ -140,7 +140,10 @@ CORS_ORIGINS=http://你的服务器IP或域名
 # AI 分析（可选，不填也能用 mock 模式）
 AI_API_KEY=
 ARK_API_KEY=
-# 留空时每周练习沿用主视觉模型
+# 快速首屏与每周练习使用；必须支持图片理解
+AI_FAST_MODEL=doubao-seed-2-0-lite-260215
+AI_FAST_TIMEOUT_SECONDS=8
+# 留空时每周练习沿用 AI_FAST_MODEL
 AI_PRACTICE_MODEL=
 # 可选；只有确认 AI 服务商能从公网访问该地址时才填写，例如 https://你的域名/api
 # 留空会在 AI 请求中直接发送压缩后的图片，是默认且更稳妥的方式

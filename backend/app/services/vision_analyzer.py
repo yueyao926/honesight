@@ -185,9 +185,10 @@ def call_practice_vision_model(
             },
         ],
         "max_output_tokens": 700,
+        "thinking": {"type": "disabled"},
     }
     provider_started_at = time.perf_counter()
-    data = _post_vision_request(payload)
+    data = _post_fast_vision_request(payload, profile=f"practice_{mode}")
     text = _extract_response_text(data)
     parsed = _parse_json_object(text)
     if not parsed:
@@ -208,6 +209,176 @@ def call_practice_vision_model(
         normalized["_timings"]["total_ms"],
     )
     return normalized
+
+
+def call_quick_vision_model(
+    *,
+    image_url: str,
+    target_style: str,
+    target_platform: str,
+    category: str | None = None,
+) -> dict[str, Any]:
+    """Return the smallest useful first-screen analysis with the low-latency model."""
+    started_at = time.perf_counter()
+    settings = get_settings()
+    if not settings.ai_analysis_enabled:
+        raise VisionAnalysisError("AI analysis is disabled on the server")
+    if not settings.resolved_ai_api_key:
+        raise VisionAnalysisError("AI analysis API key is not configured")
+    image_input = _resolve_image_input(image_url)
+    if not image_input:
+        raise VisionAnalysisError("The uploaded image could not be read")
+
+    contract = {
+        "photo_type": "portrait|landscape|food|street|product|night|general",
+        "intent": "一句话判断拍摄意图",
+        "detected_style": "当前画面风格",
+        "priority_issue": "最值得先解决的一个问题",
+        "primary_ability": "构图|光线|清晰度|色彩",
+        "summary": "一句话概括画面现状",
+        "suggestion": "一条可以立刻照做的拍法",
+        "confidence": 0.86,
+    }
+    prompt = (
+        "请快速判断照片，只给最重要的一层结论，不要评分，也不要分析次要问题。\n"
+        f"目标风格：{target_style}；发布平台：{target_platform}；类别提示：{category or '无'}。\n"
+        f"只返回紧凑 JSON：{json.dumps(contract, ensure_ascii=False)}\n"
+        "所有文字使用简体中文；不要输出 Markdown 或解释文字。"
+    )
+    payload = {
+        "model": settings.resolved_ai_fast_model,
+        "input": [
+            {
+                "role": "system",
+                "content": [{"type": "input_text", "text": "你是反应迅速的摄影教练，只指出一个最优先改进点。"}],
+            },
+            {
+                "role": "user",
+                "content": [
+                    {"type": "input_image", "image_url": image_input},
+                    {"type": "input_text", "text": prompt},
+                ],
+            },
+        ],
+        "max_output_tokens": 450,
+        "thinking": {"type": "disabled"},
+    }
+    provider_started_at = time.perf_counter()
+    data = _post_fast_vision_request(payload, profile="quick", fallback_to_full=False)
+    text = _extract_response_text(data)
+    parsed = _parse_json_object(text)
+    provider_ms = _elapsed_ms(provider_started_at)
+    if not parsed:
+        raise VisionAnalysisError("Vision API did not return a valid quick analysis object")
+    result = {
+        "photo_type": _as_text(parsed.get("photo_type")) or "general",
+        "intent": _as_text(parsed.get("intent")),
+        "detected_style": _as_text(parsed.get("detected_style")),
+        "priority_issue": _as_text(parsed.get("priority_issue")),
+        "primary_ability": _normalize_ability(parsed.get("primary_ability")),
+        "summary": _as_text(parsed.get("summary")),
+        "suggestion": _as_text(parsed.get("suggestion")),
+        "confidence": _coerce_confidence(parsed.get("confidence")),
+        "model_used": str(payload["model"]),
+        "elapsed_ms": _elapsed_ms(started_at),
+    }
+    logger.info(
+        "vision_analysis profile=quick transport=%s provider_ms=%s total_ms=%s model=%s",
+        "url" if image_input.startswith(("http://", "https://")) else "base64",
+        provider_ms,
+        result["elapsed_ms"],
+        payload["model"],
+    )
+    return result
+
+
+def call_analysis_details_model(
+    *,
+    image_url: str,
+    target_style: str,
+    target_platform: str,
+    analysis_summary: str,
+) -> dict[str, Any]:
+    """Generate optional editing and publishing details only when requested."""
+    started_at = time.perf_counter()
+    settings = get_settings()
+    if not settings.ai_analysis_enabled:
+        raise VisionAnalysisError("AI analysis is disabled on the server")
+    if not settings.resolved_ai_api_key:
+        raise VisionAnalysisError("AI analysis API key is not configured")
+    image_input = _resolve_image_input(image_url)
+    if not image_input:
+        raise VisionAnalysisError("The uploaded image could not be read")
+
+    contract = {
+        "editing_params": {
+            "lightroom": {
+                "曝光": "+0.20",
+                "高光": "-25",
+                "阴影": "+18",
+                "色温": "-3",
+                "饱和度": "-6",
+            },
+            "mobile_apps": {
+                "亮度": "+5",
+                "对比度": "-4",
+                "高光": "-20",
+                "锐化": "+8",
+            },
+        },
+        "platform_suggestions": {
+            target_platform: {
+                "crop_ratio": "建议比例",
+                "visual_priority": "第一视觉重点",
+                "publishing_advice": "一条发布建议",
+            }
+        },
+    }
+    prompt = (
+        f"根据照片生成「{target_style}」方向的修图参数，并适配「{target_platform}」。\n"
+        f"已有分析：{analysis_summary[:500]}\n"
+        f"只返回 JSON：{json.dumps(contract, ensure_ascii=False)}\n"
+        "参数必须具体、克制且可直接操作；所有文字使用简体中文；不要输出 Markdown。"
+    )
+    payload = {
+        "model": settings.resolved_ai_fast_model,
+        "input": [
+            {
+                "role": "system",
+                "content": [{"type": "input_text", "text": "你是摄影后期与发布顾问，只生成用户请求的参数。"}],
+            },
+            {
+                "role": "user",
+                "content": [
+                    {"type": "input_image", "image_url": image_input},
+                    {"type": "input_text", "text": prompt},
+                ],
+            },
+        ],
+        "max_output_tokens": 900,
+        "thinking": {"type": "disabled"},
+    }
+    data = _post_fast_vision_request(payload, profile="details")
+    text = _extract_response_text(data)
+    parsed = _parse_json_object(text)
+    if not parsed:
+        parsed, text = _retry_invalid_json_response(payload, profile="details", first_data=data)
+    if not parsed:
+        raise VisionAnalysisError("Vision API did not return valid analysis details")
+    editing_params = parsed.get("editing_params")
+    platform_suggestions = parsed.get("platform_suggestions")
+    result = {
+        "editing_params": editing_params if isinstance(editing_params, dict) else {},
+        "platform_suggestions": platform_suggestions if isinstance(platform_suggestions, dict) else {},
+        "model_used": str(payload["model"]),
+        "elapsed_ms": _elapsed_ms(started_at),
+    }
+    logger.info(
+        "vision_analysis profile=details total_ms=%s model=%s",
+        result["elapsed_ms"],
+        payload["model"],
+    )
+    return result
 
 
 def close_vision_http_client() -> None:
@@ -269,28 +440,6 @@ def _build_user_prompt(
         "composition_advice": "specific crop, viewpoint, spacing, or subject-placement advice",
         "lighting_advice": "specific exposure, highlight, shadow, or lighting advice",
         "color_advice": "specific white-balance, saturation, and color-grading advice",
-        "editing_params": {
-            "lightroom": {
-                "exposure": "+0.20",
-                "highlights": "-25",
-                "shadows": "+18",
-                "temperature": "-3",
-                "saturation": "-6",
-            },
-            "mobile_apps": {
-                "brightness": "+5",
-                "contrast": "-4",
-                "highlights": "-20",
-                "sharpen": "+8",
-            },
-        },
-        "platform_suggestions": {
-            target_platform: {
-                "crop_ratio": "recommended crop ratio",
-                "visual_priority": "what should attract attention first",
-                "publishing_advice": "platform-specific presentation advice",
-            }
-        },
         "shooting_tips": "specific advice for the next shoot",
         "next_step": "the single highest-priority action to take now",
         "expected_effect": {
@@ -338,9 +487,7 @@ STRICT REQUIREMENTS:
 - Each benchmark dimension must contain a photo-specific reason.
 - Each benchmark dimension must contain 1 to 3 actionable suggestions.
 - Problems may be an empty array only when no visible problem exists.
-- The numeric values shown in OUTPUT CONTRACT illustrate types only. Recalculate every score and editing value from the source photo; never copy example values.
-- editing_params must contain concrete values, not vague descriptions.
-- platform_suggestions must be keyed by the selected target_platform.
+- The numeric values shown in OUTPUT CONTRACT illustrate types only. Recalculate every score from the source photo; never copy example values.
 - composition_advice, lighting_advice, color_advice, shooting_tips, and next_step
   must be concrete recommendations, not generic praise.
 - Keep each reason or advice to one concise sentence and avoid repeating the same observation.
@@ -361,7 +508,11 @@ def _get_vision_http_client() -> httpx.Client:
     return _vision_client
 
 
-def _post_vision_request(payload: dict[str, Any]) -> dict[str, Any]:
+def _post_vision_request(
+    payload: dict[str, Any],
+    *,
+    timeout_seconds: int | None = None,
+) -> dict[str, Any]:
     settings = get_settings()
     try:
         response = _get_vision_http_client().post(
@@ -371,6 +522,7 @@ def _post_vision_request(payload: dict[str, Any]) -> dict[str, Any]:
                 "Content-Type": "application/json",
             },
             json=payload,
+            timeout=timeout_seconds or settings.ai_timeout_seconds,
         )
         response.raise_for_status()
         data = response.json()
@@ -383,6 +535,35 @@ def _post_vision_request(payload: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise VisionAnalysisError("Vision API returned invalid JSON")
     return data
+
+
+def _post_fast_vision_request(
+    payload: dict[str, Any],
+    *,
+    profile: str,
+    fallback_to_full: bool = True,
+) -> dict[str, Any]:
+    """Use the configured fast model, then degrade safely to the proven full model."""
+    settings = get_settings()
+    try:
+        return _post_vision_request(
+            payload,
+            timeout_seconds=max(1, settings.ai_fast_timeout_seconds),
+        )
+    except VisionAnalysisError:
+        current_model = str(payload.get("model") or "")
+        fallback_model = settings.resolved_ai_model
+        if not fallback_to_full or not current_model or current_model == fallback_model:
+            raise
+        logger.warning(
+            "vision_analysis fast_model_fallback profile=%s from_model=%s to_model=%s",
+            profile,
+            current_model,
+            fallback_model,
+        )
+        payload["model"] = fallback_model
+        payload.pop("thinking", None)
+        return _post_vision_request(payload)
 
 
 def _retry_invalid_json_response(
@@ -694,6 +875,22 @@ def _coerce_confidence(value: object) -> float:
     if number > 1:
         number /= 100
     return max(0.0, min(1.0, number))
+
+
+def _normalize_ability(value: object) -> str:
+    text = _as_text(value)
+    aliases = {
+        "曝光": "光线",
+        "lighting": "光线",
+        "light": "光线",
+        "focus": "清晰度",
+        "sharpness": "清晰度",
+        "composition": "构图",
+        "color": "色彩",
+    }
+    if text in {"构图", "光线", "清晰度", "色彩"}:
+        return text
+    return aliases.get(text.lower(), "构图")
 
 
 def _extract_number(value: object) -> float | None:

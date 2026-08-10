@@ -135,6 +135,8 @@ AI_ANALYSIS_ENABLED=true
 AI_API_KEY=replace-with-your-own-api-key
 AI_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
 AI_MODEL=doubao-seed-1-6-vision-250815
+AI_FAST_MODEL=doubao-seed-2-0-lite-260215
+AI_FAST_TIMEOUT_SECONDS=8
 AI_PRACTICE_MODEL=
 AI_TIMEOUT_SECONDS=45
 # 可选；仅在 AI 服务商可公网访问 /api/upload/ai-media 时填写，否则留空
@@ -236,6 +238,8 @@ AI_ANALYSIS_MODE=api
 AI_API_KEY=replace-with-your-own-api-key
 AI_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
 AI_MODEL=doubao-seed-1-6-vision-250815
+AI_FAST_MODEL=doubao-seed-2-0-lite-260215
+AI_FAST_TIMEOUT_SECONDS=8
 AI_TIMEOUT_SECONDS=45
 ```
 
