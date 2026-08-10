@@ -17,6 +17,8 @@ FULL_IMAGE_SIZE = (2560, 2560)
 FULL_IMAGE_MAX_BYTES = 1536 * 1024
 REFERENCE_IMAGE_SIZE = (1920, 1920)
 REFERENCE_IMAGE_MAX_BYTES = 800 * 1024
+ANALYSIS_IMAGE_SIZE = (2048, 2048)
+ANALYSIS_IMAGE_MAX_BYTES = 800 * 1024
 THUMBNAIL_SIZE = (720, 720)
 THUMBNAIL_MAX_BYTES = 300 * 1024
 AVATAR_SIZE = (512, 512)
@@ -112,16 +114,29 @@ def store_image(
     max_bytes: int = FULL_IMAGE_MAX_BYTES,
     quality: int = 85,
     create_thumbnail: bool = False,
+    allow_webp_passthrough: bool = True,
 ) -> StoredImage:
     image = _decode_image(content)
     upload_dir.mkdir(parents=True, exist_ok=True)
 
-    encoded, width, height = _encode_webp(
-        image,
-        max_size=max_size,
-        max_bytes=max_bytes,
-        initial_quality=quality,
+    is_webp = len(content) >= 12 and content[:4] == b"RIFF" and content[8:12] == b"WEBP"
+    can_reuse = (
+        allow_webp_passthrough
+        and is_webp
+        and len(content) <= max_bytes
+        and image.width <= max_size[0]
+        and image.height <= max_size[1]
+        and _webp_passthrough_safe(content)
     )
+    if can_reuse:
+        encoded, width, height = content, image.width, image.height
+    else:
+        encoded, width, height = _encode_webp(
+            image,
+            max_size=max_size,
+            max_bytes=max_bytes,
+            initial_quality=quality,
+        )
     image_path = upload_dir / f"{stem}.webp"
     thumbnail_path: Path | None = None
 
@@ -150,6 +165,18 @@ def store_image(
         width=width,
         height=height,
     )
+
+
+def _webp_passthrough_safe(content: bytes) -> bool:
+    try:
+        with Image.open(BytesIO(content)) as source:
+            return (
+                int(getattr(source, "n_frames", 1)) == 1
+                and not source.getexif()
+                and not any(key in source.info for key in ("exif", "xmp", "icc_profile"))
+            )
+    except (UnidentifiedImageError, OSError, ValueError):
+        return False
 
 
 def upload_url(path: Path, upload_root: Path) -> str:

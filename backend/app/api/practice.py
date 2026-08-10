@@ -1,26 +1,32 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import logging
 from datetime import datetime, timezone
+from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import get_current_user
-from app.database import get_db
+from app.database import SessionLocal, get_db
+from app.models.analysis import AnalysisJob
 from app.models.practice import CoachMemory, PracticeAttempt, PracticeProgress, PracticeSession
 from app.models.preference import Preference
 from app.models.user import User
 from app.schemas.practice import (
     PracticeAttemptCreate,
+    PracticeAttemptJobRead,
     PracticeDifficultyUpdate,
     PracticeOverviewRead,
     PracticeSessionCreate,
+    PracticeSessionJobRead,
     PracticeSessionRead,
 )
-from app.services.analyzer import analyze_photo_context
+from app.services.practice_analyzer import analyze_practice_context_cached
 from app.services.practice_coach import (
     analyze_practice_source,
     build_attempt_feedback,
@@ -33,6 +39,7 @@ from app.services.practice_templates import CYCLE_LABELS, get_task, simplified_t
 
 
 router = APIRouter(prefix="/practice", tags=["practice"])
+logger = logging.getLogger("uvicorn.error")
 MAX_PRACTICE_ROUNDS = 3
 
 
@@ -79,15 +86,18 @@ def start_practice_session(
 
     preference = db.scalar(select(Preference).where(Preference.user_id == current_user.id))
     photo_analysis: dict | None = None
+    source_analysis: dict = {}
     if payload.entry_mode == "improve":
-        report = analyze_photo_context(
+        report, _cache_hit = analyze_practice_context_cached(
+            db=db,
+            user_id=current_user.id,
             image_url=str(payload.source_image_url),
             preference=preference,
-            target_style=preference.preferred_styles if preference else None,
-            target_platform=preference.target_platform if preference else None,
-            title="每周一练目标照片",
-            description=f"用户优先目标：{payload.target_goal}",
+            mode="source",
+            selected_goal=payload.target_goal,
+            level=initial_level(preference),
         )
+        source_analysis = report
         photo_analysis = analyze_practice_source(report, payload.target_goal)
         category = str(photo_analysis["photo_type"])
         ability = str(photo_analysis["ability"])
@@ -126,6 +136,7 @@ def start_practice_session(
         "cycle_week": progress.cycle_week,
         "time_minutes": time_minutes,
         "source_image_url": source_image_url,
+        "source_analysis_json": json.dumps(source_analysis, ensure_ascii=False, default=str),
         "target_goal": payload.target_goal,
         "photo_intent": str(photo_analysis["intent"] if photo_analysis else f"练习{category}拍摄。"),
         "priority_issue": priority_issue,
@@ -158,6 +169,80 @@ def start_practice_session(
     return _session_to_dict(session)
 
 
+@router.post(
+    "/session-jobs",
+    response_model=PracticeSessionJobRead,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def start_practice_session_job(
+    payload: PracticeSessionCreate,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    existing = _get_current_week_session(current_user.id, db)
+    if existing and (existing.attempts or existing.status == "completed"):
+        raise HTTPException(status_code=409, detail="本周练习已经完成，下周会生成新任务")
+    if existing and not payload.replace_current:
+        raise HTTPException(status_code=409, detail="本周已有任务，可选择换个重点")
+    cache_key = hashlib.sha256(
+        json.dumps(
+            {
+                "user": current_user.id,
+                "week": current_week_key(),
+                "payload": payload.model_dump(mode="json"),
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+        ).encode("utf-8")
+    ).hexdigest()
+    active = db.scalar(
+        select(AnalysisJob)
+        .where(
+            AnalysisJob.user_id == current_user.id,
+            AnalysisJob.kind == "practice_session",
+            AnalysisJob.cache_key == cache_key,
+            AnalysisJob.status.in_(("queued", "processing")),
+        )
+        .order_by(AnalysisJob.created_at.desc())
+    )
+    if active:
+        return _practice_job_to_dict(active)
+    job = AnalysisJob(
+        id=str(uuid4()),
+        user_id=current_user.id,
+        cache_key=cache_key,
+        kind="practice_session",
+        status="queued",
+        stage="preparing",
+        progress=15,
+        request_json=payload.model_dump_json(),
+    )
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+    background_tasks.add_task(_run_practice_session_job, job.id)
+    return _practice_job_to_dict(job)
+
+
+@router.get("/session-jobs/{job_id}", response_model=PracticeSessionJobRead)
+def get_practice_session_job(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    job = db.scalar(
+        select(AnalysisJob).where(
+            AnalysisJob.id == job_id,
+            AnalysisJob.user_id == current_user.id,
+            AnalysisJob.kind == "practice_session",
+        )
+    )
+    if not job:
+        raise HTTPException(status_code=404, detail="任务生成记录不存在")
+    return _practice_job_to_dict(job)
+
+
 @router.get("/current", response_model=PracticeSessionRead)
 def get_current_practice(
     current_user: User = Depends(get_current_user),
@@ -180,14 +265,17 @@ def submit_practice_attempt(
 
     preference = db.scalar(select(Preference).where(Preference.user_id == current_user.id))
     image_urls = list(dict.fromkeys(payload.image_urls))[:3]
-    report = analyze_photo_context(
+    criteria = _json_list(session.success_criteria_json)
+    report, _cache_hit = analyze_practice_context_cached(
+        db=db,
+        user_id=current_user.id,
         image_url=image_urls[0],
         preference=preference,
-        target_style=preference.preferred_styles if preference else None,
-        target_platform=preference.target_platform if preference else None,
-        title=session.title,
-        description=f"本周只评估：{session.skill_focus}。用户自评：{payload.self_reflection}",
+        mode="attempt",
         category=session.category,
+        ability=session.skill_focus,
+        criteria=criteria,
+        level=session.level,
     )
     first_score: int | None = None
     comparison_label = "原图"
@@ -195,19 +283,24 @@ def submit_practice_attempt(
         first_score = int(previous_attempts[-1].skill_score)
         comparison_label = "上一轮"
     elif session.source_image_url:
-        original_report = analyze_photo_context(
-            image_url=session.source_image_url,
-            preference=preference,
-            target_style=preference.preferred_styles if preference else None,
-            target_platform=preference.target_platform if preference else None,
-            title="本周练习原图",
-            description=f"只比较{session.skill_focus}",
-            category=session.category,
-        )
+        original_report = _json_object(session.source_analysis_json)
+        if not original_report:
+            original_report, _source_cache_hit = analyze_practice_context_cached(
+                db=db,
+                user_id=current_user.id,
+                image_url=session.source_image_url,
+                preference=preference,
+                mode="attempt",
+                category=session.category,
+                ability=session.skill_focus,
+                criteria=criteria,
+                level=session.level,
+            )
+            session.source_analysis_json = json.dumps(original_report, ensure_ascii=False, default=str)
         original_feedback = build_attempt_feedback(
             original_report,
             session.skill_focus,
-            criteria=_json_list(session.success_criteria_json),
+            criteria=criteria,
             level=session.level,
         )
         first_score = int(original_feedback["skill_score"])
@@ -215,7 +308,7 @@ def submit_practice_attempt(
         report,
         session.skill_focus,
         first_score,
-        _json_list(session.success_criteria_json),
+        criteria,
         session.level,
         comparison_label,
     )
@@ -242,6 +335,167 @@ def submit_practice_attempt(
     session.coach_note = str(feedback["action_step"])
     db.commit()
     return _session_to_dict(_load_session(session.id, db) or session)
+
+
+@router.post(
+    "/current/attempt-jobs",
+    response_model=PracticeAttemptJobRead,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def start_practice_attempt_job(
+    payload: PracticeAttemptCreate,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    session = _get_current_week_session(current_user.id, db) or _create_legacy_session(current_user, db)
+    if len(session.attempts) >= MAX_PRACTICE_ROUNDS:
+        raise HTTPException(status_code=409, detail="本周已完成三轮练习")
+    cache_key = hashlib.sha256(
+        json.dumps(
+            {
+                "session": session.id,
+                "round": len(session.attempts) + 1,
+                "images": payload.image_urls,
+                "reflection": payload.self_reflection,
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+        ).encode("utf-8")
+    ).hexdigest()
+    active = db.scalar(
+        select(AnalysisJob)
+        .where(
+            AnalysisJob.user_id == current_user.id,
+            AnalysisJob.kind == "practice_attempt",
+            AnalysisJob.cache_key == cache_key,
+            AnalysisJob.status.in_(("queued", "processing")),
+        )
+        .order_by(AnalysisJob.created_at.desc())
+    )
+    if active:
+        return _practice_job_to_dict(active)
+    job = AnalysisJob(
+        id=str(uuid4()),
+        user_id=current_user.id,
+        cache_key=cache_key,
+        kind="practice_attempt",
+        status="queued",
+        stage="preparing",
+        progress=15,
+        request_json=payload.model_dump_json(),
+    )
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+    background_tasks.add_task(_run_practice_attempt_job, job.id)
+    return _practice_job_to_dict(job)
+
+
+@router.get("/attempt-jobs/{job_id}", response_model=PracticeAttemptJobRead)
+def get_practice_attempt_job(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    job = db.scalar(
+        select(AnalysisJob).where(
+            AnalysisJob.id == job_id,
+            AnalysisJob.user_id == current_user.id,
+            AnalysisJob.kind == "practice_attempt",
+        )
+    )
+    if not job:
+        raise HTTPException(status_code=404, detail="练习分析任务不存在")
+    return _practice_job_to_dict(job)
+
+
+def _run_practice_attempt_job(job_id: str) -> None:
+    with SessionLocal() as db:
+        job = db.get(AnalysisJob, job_id)
+        if not job or job.status == "completed":
+            return
+        try:
+            user = db.get(User, job.user_id)
+            if not user:
+                raise HTTPException(status_code=404, detail="用户不存在")
+            payload = PracticeAttemptCreate.model_validate_json(job.request_json)
+            job.status = "processing"
+            job.stage = "analyzing"
+            job.progress = 45
+            db.commit()
+
+            result = submit_practice_attempt(payload, user, db)
+            job.stage = "organizing"
+            job.progress = 90
+            job.result_json = json.dumps(result, ensure_ascii=False, default=str)
+            job.status = "completed"
+            job.stage = "completed"
+            job.progress = 100
+            job.completed_at = datetime.now(timezone.utc)
+            db.commit()
+        except HTTPException as exc:
+            _fail_practice_job(db, job, str(exc.detail))
+        except Exception:
+            logger.exception("practice attempt job failed job_id=%s", job_id)
+            _fail_practice_job(db, job, "练习反馈暂时生成失败，请稍后重试")
+
+
+def _run_practice_session_job(job_id: str) -> None:
+    with SessionLocal() as db:
+        job = db.get(AnalysisJob, job_id)
+        if not job or job.status == "completed":
+            return
+        try:
+            user = db.get(User, job.user_id)
+            if not user:
+                raise HTTPException(status_code=404, detail="用户不存在")
+            payload = PracticeSessionCreate.model_validate_json(job.request_json)
+            job.status = "processing"
+            job.stage = "analyzing" if payload.entry_mode == "improve" else "organizing"
+            job.progress = 45 if payload.entry_mode == "improve" else 70
+            db.commit()
+
+            result = start_practice_session(payload, user, db)
+            job.result_json = json.dumps(result, ensure_ascii=False, default=str)
+            job.status = "completed"
+            job.stage = "completed"
+            job.progress = 100
+            job.completed_at = datetime.now(timezone.utc)
+            db.commit()
+        except HTTPException as exc:
+            _fail_practice_job(db, job, str(exc.detail))
+        except Exception:
+            logger.exception("practice session job failed job_id=%s", job_id)
+            _fail_practice_job(db, job, "本周任务暂时生成失败，请稍后重试")
+
+
+def _fail_practice_job(db: Session, job: AnalysisJob, message: str) -> None:
+    job.status = "failed"
+    job.stage = "failed"
+    job.error = message[:500]
+    job.completed_at = datetime.now(timezone.utc)
+    db.commit()
+
+
+def _practice_job_to_dict(job: AnalysisJob) -> dict:
+    result = None
+    if job.result_json:
+        try:
+            parsed = json.loads(job.result_json)
+            result = parsed if isinstance(parsed, dict) else None
+        except json.JSONDecodeError:
+            result = None
+    return {
+        "id": job.id,
+        "status": job.status,
+        "stage": job.stage,
+        "progress": job.progress,
+        "result": result,
+        "error": job.error,
+        "created_at": job.created_at,
+        "updated_at": job.updated_at,
+    }
 
 
 @router.post("/current/complete", response_model=PracticeSessionRead)

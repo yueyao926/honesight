@@ -20,6 +20,7 @@ class PracticeSession(Base):
     cycle_week: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     time_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=20)
     source_image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    source_analysis_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     target_goal: Mapped[str] = mapped_column(String(40), nullable=False, default="不确定")
     photo_intent: Mapped[str] = mapped_column(Text, nullable=False, default="")
     priority_issue: Mapped[str] = mapped_column(Text, nullable=False, default="")

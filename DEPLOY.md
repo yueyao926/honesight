@@ -140,6 +140,11 @@ CORS_ORIGINS=http://你的服务器IP或域名
 # AI 分析（可选，不填也能用 mock 模式）
 AI_API_KEY=
 ARK_API_KEY=
+# 留空时每周练习沿用主视觉模型
+AI_PRACTICE_MODEL=
+# 建议填写 https://你的域名/api，避免将图片编码成 Base64 发送
+AI_PUBLIC_API_BASE_URL=
+ANALYSIS_CACHE_TTL_HOURS=720
 ```
 
 生成 JWT 密钥：

@@ -1,5 +1,9 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 
+export function getApiBaseUrl() {
+  return API_BASE_URL;
+}
+
 function formatApiError(detail: unknown, fallback: string): string {
   if (!detail) return fallback;
   if (typeof detail === "string") {

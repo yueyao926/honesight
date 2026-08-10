@@ -85,6 +85,18 @@ class AnalysisRead(BaseModel):
         return _json_loads(value)
 
 
+class AnalysisJobRead(BaseModel):
+    id: str
+    status: str
+    stage: str
+    progress: int
+    cache_hit: bool = False
+    result: AnalysisRead | None = None
+    error: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
 class ChatMessageRead(BaseModel):
     id: int
     portfolio_item_id: int
@@ -139,7 +151,6 @@ def preview_to_read_dict(report: dict[str, Any]) -> dict[str, Any]:
         "style_reference_image_urls": benchmark.get("style_reference_image_urls", []),
         "expected_effect_description": benchmark.get("expected_effect_description", ""),
         "created_at": datetime.now().isoformat(),
-        "_report": report,
     }
 
 

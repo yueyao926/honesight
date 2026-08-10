@@ -101,6 +101,21 @@ class PracticeSessionRead(BaseModel):
     completed_at: datetime | None = None
 
 
+class PracticeAttemptJobRead(BaseModel):
+    id: str
+    status: str
+    stage: str
+    progress: int
+    result: PracticeSessionRead | None = None
+    error: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class PracticeSessionJobRead(PracticeAttemptJobRead):
+    pass
+
+
 class PracticeProgressRead(BaseModel):
     category: str
     ability: str

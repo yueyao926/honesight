@@ -29,6 +29,9 @@ services:
       AI_API_KEY: ${AI_API_KEY:-}
       AI_BASE_URL: ${AI_BASE_URL:-https://ark.cn-beijing.volces.com/api/v3}
       AI_MODEL: ${AI_MODEL:-doubao-seed-1-6-vision-250815}
+      AI_PRACTICE_MODEL: ${AI_PRACTICE_MODEL:-}
+      AI_PUBLIC_API_BASE_URL: ${AI_PUBLIC_API_BASE_URL:-}
+      ANALYSIS_CACHE_TTL_HOURS: ${ANALYSIS_CACHE_TTL_HOURS:-720}
       AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-45}
       ARK_API_KEY: ${ARK_API_KEY:-}
       ARK_API_URL: ${ARK_API_URL:-https://ark.cn-beijing.volces.com/api/v3/responses}

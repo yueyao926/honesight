@@ -1,3 +1,4 @@
+import json
 from datetime import date
 
 import pytest
@@ -8,7 +9,7 @@ from sqlalchemy.pool import StaticPool
 import app.models  # noqa: F401
 from app.api import practice as practice_api
 from app.database import Base
-from app.models.practice import CoachMemory, PracticeProgress
+from app.models.practice import CoachMemory, PracticeProgress, PracticeSession
 from app.models.preference import Preference
 from app.models.user import User
 from app.schemas.practice import PracticeAttemptCreate, PracticeDifficultyUpdate
@@ -79,6 +80,17 @@ def test_feedback_compares_reshoot_with_first_attempt() -> None:
     assert "构图表现提升" in str(reshoot["comparison_summary"])
 
 
+def test_fast_criterion_results_are_used_instead_of_score_thresholds() -> None:
+    report = analysis_report(20)
+    report["practice_criterion_results"] = [
+        {"criterion": "人物清楚", "achieved": True, "evidence": "眼睛轮廓清晰"},
+        {"criterion": "背景不抢眼", "achieved": False, "evidence": "右侧仍有亮点"},
+    ]
+    feedback = build_attempt_feedback(report, "构图", criteria=["人物清楚", "背景不抢眼"])
+    assert feedback["achieved_count"] == 1
+    assert feedback["criterion_results"][0]["evidence"] == "眼睛轮廓清晰"
+
+
 @pytest.fixture()
 def db():
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
@@ -98,7 +110,11 @@ def db():
 
 def test_weekly_submission_waits_for_user_to_complete_and_advances_once(db, monkeypatch) -> None:
     session, user = db
-    monkeypatch.setattr(practice_api, "analyze_photo_context", lambda **_kwargs: analysis_report(73))
+    monkeypatch.setattr(
+        practice_api,
+        "analyze_practice_context_cached",
+        lambda **_kwargs: (analysis_report(73), False),
+    )
 
     first_round = practice_api.submit_practice_attempt(
         PracticeAttemptCreate(image_url="/uploads/first.jpg", self_reflection="背景有一点乱。"), user, session
@@ -123,10 +139,37 @@ def test_weekly_submission_waits_for_user_to_complete_and_advances_once(db, monk
     assert overview["history"][0]["id"] == completed["id"]
 
 
+def test_first_round_reuses_saved_source_analysis(db, monkeypatch) -> None:
+    session, user = db
+    practice_api.get_current_practice(user, session)
+    weekly = session.scalar(select(PracticeSession).where(PracticeSession.user_id == user.id))
+    assert weekly is not None
+    weekly.source_image_url = "/uploads/original.jpg"
+    weekly.source_analysis_json = json.dumps(analysis_report(60), ensure_ascii=False)
+    session.commit()
+    calls = 0
+
+    def analyze_attempt(**_kwargs):
+        nonlocal calls
+        calls += 1
+        return analysis_report(75), False
+
+    monkeypatch.setattr(practice_api, "analyze_practice_context_cached", analyze_attempt)
+    result = practice_api.submit_practice_attempt(
+        PracticeAttemptCreate(image_url="/uploads/practice.jpg"), user, session
+    )
+    assert calls == 1
+    assert "与原图相比" in result["attempts"][0]["comparison_summary"]
+
+
 def test_weekly_practice_accepts_three_rounds_and_compares_previous_round(db, monkeypatch) -> None:
     session, user = db
     scores = iter((65, 73, 80))
-    monkeypatch.setattr(practice_api, "analyze_photo_context", lambda **_kwargs: analysis_report(next(scores)))
+    monkeypatch.setattr(
+        practice_api,
+        "analyze_practice_context_cached",
+        lambda **_kwargs: (analysis_report(next(scores)), False),
+    )
 
     for round_number in range(1, 4):
         weekly = practice_api.submit_practice_attempt(
@@ -147,7 +190,11 @@ def test_weekly_practice_accepts_three_rounds_and_compares_previous_round(db, mo
 
 def test_difficulty_rating_is_persisted_and_returned(db, monkeypatch) -> None:
     session, user = db
-    monkeypatch.setattr(practice_api, "analyze_photo_context", lambda **_kwargs: analysis_report(73))
+    monkeypatch.setattr(
+        practice_api,
+        "analyze_practice_context_cached",
+        lambda **_kwargs: (analysis_report(73), False),
+    )
     practice_api.submit_practice_attempt(
         PracticeAttemptCreate(image_url="/uploads/rating.jpg", self_reflection="练习完成。"), user, session
     )

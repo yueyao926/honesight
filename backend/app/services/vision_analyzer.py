@@ -2,15 +2,23 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 import mimetypes
 import re
-from pathlib import Path
+import threading
+import time
 from typing import Any
 
 import httpx
 
 from app.core.config import get_settings
 from app.models.preference import Preference
+from app.services.signed_media import build_ai_media_url
+
+
+logger = logging.getLogger("uvicorn.error")
+_client_lock = threading.Lock()
+_vision_client: httpx.Client | None = None
 
 class VisionAnalysisError(RuntimeError):
     pass
@@ -27,15 +35,18 @@ def call_vision_model(
     target_platform: str,
     style_reference_urls: list[str] | None = None,
 ) -> dict:
+    started_at = time.perf_counter()
     settings = get_settings()
     if not settings.ai_analysis_enabled:
         raise VisionAnalysisError("AI analysis is disabled on the server")
     if not settings.resolved_ai_api_key:
         raise VisionAnalysisError("AI analysis API key is not configured")
 
+    resolve_started_at = time.perf_counter()
     image_input = _resolve_image_input(image_url)
     if not image_input:
         raise VisionAnalysisError("The uploaded image could not be read")
+    resolve_ms = _elapsed_ms(resolve_started_at)
 
     user_content: list[dict[str, Any]] = [
         {"type": "input_image", "image_url": image_input},
@@ -56,6 +67,7 @@ def call_vision_model(
 
     payload = {
         "model": settings.resolved_ai_model,
+        "max_output_tokens": 3200,
         "input": [
             {
                 "role": "system",
@@ -68,21 +80,9 @@ def call_vision_model(
         ],
     }
 
-    try:
-        with httpx.Client(timeout=settings.ai_timeout_seconds) as client:
-            response = client.post(
-                f"{settings.resolved_ai_base_url}/responses",
-                headers={"Authorization": f"Bearer {settings.resolved_ai_api_key}", "Content-Type": "application/json"},
-                json=payload,
-            )
-            response.raise_for_status()
-            data = response.json()
-    except httpx.HTTPStatusError as exc:
-        raise VisionAnalysisError(f"Vision API request failed: {_safe_provider_error(exc.response)}") from exc
-    except httpx.HTTPError as exc:
-        raise VisionAnalysisError("Could not connect to the vision API") from exc
-    except ValueError as exc:
-        raise VisionAnalysisError("Vision API returned invalid JSON") from exc
+    provider_started_at = time.perf_counter()
+    data = _post_vision_request(payload)
+    provider_ms = _elapsed_ms(provider_started_at)
 
     text = _extract_response_text(data)
     parsed = _parse_json_object(text)
@@ -90,7 +90,128 @@ def call_vision_model(
         raise VisionAnalysisError("Vision API did not return a valid analysis object")
     parsed = _normalize_model_result(parsed, target_platform)
     parsed["_raw_response"] = text[:12000]
+    parsed["_timings"] = {
+        "resolve_image_ms": resolve_ms,
+        "provider_ms": provider_ms,
+        "total_ms": _elapsed_ms(started_at),
+    }
+    logger.info(
+        "vision_analysis profile=full transport=%s resolve_ms=%s provider_ms=%s total_ms=%s",
+        "url" if image_input.startswith(("http://", "https://")) else "base64",
+        resolve_ms,
+        provider_ms,
+        parsed["_timings"]["total_ms"],
+    )
     return parsed
+
+
+def call_practice_vision_model(
+    *,
+    image_url: str,
+    category: str | None,
+    ability: str | None,
+    criteria: list[str] | None,
+    level: int,
+    mode: str,
+    selected_goal: str | None = None,
+) -> dict[str, Any]:
+    started_at = time.perf_counter()
+    settings = get_settings()
+    if not settings.ai_analysis_enabled:
+        raise VisionAnalysisError("AI analysis is disabled on the server")
+    if not settings.resolved_ai_api_key:
+        raise VisionAnalysisError("AI analysis API key is not configured")
+    image_input = _resolve_image_input(image_url)
+    if not image_input:
+        raise VisionAnalysisError("The uploaded image could not be read")
+
+    if mode == "source":
+        contract: dict[str, Any] = {
+            "photo_type": "portrait|landscape|product",
+            "intent": "一句话概括拍摄意图",
+            "priority_issue": "最值得先解决的一个画面问题",
+            "recommended_ability": "构图|光线|清晰度|色彩",
+            "focus_score": 68,
+            "reason": "可见依据",
+            "suggestion": "一条直接可执行的拍法",
+            "confidence": 0.85,
+        }
+        task = (
+            "判断照片类型、拍摄意图和最优先训练点。"
+            "如果用户指定了目标，recommended_ability 必须优先使用该目标。"
+        )
+    else:
+        contract = {
+            "photo_type": "portrait|landscape|product",
+            "focus_score": 72,
+            "reason": "本周能力做得最好的可见依据",
+            "problem": "仍需改善的一个可见问题",
+            "suggestion": "下一轮一条直接可执行的拍法",
+            "criterion_results": [
+                {"criterion": "原样返回完成标准", "achieved": True, "evidence": "可见依据"}
+            ],
+            "confidence": 0.85,
+        }
+        task = "只评价本周指定能力和完成标准，不评价其他画面问题。"
+
+    context = {
+        "mode": mode,
+        "category": category or "",
+        "ability": ability or "",
+        "criteria": (criteria or [])[:2],
+        "level": max(1, min(4, level)),
+        "selected_goal": selected_goal or "",
+    }
+    prompt = (
+        f"{task}\n"
+        f"训练信息：{json.dumps(context, ensure_ascii=False)}\n"
+        f"只返回 JSON：{json.dumps(contract, ensure_ascii=False)}\n"
+        "所有文字使用简体中文；只写照片中能看到的依据；不要输出 Markdown。"
+    )
+    payload = {
+        "model": settings.resolved_ai_practice_model,
+        "input": [
+            {
+                "role": "system",
+                "content": [{"type": "input_text", "text": "你是摄影练习教练，只反馈一个训练能力点。"}],
+            },
+            {
+                "role": "user",
+                "content": [
+                    {"type": "input_image", "image_url": image_input},
+                    {"type": "input_text", "text": prompt},
+                ],
+            },
+        ],
+        "max_output_tokens": 700,
+    }
+    provider_started_at = time.perf_counter()
+    data = _post_vision_request(payload)
+    provider_ms = _elapsed_ms(provider_started_at)
+    parsed = _parse_json_object(_extract_response_text(data))
+    if not parsed:
+        raise VisionAnalysisError("Vision API did not return a valid practice analysis object")
+    normalized = _normalize_practice_result(parsed, criteria or [])
+    normalized["_timings"] = {
+        "provider_ms": provider_ms,
+        "total_ms": _elapsed_ms(started_at),
+    }
+    logger.info(
+        "vision_analysis profile=practice_%s transport=%s provider_ms=%s total_ms=%s",
+        mode,
+        "url" if image_input.startswith(("http://", "https://")) else "base64",
+        provider_ms,
+        normalized["_timings"]["total_ms"],
+    )
+    return normalized
+
+
+def close_vision_http_client() -> None:
+    global _vision_client
+    with _client_lock:
+        if _vision_client is not None:
+            _vision_client.close()
+            _vision_client = None
 
 
 SYSTEM_PROMPT = """
@@ -218,13 +339,54 @@ STRICT REQUIREMENTS:
 - platform_suggestions must be keyed by the selected target_platform.
 - composition_advice, lighting_advice, color_advice, shooting_tips, and next_step
   must be concrete recommendations, not generic praise.
+- Keep each reason or advice to one concise sentence and avoid repeating the same observation.
 - All user-visible text values are Simplified Chinese.
 - Return valid JSON only.
 """.strip()
 
+def _get_vision_http_client() -> httpx.Client:
+    global _vision_client
+    if _vision_client is None:
+        with _client_lock:
+            if _vision_client is None:
+                settings = get_settings()
+                _vision_client = httpx.Client(
+                    timeout=settings.ai_timeout_seconds,
+                    limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
+                )
+    return _vision_client
+
+
+def _post_vision_request(payload: dict[str, Any]) -> dict[str, Any]:
+    settings = get_settings()
+    try:
+        response = _get_vision_http_client().post(
+            f"{settings.resolved_ai_base_url}/responses",
+            headers={
+                "Authorization": f"Bearer {settings.resolved_ai_api_key}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+        )
+        response.raise_for_status()
+        data = response.json()
+    except httpx.HTTPStatusError as exc:
+        raise VisionAnalysisError(f"Vision API request failed: {_safe_provider_error(exc.response)}") from exc
+    except httpx.HTTPError as exc:
+        raise VisionAnalysisError("Could not connect to the vision API") from exc
+    except ValueError as exc:
+        raise VisionAnalysisError("Vision API returned invalid JSON") from exc
+    if not isinstance(data, dict):
+        raise VisionAnalysisError("Vision API returned invalid JSON")
+    return data
+
+
 def _resolve_image_input(image_url: str) -> str | None:
     if image_url.startswith(("http://", "https://", "data:")):
         return image_url
+    signed_url = build_ai_media_url(image_url)
+    if signed_url:
+        return signed_url
     settings = get_settings()
     path = settings.upload_path / image_url.removeprefix("/uploads/").lstrip("/\\")
     if not path.exists() or not path.is_file():
@@ -232,6 +394,50 @@ def _resolve_image_input(image_url: str) -> str | None:
     mime_type = mimetypes.guess_type(path.name)[0] or "image/jpeg"
     encoded = base64.b64encode(path.read_bytes()).decode("ascii")
     return f"data:{mime_type};base64,{encoded}"
+
+
+def _normalize_practice_result(result: dict[str, Any], criteria: list[str]) -> dict[str, Any]:
+    raw_results = result.get("criterion_results")
+    by_criterion: dict[str, dict[str, Any]] = {}
+    if isinstance(raw_results, list):
+        for item in raw_results:
+            if not isinstance(item, dict):
+                continue
+            criterion = _as_text(item.get("criterion"))
+            if criterion:
+                by_criterion[criterion] = {
+                    "criterion": criterion,
+                    "achieved": bool(item.get("achieved")),
+                    "evidence": _as_text(item.get("evidence")),
+                }
+    normalized_results = []
+    for criterion in criteria[:2]:
+        matched = by_criterion.get(criterion)
+        if matched is None:
+            matched = next(
+                (item for key, item in by_criterion.items() if key in criterion or criterion in key),
+                None,
+            )
+        normalized_results.append(
+            matched
+            or {"criterion": criterion, "achieved": False, "evidence": "未找到足够可见依据"}
+        )
+    return {
+        "photo_type": _as_text(result.get("photo_type")) or "general",
+        "intent": _as_text(result.get("intent")),
+        "priority_issue": _as_text(result.get("priority_issue")),
+        "recommended_ability": _as_text(result.get("recommended_ability")),
+        "focus_score": _coerce_score(result.get("focus_score")),
+        "reason": _as_text(result.get("reason")),
+        "problem": _as_text(result.get("problem", result.get("priority_issue"))),
+        "suggestion": _as_text(result.get("suggestion")),
+        "criterion_results": normalized_results,
+        "confidence": _coerce_confidence(result.get("confidence")),
+    }
+
+
+def _elapsed_ms(started_at: float) -> int:
+    return int(round((time.perf_counter() - started_at) * 1000))
 
 
 def _extract_response_text(data: dict[str, Any]) -> str:

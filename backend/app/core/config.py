@@ -20,7 +20,10 @@ class Settings(BaseSettings):
     ai_api_key: str | None = Field(default=None, alias="AI_API_KEY")
     ai_base_url: str = Field(default="https://ark.cn-beijing.volces.com/api/v3", alias="AI_BASE_URL")
     ai_model: str = Field(default="doubao-seed-1-6-vision-250815", alias="AI_MODEL")
+    ai_practice_model: str = Field(default="", alias="AI_PRACTICE_MODEL")
     ai_timeout_seconds: int = Field(default=45, alias="AI_TIMEOUT_SECONDS")
+    ai_public_api_base_url: str = Field(default="", alias="AI_PUBLIC_API_BASE_URL")
+    analysis_cache_ttl_hours: int = Field(default=720, alias="ANALYSIS_CACHE_TTL_HOURS")
     unsplash_access_key: str | None = Field(default=None, alias="UNSPLASH_ACCESS_KEY")
     openverse_client_id: str | None = Field(default=None, alias="OPENVERSE_CLIENT_ID")
     openverse_client_secret: str | None = Field(default=None, alias="OPENVERSE_CLIENT_SECRET")
@@ -74,6 +77,21 @@ class Settings(BaseSettings):
     @property
     def resolved_ai_model(self) -> str:
         return self.ai_model or self.ark_vision_model
+
+    @property
+    def resolved_ai_practice_model(self) -> str:
+        return self.ai_practice_model or self.resolved_ai_model
+
+    @property
+    def resolved_ai_public_api_base_url(self) -> str:
+        explicit = self.ai_public_api_base_url.strip().rstrip("/")
+        if explicit:
+            return explicit
+        for origin in self.cors_origins:
+            normalized = origin.rstrip("/")
+            if normalized.startswith("https://") and "localhost" not in normalized:
+                return f"{normalized}/api"
+        return ""
 
     @property
     def resolved_image_api_key(self) -> str | None:

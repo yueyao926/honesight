@@ -4,9 +4,11 @@ import { getAssetUrl } from "../api/client";
 import {
   completePracticeSession,
   getPracticeOverview,
-  startPracticeSession,
-  submitPracticeAttempt,
+  startPracticeAttemptJob,
+  startPracticeSessionJob,
   updatePracticeDifficulty,
+  waitForPracticeAttemptJob,
+  waitForPracticeSessionJob,
   type StartPracticePayload,
 } from "../api/practice";
 import PhotoUpload from "../components/PhotoUpload";
@@ -47,10 +49,12 @@ function ChoiceButton({ selected, children, onClick }: { selected: boolean; chil
 function PracticeStarter({
   replacing,
   loading,
+  loadingText,
   onStart,
 }: {
   replacing: boolean;
   loading: boolean;
+  loadingText: string;
   onStart: (payload: StartPracticePayload) => Promise<void>;
 }) {
   const [mode, setMode] = useState<"improve" | "category">("improve");
@@ -95,7 +99,7 @@ function PracticeStarter({
             <h2 className="mt-2 font-display text-3xl font-semibold">上传想改进的照片</h2>
             <p className="mt-2 text-sm text-muted">我们会把问题变成练习。</p>
             <div className="mt-6 max-w-2xl">
-              <PhotoUpload value={sourceImage} onChange={setSourceImage} label="选择一张目标照片" />
+              <PhotoUpload value={sourceImage} onChange={setSourceImage} label="选择一张目标照片" purpose="analysis" />
             </div>
             <fieldset className="mt-7">
               <legend className="text-sm font-medium">这次最想改善什么？</legend>
@@ -135,7 +139,7 @@ function PracticeStarter({
           </>
         )}
         <button className="btn-primary mt-7 min-w-40" type="submit" disabled={loading || (mode === "improve" && !sourceImage)}>
-          {loading ? "正在安排…" : replacing ? "换成这个重点" : "生成本周任务"}
+          {loading ? loadingText : replacing ? "换成这个重点" : "生成本周任务"}
         </button>
       </form>
     </section>
@@ -152,7 +156,11 @@ function CycleProgress({ week }: { week: number }) {
   );
 }
 
-function SubmissionForm({ onSubmit, loading }: { onSubmit: (images: string[], reflection: string) => Promise<boolean>; loading: boolean }) {
+function SubmissionForm({ onSubmit, loading, loadingText }: {
+  onSubmit: (images: string[], reflection: string) => Promise<boolean>;
+  loading: boolean;
+  loadingText: string;
+}) {
   const [images, setImages] = useState<Array<string | null>>([null]);
   const [reflection, setReflection] = useState("");
 
@@ -175,6 +183,7 @@ function SubmissionForm({ onSubmit, loading }: { onSubmit: (images: string[], re
             value={image}
             onChange={(value) => setImages((current) => current.map((item, itemIndex) => itemIndex === index ? value : item))}
             label={index === 0 ? "上传练习照片" : `上传第 ${index + 1} 张`}
+            purpose="analysis"
           />
         ))}
       </div>
@@ -192,17 +201,18 @@ function SubmissionForm({ onSubmit, loading }: { onSubmit: (images: string[], re
         />
       </label>
       <button className="btn-primary mt-5" type="submit" disabled={loading || !images.some(Boolean)}>
-        {loading ? "正在查看照片…" : "提交练习"}
+        {loading ? loadingText : "提交练习"}
       </button>
     </form>
   );
 }
 
-function TaskView({ session, onChange, onSubmit, submitting }: {
+function TaskView({ session, onChange, onSubmit, submitting, submittingText }: {
   session: PracticeSession;
   onChange: () => void;
   onSubmit: (images: string[], reflection: string) => Promise<boolean>;
   submitting: boolean;
+  submittingText: string;
 }) {
   const [started, setStarted] = useState(false);
   const submitRef = useRef<HTMLDivElement>(null);
@@ -291,17 +301,18 @@ function TaskView({ session, onChange, onSubmit, submitting }: {
           <button type="button" className="btn-ghost" onClick={onChange}>换个重点</button>
         </div>
       )}
-      <div ref={submitRef} className="mt-7">{started && <SubmissionForm onSubmit={onSubmit} loading={submitting} />}</div>
+      <div ref={submitRef} className="mt-7">{started && <SubmissionForm onSubmit={onSubmit} loading={submitting} loadingText={submittingText} />}</div>
     </>
   );
 }
 
-function FeedbackView({ session, onRate, onComplete, onSubmit, working }: {
+function FeedbackView({ session, onRate, onComplete, onSubmit, working, workingText }: {
   session: PracticeSession;
   onRate: (value: DifficultyValue) => Promise<void>;
   onComplete: () => Promise<void>;
   onSubmit: (images: string[], reflection: string) => Promise<boolean>;
   working: boolean;
+  workingText: string;
 }) {
   const attempt = session.attempts[session.attempts.length - 1];
   const [pendingRating, setPendingRating] = useState<DifficultyValue | null>(null);
@@ -374,7 +385,7 @@ function FeedbackView({ session, onRate, onComplete, onSubmit, working }: {
         </div>
       </section>
 
-      {retrying && <div className="mt-5"><SubmissionForm onSubmit={submitAnotherRound} loading={working} /></div>}
+      {retrying && <div className="mt-5"><SubmissionForm onSubmit={submitAnotherRound} loading={working} loadingText={workingText} /></div>}
 
       {completed && <section className="mt-5 rounded-3xl bg-ink p-6 text-white sm:flex sm:items-center sm:justify-between sm:p-8">
         <div>
@@ -448,42 +459,81 @@ export default function Practice() {
   const [overview, setOverview] = useState<PracticeOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
+  const [workingText, setWorkingText] = useState("正在准备分析…");
   const [changing, setChanging] = useState(false);
   const [error, setError] = useState("");
+  const practiceJobControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     getPracticeOverview()
       .then(setOverview)
       .catch((err) => setError(err instanceof Error ? err.message : "无法载入每周练习"))
       .finally(() => setLoading(false));
+    return () => practiceJobControllerRef.current?.abort();
   }, []);
 
   async function start(payload: StartPracticePayload) {
+    practiceJobControllerRef.current?.abort();
+    const controller = new AbortController();
+    practiceJobControllerRef.current = controller;
     setWorking(true);
+    setWorkingText("正在准备任务…");
     setError("");
     try {
-      await startPracticeSession(payload);
+      const job = await startPracticeSessionJob(payload, controller.signal);
+      await waitForPracticeSessionJob(job, controller.signal, (current) => {
+        const labels: Record<string, string> = {
+          preparing: "正在准备任务…",
+          queued: "正在等待分析…",
+          analyzing: "正在判断最值得练的重点…",
+          organizing: "正在匹配本周任务…",
+          completed: "本周任务已生成",
+        };
+        setWorkingText(labels[current.stage] || "正在安排任务…");
+      });
       setOverview(await getPracticeOverview());
       setChanging(false);
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "任务生成失败，请稍后重试");
     } finally {
-      setWorking(false);
+      if (practiceJobControllerRef.current === controller) {
+        practiceJobControllerRef.current = null;
+        setWorking(false);
+      }
     }
   }
 
   async function submit(images: string[], reflection: string): Promise<boolean> {
+    practiceJobControllerRef.current?.abort();
+    const controller = new AbortController();
+    practiceJobControllerRef.current = controller;
     setWorking(true);
+    setWorkingText("正在准备分析…");
     setError("");
     try {
-      await submitPracticeAttempt({ image_urls: images, self_reflection: reflection });
+      const job = await startPracticeAttemptJob({ image_urls: images, self_reflection: reflection }, controller.signal);
+      await waitForPracticeAttemptJob(job, controller.signal, (current) => {
+        const labels: Record<string, string> = {
+          preparing: "正在准备照片…",
+          queued: "正在等待分析…",
+          analyzing: "正在查看本周重点…",
+          organizing: "正在整理本轮反馈…",
+          completed: "反馈已生成",
+        };
+        setWorkingText(labels[current.stage] || "正在生成反馈…");
+      });
       setOverview(await getPracticeOverview());
       return true;
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return false;
       setError(err instanceof Error ? err.message : "提交失败，请稍后重试");
       return false;
     } finally {
-      setWorking(false);
+      if (practiceJobControllerRef.current === controller) {
+        practiceJobControllerRef.current = null;
+        setWorking(false);
+      }
     }
   }
 
@@ -524,12 +574,12 @@ export default function Practice() {
         <p className="mt-3 text-base text-muted">慢慢拍，也是在慢慢看见。</p>
       </header>
 
-      {(!session || changing) && <PracticeStarter replacing={Boolean(session)} loading={working} onStart={start} />}
+      {(!session || changing) && <PracticeStarter replacing={Boolean(session)} loading={working} loadingText={workingText} onStart={start} />}
       {session && !changing && session.attempts.length === 0 && (
-        <TaskView session={session} onChange={() => setChanging(true)} onSubmit={submit} submitting={working} />
+        <TaskView session={session} onChange={() => setChanging(true)} onSubmit={submit} submitting={working} submittingText={workingText} />
       )}
       {session && !changing && session.attempts.length > 0 && (
-        <FeedbackView session={session} onRate={rate} onComplete={complete} onSubmit={submit} working={working} />
+        <FeedbackView session={session} onRate={rate} onComplete={complete} onSubmit={submit} working={working} workingText={workingText} />
       )}
 
       {error && <p className="mt-5 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}

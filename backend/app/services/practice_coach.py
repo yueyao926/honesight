@@ -40,6 +40,24 @@ def normalize_category(value: object) -> str:
 
 
 def analyze_practice_source(report: dict[str, Any], selected_goal: str) -> dict[str, Any]:
+    fast_result = report.get("practice_source_info")
+    if isinstance(fast_result, dict):
+        category = normalize_category(fast_result.get("photo_type"))
+        ability = (
+            GOAL_TO_ABILITY[selected_goal]
+            if selected_goal in GOAL_TO_ABILITY
+            else str(fast_result.get("ability") or "构图")
+        )
+        if ability not in ABILITIES:
+            ability = "构图"
+        return {
+            "photo_type": category,
+            "intent": _one_line(str(fast_result.get("intent") or f"突出画面中的{category}主体。"), 42),
+            "priority_issue": _one_line(str(fast_result.get("priority_issue") or "先稳定这一项基础能力。"), 42),
+            "ability": ability,
+            "recommended_level": max(1, min(4, int(fast_result.get("recommended_level") or 1))),
+            "confidence": _confidence(fast_result.get("confidence")),
+        }
     details = _json_object(report.get("benchmark_detail_json"))
     category = normalize_category(report.get("photo_type"))
     if selected_goal in GOAL_TO_ABILITY:
@@ -143,10 +161,28 @@ def build_attempt_feedback(
     threshold = 54 + max(1, min(4, level)) * 6
     achieved_count = 0
     criterion_results: list[dict[str, Any]] = []
-    for index, criterion in enumerate((criteria or [])[:2]):
-        achieved = score >= threshold + index * 4
-        achieved_count += int(achieved)
-        criterion_results.append({"criterion": criterion, "achieved": achieved})
+    fast_criteria = report.get("practice_criterion_results")
+    if isinstance(fast_criteria, list):
+        for item in fast_criteria[:2]:
+            if not isinstance(item, dict):
+                continue
+            criterion = str(item.get("criterion") or "").strip()
+            if not criterion:
+                continue
+            achieved = bool(item.get("achieved"))
+            achieved_count += int(achieved)
+            criterion_results.append(
+                {
+                    "criterion": criterion,
+                    "achieved": achieved,
+                    "evidence": str(item.get("evidence") or "").strip(),
+                }
+            )
+    if not criterion_results:
+        for index, criterion in enumerate((criteria or [])[:2]):
+            achieved = score >= threshold + index * 4
+            achieved_count += int(achieved)
+            criterion_results.append({"criterion": criterion, "achieved": achieved})
     if not criterion_results:
         achieved_count = int(score >= threshold)
         criterion_results = [{"criterion": f"完成「{ability}」目标", "achieved": bool(achieved_count)}]

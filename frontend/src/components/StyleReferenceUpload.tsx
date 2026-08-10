@@ -46,7 +46,11 @@ export default function StyleReferenceUpload({ value, onChange, maxFiles = 3 }: 
     onChange(value.filter((_, i) => i !== index));
   }
 
-  const statusText = stage === "optimizing" ? "正在处理" : "正在上传";
+  const statusText = stage === "optimizing"
+    ? "正在准备"
+    : stage === "processing"
+      ? "正在确认"
+      : "正在上传";
 
   return (
     <div className="space-y-4">

@@ -1,4 +1,4 @@
-from app.models.analysis import AnalysisResult, PhotoChatMessage
+from app.models.analysis import AnalysisCache, AnalysisJob, AnalysisResult, PhotoChatMessage
 from app.models.portfolio import PhotoTag, PortfolioCollection, PortfolioFavorite, PortfolioItem
 from app.models.profile import UserFollow, UserPrivacySetting
 from app.models.community import CommunityPost, PostImage, Tag, PostTag, PostLike, PostFavorite, FavoriteCollection, Comment, CommentLike, UserBlock, Notification, Report, PostView, ContentAction
@@ -11,6 +11,8 @@ from app.models.inspiration import DailyInspirationRecommendation, InspirationFa
 
 __all__ = [
     "AnalysisResult",
+    "AnalysisCache",
+    "AnalysisJob",
     "DailyInspirationRecommendation",
     "InspirationFavorite",
     "InspirationPhoto",

@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 
 from app.api import analyze, auth, community, image_process, inspiration, messages, portfolio, practice, preferences, profile, search, upload
 from app.core.config import get_settings
-from app.services.vision_analyzer import VisionAnalysisError
+from app.services.vision_analyzer import VisionAnalysisError, close_vision_http_client
 from app.services.inspiration_scheduler import run_inspiration_sync_loop
 
 
@@ -17,6 +17,7 @@ settings.upload_path.mkdir(parents=True, exist_ok=True)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    analyze.fail_stale_analysis_jobs()
     inspiration_sync_task = asyncio.create_task(run_inspiration_sync_loop())
     try:
         yield
@@ -24,6 +25,7 @@ async def lifespan(_app: FastAPI):
         inspiration_sync_task.cancel()
         with suppress(asyncio.CancelledError):
             await inspiration_sync_task
+        close_vision_http_client()
 
 
 app = FastAPI(title="LensCoach API", version="0.1.0", lifespan=lifespan)
