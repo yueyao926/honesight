@@ -130,3 +130,40 @@ def test_vision_input_prefers_signed_url_over_base64(monkeypatch) -> None:
     assert vision_analyzer._resolve_image_input("/uploads/photo.webp") == (
         "https://lens.example/api/upload/ai-media/token"
     )
+
+
+def test_full_analysis_has_no_output_cap_and_retries_invalid_json(monkeypatch) -> None:
+    settings = SimpleNamespace(
+        ai_analysis_enabled=True,
+        resolved_ai_api_key="test-key",
+        resolved_ai_model="vision-test",
+    )
+    payloads = []
+    responses = iter(
+        [
+            {"status": "incomplete", "incomplete_details": {"reason": "max_output_tokens"}, "output_text": '{"photo_type":'},
+            {"status": "completed", "output_text": '{"photo_type":"portrait"}'},
+        ]
+    )
+    monkeypatch.setattr(vision_analyzer, "get_settings", lambda: settings)
+    monkeypatch.setattr(vision_analyzer, "_resolve_image_input", lambda _url: "data:image/webp;base64,dGVzdA==")
+
+    def post(payload):
+        payloads.append(payload)
+        return next(responses)
+
+    monkeypatch.setattr(vision_analyzer, "_post_vision_request", post)
+    result = vision_analyzer.call_vision_model(
+        image_url="/uploads/photo.webp",
+        preference=None,
+        target_style="自然",
+        target_platform="作品集",
+        title="测试照片",
+        description=None,
+        category=None,
+    )
+
+    assert result["photo_type"] == "portrait"
+    assert len(payloads) == 2
+    assert "max_output_tokens" not in payloads[0]
+    assert "max_output_tokens" not in payloads[1]

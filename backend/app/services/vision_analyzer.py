@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import copy
 import json
 import logging
 import mimetypes
@@ -67,7 +68,6 @@ def call_vision_model(
 
     payload = {
         "model": settings.resolved_ai_model,
-        "max_output_tokens": 3200,
         "input": [
             {
                 "role": "system",
@@ -82,10 +82,11 @@ def call_vision_model(
 
     provider_started_at = time.perf_counter()
     data = _post_vision_request(payload)
-    provider_ms = _elapsed_ms(provider_started_at)
-
     text = _extract_response_text(data)
     parsed = _parse_json_object(text)
+    if not parsed:
+        parsed, text = _retry_invalid_json_response(payload, profile="full", first_data=data)
+    provider_ms = _elapsed_ms(provider_started_at)
     if not parsed:
         raise VisionAnalysisError("Vision API did not return a valid analysis object")
     parsed = _normalize_model_result(parsed, target_platform)
@@ -187,8 +188,11 @@ def call_practice_vision_model(
     }
     provider_started_at = time.perf_counter()
     data = _post_vision_request(payload)
+    text = _extract_response_text(data)
+    parsed = _parse_json_object(text)
+    if not parsed:
+        parsed, text = _retry_invalid_json_response(payload, profile=f"practice_{mode}", first_data=data)
     provider_ms = _elapsed_ms(provider_started_at)
-    parsed = _parse_json_object(_extract_response_text(data))
     if not parsed:
         raise VisionAnalysisError("Vision API did not return a valid practice analysis object")
     normalized = _normalize_practice_result(parsed, criteria or [])
@@ -379,6 +383,46 @@ def _post_vision_request(payload: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise VisionAnalysisError("Vision API returned invalid JSON")
     return data
+
+
+def _retry_invalid_json_response(
+    payload: dict[str, Any],
+    *,
+    profile: str,
+    first_data: dict[str, Any],
+) -> tuple[dict[str, Any] | None, str]:
+    """Retry once without an output cap when a provider truncates or mangles JSON."""
+    incomplete = first_data.get("incomplete_details")
+    incomplete_reason = incomplete.get("reason") if isinstance(incomplete, dict) else ""
+    first_text = _extract_response_text(first_data)
+    logger.warning(
+        "vision_analysis invalid_json profile=%s status=%s incomplete_reason=%s text_chars=%s retrying=true",
+        profile,
+        first_data.get("status", "unknown"),
+        incomplete_reason or "unknown",
+        len(first_text),
+    )
+
+    retry_payload = copy.deepcopy(payload)
+    retry_payload.pop("max_output_tokens", None)
+    inputs = retry_payload.get("input")
+    if isinstance(inputs, list) and inputs:
+        last_message = inputs[-1]
+        if isinstance(last_message, dict):
+            content = last_message.get("content")
+            if isinstance(content, list):
+                content.append(
+                    {
+                        "type": "input_text",
+                        "text": (
+                            "务必返回完整、紧凑、可被 JSON.parse 直接解析的 JSON 对象；"
+                            "不要输出 Markdown、解释文字或未闭合的字段。"
+                        ),
+                    }
+                )
+    retry_data = _post_vision_request(retry_payload)
+    retry_text = _extract_response_text(retry_data)
+    return _parse_json_object(retry_text), retry_text
 
 
 def _resolve_image_input(image_url: str) -> str | None:
