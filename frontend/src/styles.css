@@ -290,6 +290,45 @@ body {
     @apply mb-0 block text-xl text-muted sm:text-2xl;
   }
 
+  .home-practice-title-row {
+    @apply flex flex-wrap items-center gap-2 sm:gap-3;
+  }
+
+  .home-practice-title-icons {
+    @apply inline-flex items-end gap-1.5 sm:gap-2;
+  }
+
+  .home-practice-icon-peep {
+    @apply h-[3.75rem] w-auto sm:h-16;
+  }
+
+  .home-practice-icon-camera {
+    @apply relative inline-block h-12 w-[4rem] sm:h-[3.25rem] sm:w-[4.5rem];
+  }
+
+  .home-practice-icon-camera img {
+    @apply absolute inset-0 h-full w-full object-contain;
+  }
+
+  .home-practice-camera-base {
+    opacity: 1;
+  }
+
+  .home-practice-camera-stars {
+    animation: practice-camera-stars-twinkle 0.9s ease-in-out infinite;
+  }
+
+  @keyframes practice-camera-stars-twinkle {
+    0%,
+    100% {
+      opacity: 0;
+    }
+
+    50% {
+      opacity: 1;
+    }
+  }
+
   .home-practice-card-title {
     @apply mt-5 max-w-3xl text-2xl sm:text-3xl md:text-4xl;
     line-height: 1.1;
@@ -323,6 +362,59 @@ body {
     font-family: inherit;
     font-weight: normal;
     line-height: 1.1;
+  }
+
+  .daily-inspiration-title-row {
+    @apply flex flex-wrap items-center gap-2 sm:gap-3;
+    font-family: inherit;
+    font-weight: normal;
+    line-height: 1.1;
+  }
+
+  .daily-inspiration-title-icons {
+    @apply inline-flex items-end gap-1.5 sm:gap-2;
+  }
+
+  .daily-inspiration-icon-peep {
+    @apply h-[3.75rem] w-auto sm:h-16;
+  }
+
+  .daily-inspiration-icon-bulb {
+    @apply relative inline-block h-11 w-8 sm:h-12 sm:w-9;
+  }
+
+  .daily-inspiration-icon-bulb img {
+    @apply absolute inset-0 h-full w-full object-contain;
+  }
+
+  .daily-inspiration-bulb-lineart {
+    animation: inspiration-bulb-lineart 1.5s ease-in-out infinite;
+  }
+
+  .daily-inspiration-bulb-glow {
+    animation: inspiration-bulb-glow 1.5s ease-in-out infinite;
+  }
+
+  @keyframes inspiration-bulb-lineart {
+    0%,
+    45% {
+      opacity: 1;
+    }
+    55%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes inspiration-bulb-glow {
+    0%,
+    45% {
+      opacity: 0;
+    }
+    55%,
+    100% {
+      opacity: 1;
+    }
   }
 
   .daily-inspiration-section .daily-inspiration-subtitle,

@@ -5,8 +5,26 @@ import { getAssetUrl } from "../api/client";
 import { useAuth } from "../contexts/AuthContext";
 import type { Inspiration } from "../types";
 import inspirationCardBorderSvg from "../SVG/Vector (3).svg?url";
+import inspirationPeepSvg from "../SVG/灵感90.svg?url";
+import lightbulbGlowSvg from "../SVG/lightbulb_glow.svg?url";
+import lightbulbLineartSvg from "../SVG/lightbulb_lineart.svg?url";
 
 const INTERVAL = Number(import.meta.env.VITE_INSPIRATION_AUTOPLAY_INTERVAL_MS || 6000);
+
+function InspirationTitleRow({ className = "" }: { className?: string }) {
+  return (
+    <h2 className={`daily-inspiration-title-row ${className}`.trim()}>
+      <span className="daily-inspiration-title-text">今日摄影灵感</span>
+      <span className="daily-inspiration-title-icons" aria-hidden="true">
+        <img src={inspirationPeepSvg} alt="" draggable={false} className="daily-inspiration-icon-peep" />
+        <span className="daily-inspiration-icon-bulb">
+          <img src={lightbulbLineartSvg} alt="" draggable={false} className="daily-inspiration-bulb-lineart" />
+          <img src={lightbulbGlowSvg} alt="" draggable={false} className="daily-inspiration-bulb-glow" />
+        </span>
+      </span>
+    </h2>
+  );
+}
 
 function InspirationArtwork({
   photo,
@@ -127,7 +145,7 @@ export default function DailyInspirationSection({ embedded = false }: { embedded
     }
   }
 
-  const sectionClass = embedded ? "py-10" : "container-page !py-12 sm:!py-14";
+  const sectionClass = embedded ? "py-10" : "container-page !pb-12 !pt-4 sm:!pb-14 sm:!pt-5";
 
   if (loading) {
     return (
@@ -140,7 +158,7 @@ export default function DailyInspirationSection({ embedded = false }: { embedded
   if (error || !items.length) {
     return (
       <section className={`daily-inspiration-section ${sectionClass}`}>
-        <p className="section-eyebrow">今日摄影灵感</p>
+        <InspirationTitleRow className="section-eyebrow" />
         <div className="daily-inspiration-card">
           <div className="daily-inspiration-card-frame">
             <img
@@ -177,7 +195,7 @@ export default function DailyInspirationSection({ embedded = false }: { embedded
         <div className="mb-6 flex items-end justify-between gap-4 sm:mb-7">
           <div>
             <p className="section-eyebrow">Daily Inspiration</p>
-            <h2 className="daily-inspiration-heading">今日摄影灵感</h2>
+            <InspirationTitleRow className="daily-inspiration-heading mt-2" />
             <p className="daily-inspiration-subtitle mt-2">从一张好照片里，学习如何观察世界</p>
           </div>
           <div className="hidden items-end gap-5 sm:flex">

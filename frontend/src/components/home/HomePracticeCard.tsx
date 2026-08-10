@@ -1,5 +1,8 @@
 import { Link } from "react-router-dom";
 import vectorBorderSvg from "../../SVG/Vector.svg?url";
+import practicePeepSvg from "../../SVG/练习.svg?url";
+import cameraBodySvg from "../../SVG/camera_body_only.svg?url";
+import cameraStarsSvg from "../../SVG/camera_stars_only.svg?url";
 import HomeDrawnButton from "./HomeDrawnButton";
 
 type HomePracticeCardProps = {
@@ -8,11 +11,20 @@ type HomePracticeCardProps = {
 
 export default function HomePracticeCard({ isAuthenticated }: HomePracticeCardProps) {
   return (
-    <section className="container-page !pb-12 !pt-2 sm:!pb-16" aria-labelledby="home-practice-title">
+    <section className="container-page !pb-4 !pt-2 sm:!pb-5" aria-labelledby="home-practice-title">
       <div className="home-practice-card animate-fade-up">
         <div className="home-practice-card-frame">
           <div className="home-practice-card-inner">
-            <p className="home-practice-card-eyebrow">今日摄影练习</p>
+            <p className="home-practice-card-eyebrow home-practice-title-row">
+              <span>今日摄影练习</span>
+              <span className="home-practice-title-icons" aria-hidden="true">
+                <img src={practicePeepSvg} alt="" draggable={false} className="home-practice-icon-peep" />
+                <span className="home-practice-icon-camera">
+                  <img src={cameraBodySvg} alt="" draggable={false} className="home-practice-camera-base" />
+                  <img src={cameraStarsSvg} alt="" draggable={false} className="home-practice-camera-stars" />
+                </span>
+              </span>
+            </p>
 
             <h2 id="home-practice-title" className="home-practice-card-title">
               把一张喜欢的照片，再往前推一步。
