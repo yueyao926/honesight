@@ -9,7 +9,9 @@ class PracticeSessionCreate(BaseModel):
     source_image_url: str | None = Field(default=None, max_length=500)
     target_goal: Literal["构图", "光线", "清晰度", "色彩", "不确定"] = "不确定"
     category: Literal["人像", "风景", "拍物"] | None = None
+    plan_role: Literal["primary", "optional"] = "primary"
     replace_current: bool = False
+    replace_session_id: int | None = Field(default=None, ge=1)
 
     @model_validator(mode="after")
     def validate_entry(self) -> "PracticeSessionCreate":
@@ -75,6 +77,8 @@ class PracticeSessionRead(BaseModel):
     id: int
     week_key: str
     entry_mode: str
+    plan_role: str
+    position: int
     category: str
     skill_focus: str
     level: int
@@ -95,7 +99,11 @@ class PracticeSessionRead(BaseModel):
     coach_note: str
     status: str
     progress: int
+    progress_stage: str
+    completion_percent: int
+    is_carryover: bool
     attempts: list[PracticeAttemptRead]
+    started_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
     completed_at: datetime | None = None
@@ -127,5 +135,11 @@ class PracticeProgressRead(BaseModel):
 
 class PracticeOverviewRead(BaseModel):
     current: PracticeSessionRead | None
+    current_sessions: list[PracticeSessionRead]
+    week_key: str
+    weekly_budget_minutes: int
+    scheduled_minutes: int
+    completed_minutes: int
+    can_add: bool
     history: list[PracticeSessionRead]
     progress: list[PracticeProgressRead]

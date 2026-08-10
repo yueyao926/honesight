@@ -12,7 +12,7 @@ from app.database import Base
 from app.models.practice import CoachMemory, PracticeProgress, PracticeSession
 from app.models.preference import Preference
 from app.models.user import User
-from app.schemas.practice import PracticeAttemptCreate, PracticeDifficultyUpdate
+from app.schemas.practice import PracticeAttemptCreate, PracticeDifficultyUpdate, PracticeOverviewRead, PracticeSessionCreate
 from app.services.practice_coach import analyze_practice_source, build_attempt_feedback, choose_practice, current_week_key, select_least_practiced_ability
 from app.services.practice_templates import TASK_LIBRARY, get_task
 
@@ -135,6 +135,7 @@ def test_weekly_submission_waits_for_user_to_complete_and_advances_once(db, monk
     assert progress.cycle_week == 2
 
     overview = practice_api.get_practice_overview(user, session)
+    PracticeOverviewRead.model_validate(overview)
     assert len(overview["history"]) == 1
     assert overview["history"][0]["id"] == completed["id"]
 
@@ -208,3 +209,76 @@ def test_difficulty_rating_is_persisted_and_returned(db, monkeypatch) -> None:
     session.expire_all()
     overview = practice_api.get_practice_overview(user, session)
     assert overview["current"]["attempts"][-1]["difficulty_feedback"] == "just_right"
+
+
+def test_weekly_plan_tracks_multiple_practices_independently(db, monkeypatch) -> None:
+    session, user = db
+    monkeypatch.setattr(
+        practice_api,
+        "analyze_practice_context_cached",
+        lambda **_kwargs: (analysis_report(73), False),
+    )
+    composition = practice_api.start_practice_session(
+        PracticeSessionCreate(
+            entry_mode="category",
+            category="人像",
+            target_goal="构图",
+            plan_role="primary",
+        ),
+        user,
+        session,
+    )
+    lighting = practice_api.start_practice_session(
+        PracticeSessionCreate(
+            entry_mode="category",
+            category="人像",
+            target_goal="光线",
+            plan_role="optional",
+        ),
+        user,
+        session,
+    )
+
+    started = practice_api.mark_practice_started(composition["id"], user, session)
+    assert started["progress_stage"] == "started"
+    assert started["completion_percent"] == 25
+
+    submitted = practice_api.submit_session_practice_attempt(
+        composition["id"],
+        PracticeAttemptCreate(image_url="/uploads/composition.jpg"),
+        user,
+        session,
+    )
+    assert submitted["progress_stage"] == "submitted"
+    assert submitted["completion_percent"] == 70
+
+    practice_api.complete_session_practice(composition["id"], user, session)
+    overview = practice_api.get_practice_overview(user, session)
+    by_id = {item["id"]: item for item in overview["current_sessions"]}
+    assert list(by_id) == [lighting["id"], composition["id"]]
+    assert by_id[composition["id"]]["completion_percent"] == 100
+    assert by_id[lighting["id"]]["completion_percent"] == 0
+    assert overview["scheduled_minutes"] == composition["time_minutes"] + lighting["time_minutes"]
+    assert overview["completed_minutes"] == composition["time_minutes"]
+
+
+def test_unfinished_practice_is_carried_into_the_next_week(db) -> None:
+    session, user = db
+    practice = practice_api.start_practice_session(
+        PracticeSessionCreate(
+            entry_mode="category",
+            category="拍物",
+            target_goal="色彩",
+        ),
+        user,
+        session,
+    )
+    saved = session.get(PracticeSession, practice["id"])
+    assert saved is not None
+    saved.week_key = "2026-W01"
+    session.commit()
+
+    overview = practice_api.get_practice_overview(user, session)
+    assert len(overview["current_sessions"]) == 1
+    assert overview["current_sessions"][0]["id"] == practice["id"]
+    assert overview["current_sessions"][0]["is_carryover"] is True

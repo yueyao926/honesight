@@ -209,7 +209,7 @@ def _download_generated_image(url: str, user_id: int) -> tuple[str, str]:
     try:
         stored = store_image(
             response.content,
-            settings.upload_path,
+            settings.upload_path / "generated",
             f"{user_id}_generated_{uuid4().hex}",
             create_thumbnail=True,
         )

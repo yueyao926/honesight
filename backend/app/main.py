@@ -10,6 +10,7 @@ from app.api import analyze, auth, community, image_process, inspiration, messag
 from app.core.config import get_settings
 from app.services.vision_analyzer import VisionAnalysisError, close_vision_http_client
 from app.services.inspiration_scheduler import run_inspiration_sync_loop
+from app.services.upload_cleanup_scheduler import run_upload_cleanup_loop
 
 
 settings = get_settings()
@@ -19,12 +20,16 @@ settings.upload_path.mkdir(parents=True, exist_ok=True)
 async def lifespan(_app: FastAPI):
     analyze.fail_stale_analysis_jobs()
     inspiration_sync_task = asyncio.create_task(run_inspiration_sync_loop())
+    upload_cleanup_task = asyncio.create_task(run_upload_cleanup_loop())
     try:
         yield
     finally:
         inspiration_sync_task.cancel()
+        upload_cleanup_task.cancel()
         with suppress(asyncio.CancelledError):
             await inspiration_sync_task
+        with suppress(asyncio.CancelledError):
+            await upload_cleanup_task
         close_vision_http_client()
 
 

@@ -6,7 +6,9 @@ export type StartPracticePayload = {
   source_image_url?: string;
   target_goal?: "构图" | "光线" | "清晰度" | "色彩" | "不确定";
   category?: "人像" | "风景" | "拍物";
+  plan_role?: "primary" | "optional";
   replace_current?: boolean;
+  replace_session_id?: number;
 };
 
 export type PracticeAttemptJob = {
@@ -60,15 +62,21 @@ export async function waitForPracticeSessionJob(
   }
 }
 
-export function submitPracticeAttempt(payload: { image_urls: string[]; self_reflection?: string }) {
-  return apiRequest<PracticeSession>("/practice/current/attempts", {
+export function markPracticeStarted(sessionId: number) {
+  return apiRequest<PracticeSession>(`/practice/sessions/${sessionId}/start`, {
+    method: "PATCH",
+  });
+}
+
+export function submitPracticeAttempt(sessionId: number, payload: { image_urls: string[]; self_reflection?: string }) {
+  return apiRequest<PracticeSession>(`/practice/sessions/${sessionId}/attempts`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
-export function startPracticeAttemptJob(payload: { image_urls: string[]; self_reflection?: string }, signal?: AbortSignal) {
-  return apiRequest<PracticeAttemptJob>("/practice/current/attempt-jobs", {
+export function startPracticeAttemptJob(sessionId: number, payload: { image_urls: string[]; self_reflection?: string }, signal?: AbortSignal) {
+  return apiRequest<PracticeAttemptJob>(`/practice/sessions/${sessionId}/attempt-jobs`, {
     method: "POST",
     body: JSON.stringify(payload),
     signal,
@@ -94,14 +102,14 @@ export async function waitForPracticeAttemptJob(
   }
 }
 
-export function completePracticeSession() {
-  return apiRequest<PracticeSession>("/practice/current/complete", {
+export function completePracticeSession(sessionId: number) {
+  return apiRequest<PracticeSession>(`/practice/sessions/${sessionId}/complete`, {
     method: "POST",
   });
 }
 
-export function updatePracticeDifficulty(difficulty: "too_easy" | "just_right" | "too_hard") {
-  return apiRequest<PracticeSession>("/practice/current/difficulty", {
+export function updatePracticeDifficulty(sessionId: number, difficulty: "too_easy" | "just_right" | "too_hard") {
+  return apiRequest<PracticeSession>(`/practice/sessions/${sessionId}/difficulty`, {
     method: "PATCH",
     body: JSON.stringify({ difficulty }),
   });

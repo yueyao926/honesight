@@ -422,7 +422,6 @@ def _build_user_prompt(
         "photo_type": "portrait|landscape|food|street|campus|product|night|general",
         "detected_style": "current visual style in Simplified Chinese",
         "style_confidence": 0.86,
-        "style_reasoning": "visible evidence supporting the detected style",
         "benchmark": {
             key: {
                 "score": 80,

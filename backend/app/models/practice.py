@@ -8,12 +8,22 @@ from app.database import Base
 
 class PracticeSession(Base):
     __tablename__ = "practice_sessions"
-    __table_args__ = (UniqueConstraint("user_id", "week_key", name="uq_practice_session_user_week"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "week_key",
+            "category",
+            "skill_focus",
+            name="uq_practice_session_user_week_focus",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     week_key: Mapped[str] = mapped_column(String(12), nullable=False, index=True)
     skill_focus: Mapped[str] = mapped_column(String(40), nullable=False)
+    plan_role: Mapped[str] = mapped_column(String(20), nullable=False, default="primary")
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     entry_mode: Mapped[str] = mapped_column(String(20), nullable=False, default="category")
     category: Mapped[str] = mapped_column(String(20), nullable=False, default="人像")
     level: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
@@ -34,6 +44,7 @@ class PracticeSession(Base):
     simplified_task_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     coach_note: Mapped[str] = mapped_column(Text, nullable=False, default="")
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active", index=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

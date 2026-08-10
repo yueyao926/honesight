@@ -71,7 +71,7 @@ class ImageGeneratorTests(unittest.TestCase):
                 )
 
             self.assertEqual(result["model"], "test-image-model")
-            self.assertTrue(result["image_url"].startswith("/uploads/12_generated_"))
+            self.assertTrue(result["image_url"].startswith("/uploads/generated/12_generated_"))
             self.assertTrue((Path(directory) / result["image_url"].removeprefix("/uploads/")).is_file())
             self.assertTrue(result["thumbnail_url"].endswith("_thumb.webp"))
             self.assertTrue((Path(directory) / result["thumbnail_url"].removeprefix("/uploads/")).is_file())

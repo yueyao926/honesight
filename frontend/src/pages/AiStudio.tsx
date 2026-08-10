@@ -16,7 +16,6 @@ import {
   BenchmarkOverview,
   DimensionCards,
   ParamsPanel,
-  StylePanel,
 } from "../components/analysis/AnalysisPanels";
 import PhotoUpload from "../components/PhotoUpload";
 import StyleReferenceUpload from "../components/StyleReferenceUpload";
@@ -478,6 +477,7 @@ export default function AiStudio() {
             <h2 className="font-display text-2xl font-semibold">选择照片</h2>
             <div className="mt-5">
               <PhotoUpload value={photoUrl} onChange={handlePhotoChange} purpose="analysis" />
+              <p className="mt-3 text-xs text-muted">未保存的照片将在72小时后自动清理；需要长期保留可存入作品集。</p>
             </div>
           </div>
         </StepSection>
@@ -590,7 +590,6 @@ export default function AiStudio() {
                   <BenchmarkOverview analysis={analysis} targetPlatform={targetPlatform} />
                   <DimensionCards analysis={analysis} />
                   <AdvicePanel analysis={analysis} />
-                  <StylePanel analysis={analysis} />
                   {Object.keys(analysis.editing_params || {}).length > 0 ? (
                     <ParamsPanel analysis={analysis} />
                   ) : (
@@ -715,7 +714,7 @@ export default function AiStudio() {
                 <h2 className="mt-1 font-display text-2xl font-semibold">把你根据建议调整后的照片加入作品集</h2>
                 <p className="mt-2 text-sm leading-6 text-muted">你可以在其他修图工具中实践这些建议，再把最终作品上传回来留档。</p>
                 <div className="mt-5 max-w-xl">
-                  <PhotoUpload value={improvedPhotoUrl} onChange={handleImprovedPhotoChange} label="上传改进后的照片" />
+                  <PhotoUpload value={improvedPhotoUrl} onChange={handleImprovedPhotoChange} label="上传改进后的照片" purpose="portfolio" />
                 </div>
                 <button className="btn-ghost mt-5" type="button" onClick={handleAnotherPhoto}>再来一张</button>
               </div>

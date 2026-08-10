@@ -142,6 +142,13 @@ AI_TIMEOUT_SECONDS=45
 # 可选；仅在 AI 服务商可公网访问 /api/upload/ai-media 时填写，否则留空
 AI_PUBLIC_API_BASE_URL=
 ANALYSIS_CACHE_TTL_HOURS=720
+# 未保存的分析图 72 小时、生成图 7 天、练习周期结束后 30 天自动清理
+UPLOAD_CLEANUP_ENABLED=true
+UPLOAD_CLEANUP_INTERVAL_HOURS=12
+ANALYSIS_IMAGE_RETENTION_HOURS=72
+GENERATED_IMAGE_RETENTION_HOURS=168
+PRACTICE_IMAGE_RETENTION_DAYS=30
+ORPHAN_IMAGE_RETENTION_HOURS=72
 ARK_API_KEY=replace-with-your-own-api-key
 ARK_API_URL=https://ark.cn-beijing.volces.com/api/v3/responses
 ARK_VISION_MODEL=doubao-seed-1-6-vision-250815
@@ -161,6 +168,7 @@ VITE_API_BASE_URL=http://localhost:8000
 - 用户摄影偏好创建、读取、更新
 - 作品集 CRUD
 - 图片上传到 `backend/uploads`
+- 图片按分析、练习、作品集和社区用途分目录保存；后台定时清理过期且未被引用的文件
 - 静态访问上传图片
 - 模板化照片分析报告
 - 豆包视觉模型识图分析，未配置或调用失败时自动回退模板报告

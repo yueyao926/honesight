@@ -164,6 +164,8 @@ export type PracticeSession = {
   id: number;
   week_key: string;
   entry_mode: "improve" | "category";
+  plan_role: "primary" | "optional";
+  position: number;
   category: "人像" | "风景" | "拍物";
   skill_focus: string;
   level: number;
@@ -191,7 +193,11 @@ export type PracticeSession = {
   coach_note: string;
   status: "active" | "completed";
   progress: number;
+  progress_stage: "not_started" | "started" | "submitted" | "completed";
+  completion_percent: number;
+  is_carryover: boolean;
   attempts: PracticeAttempt[];
+  started_at?: string | null;
   created_at: string;
   updated_at: string;
   completed_at?: string | null;
@@ -208,6 +214,12 @@ export type PracticeProgress = {
 
 export type PracticeOverview = {
   current: PracticeSession | null;
+  current_sessions: PracticeSession[];
+  week_key: string;
+  weekly_budget_minutes: number;
+  scheduled_minutes: number;
+  completed_minutes: number;
+  can_add: boolean;
   history: PracticeSession[];
   progress: PracticeProgress[];
 };

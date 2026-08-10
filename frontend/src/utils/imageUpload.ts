@@ -2,7 +2,7 @@ export const MAX_IMAGE_SOURCE_BYTES = 10 * 1024 * 1024;
 export const MAX_IMAGE_SOURCE_PIXELS = 40_000_000;
 export const MAX_AVATAR_UPLOAD_BYTES = 1024 * 1024;
 
-export type ImageUploadPurpose = "standard" | "reference" | "analysis";
+export type ImageUploadPurpose = "standard" | "reference" | "analysis" | "practice" | "portfolio" | "community";
 export type ImageUploadStage = "optimizing" | "uploading" | "processing";
 
 type CompressionProfile = {
@@ -16,6 +16,9 @@ const PROFILES: Record<ImageUploadPurpose, CompressionProfile> = {
   standard: { maxDimension: 2560, targetBytes: 1.5 * 1024 * 1024, initialQuality: 0.85 },
   reference: { maxDimension: 1920, targetBytes: 800 * 1024, initialQuality: 0.82 },
   analysis: { maxDimension: 2048, targetBytes: 800 * 1024, initialQuality: 0.8 },
+  practice: { maxDimension: 2048, targetBytes: 800 * 1024, initialQuality: 0.8 },
+  portfolio: { maxDimension: 2560, targetBytes: 1.5 * 1024 * 1024, initialQuality: 0.85 },
+  community: { maxDimension: 2560, targetBytes: 1.5 * 1024 * 1024, initialQuality: 0.85 },
 };
 
 function loadImage(file: Blob): Promise<HTMLImageElement> {
