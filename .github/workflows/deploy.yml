@@ -22,6 +22,7 @@ jobs:
   ci:
     name: Test and build
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -42,26 +43,28 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: ci
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
-      - name: Build release images
+      - name: Package release source
+        shell: bash
         run: |
-          docker build --tag "${BACKEND_IMAGE}:${GITHUB_SHA}" ./backend
-          docker build --tag "${FRONTEND_IMAGE}:${GITHUB_SHA}" ./frontend
-
-      - name: Package release
-        run: |
-          mkdir -p release
-          docker save \
-            "${BACKEND_IMAGE}:${GITHUB_SHA}" \
-            "${FRONTEND_IMAGE}:${GITHUB_SHA}" \
-            | gzip -1 > release/lenscoach-images.tar.gz
-          cp docker-compose.prod.yml release/docker-compose.prod.yml
-          cp .github/scripts/deploy-production.sh release/deploy-production.sh
-          chmod +x release/deploy-production.sh
-          (cd release && sha256sum lenscoach-images.tar.gz docker-compose.prod.yml deploy-production.sh > SHA256SUMS)
+          set -euo pipefail
+          release_dir="release/${GITHUB_SHA}"
+          mkdir -p "$release_dir"
+          cp -R backend frontend "$release_dir/"
+          cp docker-compose.release.yml "$release_dir/docker-compose.yml"
+          cp deployment/deploy-production.sh "$release_dir/deploy-production.sh"
+          chmod +x "$release_dir/deploy-production.sh"
+          (
+            cd "$release_dir"
+            find backend frontend -type f -print0 | sort -z | xargs -0 sha256sum
+            sha256sum docker-compose.yml deploy-production.sh
+          ) > "$release_dir/SHA256SUMS"
+          tar --create --gzip --file release/lenscoach-source.tar.gz --directory "$release_dir" .
+          (cd release && sha256sum lenscoach-source.tar.gz > SOURCE_SHA256SUM)
 
       - name: Configure SSH
         env:
@@ -75,20 +78,20 @@ jobs:
           chmod 600 ~/.ssh/known_hosts
           ssh-keygen -y -f ~/.ssh/id_ed25519 >/dev/null
 
-      - name: Upload release
+      - name: Upload release source
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_PORT: ${{ secrets.SERVER_PORT }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
         run: |
+          set -euo pipefail
           remote_release="/home/${SERVER_USER}/lenscoach/releases/${GITHUB_SHA}"
           ssh -i ~/.ssh/id_ed25519 -p "$SERVER_PORT" \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
             "${SERVER_USER}@${SERVER_HOST}" "mkdir -p '$remote_release'"
           scp -i ~/.ssh/id_ed25519 -P "$SERVER_PORT" \
-            release/lenscoach-images.tar.gz \
-            release/docker-compose.prod.yml \
-            release/deploy-production.sh \
-            release/SHA256SUMS \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
+            release/lenscoach-source.tar.gz release/SOURCE_SHA256SUM \
             "${SERVER_USER}@${SERVER_HOST}:${remote_release}/"
 
       - name: Activate release
@@ -97,7 +100,9 @@ jobs:
           SERVER_PORT: ${{ secrets.SERVER_PORT }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
         run: |
-          remote_script="/home/${SERVER_USER}/lenscoach/releases/${GITHUB_SHA}/deploy-production.sh"
+          set -euo pipefail
+          remote_release="/home/${SERVER_USER}/lenscoach/releases/${GITHUB_SHA}"
           ssh -i ~/.ssh/id_ed25519 -p "$SERVER_PORT" \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
             "${SERVER_USER}@${SERVER_HOST}" \
-            "bash '$remote_script' '$GITHUB_SHA'"
+            "cd '$remote_release' && sha256sum --check SOURCE_SHA256SUM && tar --extract --gzip --file lenscoach-source.tar.gz && chmod +x deploy-production.sh && bash deploy-production.sh '$GITHUB_SHA'"

@@ -8,6 +8,11 @@ export type PreferencePayload = {
   common_subjects?: string;
   improvement_goals?: string;
   editing_tools?: string;
+  photography_categories?: string[];
+  shooting_devices?: string[];
+  weekly_practice_minutes?: number;
+  weekly_practice_day?: number;
+  weekly_reminder_enabled?: boolean;
 };
 
 export function getMyPreferences() {

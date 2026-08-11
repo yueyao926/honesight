@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import vectorBorderSvg from "../../SVG/Vector.svg?url";
+import practiceCardBorderSvg from "../../SVG/Vector (3).svg?url";
 import practicePeepSvg from "../../SVG/练习.svg?url";
 import cameraBodySvg from "../../SVG/camera_body_only.svg?url";
 import cameraStarsSvg from "../../SVG/camera_stars_only.svg?url";
@@ -11,13 +11,12 @@ type HomePracticeCardProps = {
 
 export default function HomePracticeCard({ isAuthenticated }: HomePracticeCardProps) {
   return (
-    <section className="container-page !pb-4 !pt-2 sm:!pb-5" aria-labelledby="home-practice-title">
+    <section className="container-page !pb-4 !pt-4 sm:!pb-5 sm:!pt-5" aria-labelledby="home-practice-title">
       <div className="home-practice-card animate-fade-up">
         <div className="home-practice-card-frame">
           <div className="home-practice-card-inner">
             <p className="home-practice-card-eyebrow home-practice-title-row">
-              <span>今日摄影练习</span>
-              <span className="home-practice-title-icons" aria-hidden="true">
+              <span>本周摄影练习</span>              <span className="home-practice-title-icons" aria-hidden="true">
                 <img src={practicePeepSvg} alt="" draggable={false} className="home-practice-icon-peep" />
                 <span className="home-practice-icon-camera">
                   <img src={cameraBodySvg} alt="" draggable={false} className="home-practice-camera-base" />
@@ -30,7 +29,7 @@ export default function HomePracticeCard({ isAuthenticated }: HomePracticeCardPr
               把一张喜欢的照片，再往前推一步。
             </h2>
 
-            <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="home-drawn-btn-group flex flex-wrap">
                 {isAuthenticated ? (
                   <>
@@ -59,13 +58,12 @@ export default function HomePracticeCard({ isAuthenticated }: HomePracticeCardPr
           </div>
 
           <img
-            src={vectorBorderSvg}
+            src={practiceCardBorderSvg}
             alt=""
             aria-hidden="true"
             draggable={false}
             className="home-practice-card-border"
-          />
-        </div>
+          />        </div>
       </div>
     </section>
   );

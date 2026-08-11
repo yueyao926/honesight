@@ -34,7 +34,7 @@ export default function Register() {
   }
 
   return (
-    <main className="container-page flex min-h-[70vh] items-center justify-center">
+    <main className="handwriting-page container-page flex min-h-[70vh] items-center justify-center">
       <div className="card w-full max-w-md animate-fade-up">
         <BackHomeLink />
         <p className="section-eyebrow mt-6">Join us</p>

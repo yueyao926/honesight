@@ -46,7 +46,7 @@ def update_my_preferences(
     if not preference:
         preference = Preference(user_id=current_user.id)
         db.add(preference)
-    for key, value in payload.model_dump().items():
+    for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(preference, key, value)
     db.commit()
     db.refresh(preference)

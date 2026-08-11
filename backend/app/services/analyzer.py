@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 
+from sqlalchemy.orm import Session
+
 from app.core.config import get_settings
 from app.models.portfolio import PortfolioItem
 from app.models.preference import Preference
@@ -10,6 +12,7 @@ from app.services.mock_analyzer import build_mock_vision_result
 from app.services.platform_advisor import build_platform_suggestions
 from app.services.style_detector import detect_style
 from app.services.vision_analyzer import call_vision_model
+from app.services.analysis_cache import build_analysis_cache_key, run_cached_analysis
 
 
 def analyze_photo_context(
@@ -150,6 +153,80 @@ def analyze_photo_item(
         title=item.title,
         description=item.description,
         category=item.category,
+    )
+
+
+def analyze_photo_context_cached(
+    *,
+    db: Session,
+    user_id: int,
+    image_url: str,
+    preference: Preference | None,
+    target_style: str | None,
+    target_platform: str | None,
+    style_reference_urls: list[str] | None = None,
+    title: str = "待分析作品",
+    description: str | None = None,
+    category: str | None = None,
+) -> tuple[dict, bool]:
+    settings = get_settings()
+    cache_key = build_full_analysis_cache_key(
+        user_id=user_id,
+        image_url=image_url,
+        preference=preference,
+        target_style=target_style,
+        target_platform=target_platform,
+        style_reference_urls=style_reference_urls,
+        title=title,
+        description=description,
+        category=category,
+    )
+    return run_cached_analysis(
+        db,
+        user_id=user_id,
+        cache_key=cache_key,
+        profile="full-v2",
+        model_used=settings.resolved_ai_model,
+        analyze=lambda: analyze_photo_context(
+            image_url=image_url,
+            preference=preference,
+            target_style=target_style,
+            target_platform=target_platform,
+            style_reference_urls=style_reference_urls,
+            title=title,
+            description=description,
+            category=category,
+        ),
+    )
+
+
+def build_full_analysis_cache_key(
+    *,
+    user_id: int,
+    image_url: str,
+    preference: Preference | None,
+    target_style: str | None,
+    target_platform: str | None,
+    style_reference_urls: list[str] | None = None,
+    title: str = "待分析作品",
+    description: str | None = None,
+    category: str | None = None,
+) -> str:
+    settings = get_settings()
+    return build_analysis_cache_key(
+        profile="full-v2",
+        image_url=image_url,
+        user_id=user_id,
+        preference=preference,
+        style_reference_urls=style_reference_urls,
+        parameters={
+            "target_style": target_style or "",
+            "target_platform": target_platform or "",
+            "title": title,
+            "description": description or "",
+            "category": category or "",
+        },
+        model=settings.resolved_ai_model,
     )
 
 

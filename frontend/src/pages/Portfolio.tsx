@@ -33,7 +33,7 @@ export default function Portfolio() {
   }
 
   return (
-    <main className="container-page">
+    <main className="handwriting-page container-page">
       <header className="flex flex-col justify-between gap-5 md:flex-row md:items-end animate-fade-up">
         <div>
           <p className="section-eyebrow">Portfolio</p>

@@ -9,7 +9,7 @@ function navClass({ isActive }: { isActive: boolean }) {
 
 const authenticatedNavItems = [
   { to: "/dashboard", label: "首页" },
-  { to: "/practice", label: "本周练习" },
+  { to: "/practice", label: "每周一练" },
   { to: "/ai", label: "AI 工作室" },
   { to: "/portfolio", label: "作品集" },
   { to: "/community", label: "社区" },

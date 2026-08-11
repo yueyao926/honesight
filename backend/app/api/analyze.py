@@ -1,24 +1,65 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+import json
+import logging
+from datetime import datetime, timedelta, timezone
+from uuid import uuid4
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
-from app.database import get_db
-from app.models.analysis import AnalysisResult
+from app.database import SessionLocal, get_db
+from app.models.analysis import AnalysisCache, AnalysisJob, AnalysisResult
 from app.models.portfolio import PortfolioItem
 from app.models.preference import Preference
 from app.models.user import User
 from app.schemas.analysis import (
     AnalysisRead,
+    AnalysisJobRead,
     AnalyzeRequest,
     PreviewAnalyzeRequest,
     analysis_to_read_dict,
     preview_to_read_dict,
 )
-from app.services.analyzer import analyze_photo_context, analyze_photo_item
+from app.services.analysis_cache import get_cached_analysis
+from app.services.analyzer import (
+    analyze_photo_context_cached,
+    build_full_analysis_cache_key,
+)
+from app.services.vision_analyzer import VisionAnalysisError
 
 
 router = APIRouter(prefix="/analyze", tags=["analyze"])
+logger = logging.getLogger("uvicorn.error")
+
+
+def fail_stale_analysis_jobs() -> None:
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(minutes=10)
+    with SessionLocal() as db:
+        rows = list(
+            db.scalars(
+                select(AnalysisJob).where(
+                    AnalysisJob.status.in_(("queued", "processing")),
+                    AnalysisJob.updated_at < cutoff,
+                )
+            )
+        )
+        for job in rows:
+            job.status = "failed"
+            job.stage = "failed"
+            job.error = "服务更新中断了本次分析，请重新提交"
+            job.completed_at = datetime.now(timezone.utc)
+        if rows:
+            db.flush()
+        db.execute(delete(AnalysisCache).where(AnalysisCache.expires_at <= now))
+        db.execute(
+            delete(AnalysisJob).where(
+                AnalysisJob.status.in_(("completed", "failed")),
+                AnalysisJob.created_at < now - timedelta(days=7),
+            )
+        )
+        db.commit()
 
 
 @router.post("/preview", response_model=AnalysisRead)
@@ -28,7 +69,9 @@ def analyze_preview(
     db: Session = Depends(get_db),
 ) -> dict:
     preference = db.scalar(select(Preference).where(Preference.user_id == current_user.id))
-    report = analyze_photo_context(
+    report, _cache_hit = analyze_photo_context_cached(
+        db=db,
+        user_id=current_user.id,
         image_url=payload.image_url,
         preference=preference,
         target_style=payload.target_style,
@@ -40,7 +83,99 @@ def analyze_preview(
     )
     result = preview_to_read_dict(report)
     result["analysis_report"] = report
+    db.commit()
     return result
+
+
+@router.post(
+    "/preview/jobs",
+    response_model=AnalysisJobRead,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def start_preview_analysis_job(
+    payload: PreviewAnalyzeRequest,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    preference = db.scalar(select(Preference).where(Preference.user_id == current_user.id))
+    title = payload.title or "待分析作品"
+    cache_key = build_full_analysis_cache_key(
+        user_id=current_user.id,
+        image_url=payload.image_url,
+        preference=preference,
+        target_style=payload.target_style,
+        target_platform=payload.target_platform,
+        style_reference_urls=payload.style_reference_image_urls,
+        title=title,
+        description=payload.description,
+        category=payload.category,
+    )
+    cached = get_cached_analysis(db, current_user.id, cache_key)
+    if cached is not None:
+        result = preview_to_read_dict(cached)
+        job = AnalysisJob(
+            id=str(uuid4()),
+            user_id=current_user.id,
+            cache_key=cache_key,
+            kind="preview",
+            status="completed",
+            stage="completed",
+            progress=100,
+            request_json=payload.model_dump_json(),
+            result_json=json.dumps(result, ensure_ascii=False, default=str),
+            cache_hit=1,
+            completed_at=datetime.now(timezone.utc),
+        )
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+        return _job_to_dict(job)
+
+    active = db.scalar(
+        select(AnalysisJob)
+        .where(
+            AnalysisJob.user_id == current_user.id,
+            AnalysisJob.cache_key == cache_key,
+            AnalysisJob.status.in_(("queued", "processing")),
+        )
+        .order_by(AnalysisJob.created_at.desc())
+    )
+    if active:
+        return _job_to_dict(active)
+
+    job = AnalysisJob(
+        id=str(uuid4()),
+        user_id=current_user.id,
+        cache_key=cache_key,
+        kind="preview",
+        status="queued",
+        stage="preparing",
+        progress=10,
+        request_json=payload.model_dump_json(),
+    )
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+    background_tasks.add_task(_run_preview_analysis_job, job.id)
+    return _job_to_dict(job)
+
+
+@router.get("/jobs/{job_id}", response_model=AnalysisJobRead)
+def get_analysis_job(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    job = db.scalar(
+        select(AnalysisJob).where(
+            AnalysisJob.id == job_id,
+            AnalysisJob.user_id == current_user.id,
+        )
+    )
+    if not job:
+        raise HTTPException(status_code=404, detail="分析任务不存在")
+    return _job_to_dict(job)
 
 
 @router.post("/photo", response_model=AnalysisRead)
@@ -64,12 +199,17 @@ def analyze_photo(
         item.target_platform = payload.target_platform
 
     preference = db.scalar(select(Preference).where(Preference.user_id == current_user.id))
-    report = analyze_photo_item(
-        item,
-        preference,
-        payload.target_style,
-        payload.target_platform,
-        payload.style_reference_image_urls,
+    report, _cache_hit = analyze_photo_context_cached(
+        db=db,
+        user_id=current_user.id,
+        image_url=item.image_url,
+        preference=preference,
+        target_style=payload.target_style or item.target_style,
+        target_platform=payload.target_platform or item.target_platform,
+        style_reference_urls=payload.style_reference_image_urls,
+        title=item.title,
+        description=item.description,
+        category=item.category,
     )
     analysis = AnalysisResult(
         portfolio_item_id=item.id,
@@ -80,3 +220,76 @@ def analyze_photo(
     db.commit()
     db.refresh(analysis)
     return analysis_to_read_dict(analysis)
+
+
+def _run_preview_analysis_job(job_id: str) -> None:
+    with SessionLocal() as db:
+        job = db.get(AnalysisJob, job_id)
+        if not job or job.status == "completed":
+            return
+        try:
+            payload = PreviewAnalyzeRequest.model_validate_json(job.request_json)
+            preference = db.scalar(select(Preference).where(Preference.user_id == job.user_id))
+            job.status = "processing"
+            job.stage = "analyzing"
+            job.progress = 35
+            db.commit()
+
+            report, cache_hit = analyze_photo_context_cached(
+                db=db,
+                user_id=job.user_id,
+                image_url=payload.image_url,
+                preference=preference,
+                target_style=payload.target_style,
+                target_platform=payload.target_platform,
+                style_reference_urls=payload.style_reference_image_urls,
+                title=payload.title or "待分析作品",
+                description=payload.description,
+                category=payload.category,
+            )
+            job.stage = "organizing"
+            job.progress = 90
+            db.commit()
+
+            result = preview_to_read_dict(report)
+            job.result_json = json.dumps(result, ensure_ascii=False, default=str)
+            job.cache_hit = int(cache_hit)
+            job.status = "completed"
+            job.stage = "completed"
+            job.progress = 100
+            job.completed_at = datetime.now(timezone.utc)
+            db.commit()
+        except VisionAnalysisError as exc:
+            _fail_job(db, job, str(exc))
+        except Exception:
+            logger.exception("preview analysis job failed job_id=%s", job_id)
+            _fail_job(db, job, "分析暂时失败，请稍后重试")
+
+
+def _fail_job(db: Session, job: AnalysisJob, message: str) -> None:
+    job.status = "failed"
+    job.stage = "failed"
+    job.error = message[:500]
+    job.completed_at = datetime.now(timezone.utc)
+    db.commit()
+
+
+def _job_to_dict(job: AnalysisJob) -> dict:
+    result = None
+    if job.result_json:
+        try:
+            parsed = json.loads(job.result_json)
+            result = parsed if isinstance(parsed, dict) else None
+        except json.JSONDecodeError:
+            result = None
+    return {
+        "id": job.id,
+        "status": job.status,
+        "stage": job.stage,
+        "progress": job.progress,
+        "cache_hit": bool(job.cache_hit),
+        "result": result,
+        "error": job.error,
+        "created_at": job.created_at,
+        "updated_at": job.updated_at,
+    }

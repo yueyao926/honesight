@@ -104,7 +104,7 @@ export default function PortfolioDetail() {
 
   if (!collection) {
     return (
-      <main className="container-page">
+      <main className="handwriting-page container-page">
         <Link className="text-sm text-brand-deep" to="/portfolio">← 返回作品集</Link>
         <div className="card mt-8 text-center text-sm text-muted">{error || "加载中…"}</div>
       </main>
@@ -112,7 +112,7 @@ export default function PortfolioDetail() {
   }
 
   return (
-    <main className="container-page">
+    <main className="handwriting-page container-page">
       <Link className="text-sm text-brand-deep" to="/portfolio">← 返回作品集</Link>
 
       <header className="mt-6 flex flex-col justify-between gap-5 md:flex-row md:items-end">

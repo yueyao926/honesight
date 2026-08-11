@@ -5,38 +5,11 @@ from datetime import date
 from typing import Any
 
 from app.models.preference import Preference
+from app.services.practice_templates import ABILITIES, CATEGORIES, TASK_LIBRARY, get_task
 
 
-PRACTICE_LIBRARY: dict[str, dict[str, Any]] = {
-    "构图": {
-        "title": "让主体从背景里站出来",
-        "brief": "这周只练一个动作：按下快门前，沿着主体轮廓检查一圈，主动避开重叠和杂乱背景。",
-        "constraints": ["固定使用一个焦段", "同一主体至少拍摄 6 张", "每张只改变机位或拍摄距离"],
-        "success_criteria": ["主体第一眼可辨认", "主体轮廓没有明显遮挡", "背景元素不抢夺注意力"],
-        "coach_note": "先别急着调色。这周只把主体和背景的关系拍清楚。",
-    },
-    "光线": {
-        "title": "用光线把主体说明白",
-        "brief": "寻找同一个主体的顺光、侧光和逆光位置，观察光线方向怎样改变轮廓、明暗和情绪。",
-        "constraints": ["同一主体至少拍摄 6 张", "至少尝试两种光线方向", "暂时不使用滤镜"],
-        "success_criteria": ["主体亮度合适", "高光与暗部保留细节", "光线方向服务于画面情绪"],
-        "coach_note": "今天先观察光从哪里来，再决定站在哪里拍。",
-    },
-    "色彩": {
-        "title": "让画面只讲一种颜色关系",
-        "brief": "从场景里找出一个主色和一个辅助色，减少无关颜色，让色彩开始服务于主体和情绪。",
-        "constraints": ["选择一个明确主色", "画面主要颜色不超过三种", "先完成拍摄再考虑后期"],
-        "success_criteria": ["主色关系清楚", "没有突兀杂色", "色彩与主题情绪一致"],
-        "coach_note": "这次不追求颜色多，先练会主动排除不需要的颜色。",
-    },
-    "对焦": {
-        "title": "把最重要的地方拍清楚",
-        "brief": "每次拍摄前先说出画面里最重要的位置，再把焦点稳定地放在那里。",
-        "constraints": ["同一主体至少拍摄 6 张", "拍后放大检查焦点", "手持时保持稳定快门速度"],
-        "success_criteria": ["焦点落在视觉主体", "主体关键细节清晰", "运动或手抖模糊得到控制"],
-        "coach_note": "先决定哪里必须清楚，再半按快门确认焦点。",
-    },
-}
+DIMENSION_KEYS = {"构图": "composition", "光线": "exposure", "清晰度": "focus", "色彩": "color"}
+GOAL_TO_ABILITY = {"构图": "构图", "光线": "光线", "清晰度": "清晰度", "色彩": "色彩"}
 
 
 def current_week_key(today: date | None = None) -> str:
@@ -44,64 +17,204 @@ def current_week_key(today: date | None = None) -> str:
     return f"{iso.year}-W{iso.week:02d}"
 
 
+def initial_level(preference: Preference | None) -> int:
+    value = ((preference.skill_level if preference else "") or "").lower()
+    if any(token in value for token in ("进阶", "创作", "advanced")):
+        return 4
+    if any(token in value for token in ("较熟练", "熟练", "intermediate")):
+        return 3
+    if any(token in value for token in ("有基础", "基础", "basic")):
+        return 2
+    return 1
+
+
+def normalize_category(value: object) -> str:
+    raw = str(value or "").lower()
+    if any(token in raw for token in ("portrait", "people", "person", "人像", "人物")):
+        return "人像"
+    if any(token in raw for token in ("landscape", "scenery", "风景", "建筑", "街景", "夜景")):
+        return "风景"
+    if any(token in raw for token in ("product", "food", "still", "object", "拍物", "静物", "美食", "产品")):
+        return "拍物"
+    return "人像"
+
+
+def analyze_practice_source(report: dict[str, Any], selected_goal: str) -> dict[str, Any]:
+    fast_result = report.get("practice_source_info")
+    if isinstance(fast_result, dict):
+        category = normalize_category(fast_result.get("photo_type"))
+        ability = (
+            GOAL_TO_ABILITY[selected_goal]
+            if selected_goal in GOAL_TO_ABILITY
+            else str(fast_result.get("ability") or "构图")
+        )
+        if ability not in ABILITIES:
+            ability = "构图"
+        return {
+            "photo_type": category,
+            "intent": _one_line(str(fast_result.get("intent") or f"突出画面中的{category}主体。"), 42),
+            "priority_issue": _one_line(str(fast_result.get("priority_issue") or "先稳定这一项基础能力。"), 42),
+            "ability": ability,
+            "recommended_level": max(1, min(4, int(fast_result.get("recommended_level") or 1))),
+            "confidence": _confidence(fast_result.get("confidence")),
+        }
+    details = _json_object(report.get("benchmark_detail_json"))
+    category = normalize_category(report.get("photo_type"))
+    if selected_goal in GOAL_TO_ABILITY:
+        ability = GOAL_TO_ABILITY[selected_goal]
+    else:
+        ability = min(
+            ABILITIES,
+            key=lambda item: _score(_dimension_detail(details, item).get("score", report.get(f"{DIMENSION_KEYS[item]}_score"))),
+        )
+    detail = _dimension_detail(details, ability)
+    problems = detail.get("problems") if isinstance(detail.get("problems"), list) else []
+    issue = str(next((item for item in problems if str(item).strip()), "最需要先稳定这一项基础能力。"))
+    intent = _one_line(str(report.get("summary") or f"突出画面中的{category}主体。"), 42)
+    confidence = _confidence(report.get("style_confidence"))
+    return {
+        "photo_type": category,
+        "intent": intent,
+        "priority_issue": _one_line(issue, 42),
+        "ability": ability,
+        "recommended_level": 1,
+        "confidence": confidence,
+    }
+
+
 def choose_practice(preference: Preference | None) -> tuple[str, dict[str, Any]]:
-    goals = (preference.improvement_goals if preference else "") or ""
-    normalized = goals.lower()
+    """Compatibility helper for existing callers and older tests."""
+    goals = ((preference.improvement_goals if preference else "") or "").lower()
     keyword_groups = {
         "构图": ("构图", "背景", "主体", "composition"),
         "光线": ("光线", "曝光", "明暗", "lighting", "exposure"),
         "色彩": ("色彩", "颜色", "调色", "color"),
-        "对焦": ("对焦", "清晰", "焦点", "focus"),
+        "清晰度": ("对焦", "清晰", "焦点", "focus"),
     }
-    for focus, keywords in keyword_groups.items():
-        if any(keyword in normalized for keyword in keywords):
-            return focus, PRACTICE_LIBRARY[focus]
-    return "构图", PRACTICE_LIBRARY["构图"]
+    ability = next(
+        (focus for focus, words in keyword_groups.items() if any(word in goals for word in words)),
+        "构图",
+    )
+    category = _preferred_category(preference)
+    task = get_task(category, ability, initial_level(preference), 1)
+    return ability, {
+        **task,
+        "brief": task["goal"],
+        "constraints": task["steps"],
+        "success_criteria": task["criteria"],
+        "coach_note": f"本周重点：{ability}。",
+    }
+
+
+def select_least_practiced_ability(progress_rows: list[Any]) -> str:
+    by_ability = {row.ability: row for row in progress_rows}
+    active_cycles = [
+        row for row in progress_rows
+        if 1 < int(row.cycle_week or 1) <= 4 and row.ability in ABILITIES
+    ]
+    if active_cycles:
+        # Finish the four-week micro-cycle before introducing a new ability.
+        return max(
+            active_cycles,
+            key=lambda row: (
+                row.last_practiced_at.isoformat() if row.last_practiced_at else "",
+                int(row.cycle_week or 1),
+            ),
+        ).ability
+    return min(
+        ABILITIES,
+        key=lambda ability: (
+            by_ability[ability].completed_count if ability in by_ability else -1,
+            by_ability[ability].last_practiced_at.isoformat() if ability in by_ability and by_ability[ability].last_practiced_at else "",
+            ABILITIES.index(ability),
+        ),
+    )
 
 
 def build_attempt_feedback(
     report: dict[str, Any],
     skill_focus: str,
     first_score: int | None = None,
-) -> dict[str, str | int]:
-    dimension_key = {"构图": "composition", "光线": "exposure", "色彩": "color", "对焦": "focus"}.get(
-        skill_focus, "composition"
-    )
+    criteria: list[str] | None = None,
+    level: int = 1,
+    comparison_label: str = "原图",
+) -> dict[str, Any]:
+    ability = "清晰度" if skill_focus == "对焦" else skill_focus
+    dimension_key = DIMENSION_KEYS.get(ability, "composition")
     detail = _json_object(report.get("benchmark_detail_json")).get(dimension_key, {})
     if not isinstance(detail, dict):
         detail = {}
     score = _score(detail.get("score", report.get(f"{dimension_key}_score")))
     problems = detail.get("problems") if isinstance(detail.get("problems"), list) else []
-    key_issue = str(next((item for item in problems if str(item).strip()), "暂未发现明显问题，可以继续提高表达的稳定性。"))
-    reason = str(detail.get("reason") or report.get("summary") or "这次尝试已经完成了明确的练习目标。")
+    key_issue = _one_line(
+        str(next((item for item in problems if str(item).strip()), "这个动作还可以再稳定一点。")),
+        52,
+    )
+    reason = _one_line(str(detail.get("reason") or report.get("summary") or "已经完成本周要求。"), 52)
     action_map = {
         "构图": report.get("composition_advice"),
         "光线": report.get("lighting_advice"),
         "色彩": report.get("color_advice"),
-        "对焦": report.get("shooting_tips"),
+        "清晰度": report.get("shooting_tips"),
     }
-    action = str(action_map.get(skill_focus) or report.get("next_step") or "保持同一场景，只改变一个拍摄动作后再试一次。")
-    task = PRACTICE_LIBRARY.get(skill_focus, PRACTICE_LIBRARY["构图"])
-    reshoot_task = f"保持同一练习主题再拍一组。只执行这个动作：{action}"
+    action = _one_line(str(action_map.get(ability) or report.get("next_step") or "换一个场景重复同一动作。"), 52)
+    threshold = 54 + max(1, min(4, level)) * 6
+    achieved_count = 0
+    criterion_results: list[dict[str, Any]] = []
+    fast_criteria = report.get("practice_criterion_results")
+    if isinstance(fast_criteria, list):
+        for item in fast_criteria[:2]:
+            if not isinstance(item, dict):
+                continue
+            criterion = str(item.get("criterion") or "").strip()
+            if not criterion:
+                continue
+            achieved = bool(item.get("achieved"))
+            achieved_count += int(achieved)
+            criterion_results.append(
+                {
+                    "criterion": criterion,
+                    "achieved": achieved,
+                    "evidence": str(item.get("evidence") or "").strip(),
+                }
+            )
+    if not criterion_results:
+        for index, criterion in enumerate((criteria or [])[:2]):
+            achieved = score >= threshold + index * 4
+            achieved_count += int(achieved)
+            criterion_results.append({"criterion": criterion, "achieved": achieved})
+    if not criterion_results:
+        achieved_count = int(score >= threshold)
+        criterion_results = [{"criterion": f"完成「{ability}」目标", "achieved": bool(achieved_count)}]
     comparison = ""
     if first_score is not None:
         change = score - first_score
-        if change > 0:
-            comparison = f"复拍在「{skill_focus}」维度比第一次提高了 {change} 分，说明你执行的调整已经产生效果。"
-        elif change == 0:
-            comparison = f"两次在「{skill_focus}」维度的评分持平。下一轮继续只关注一个动作，会更容易看出变化。"
-        else:
-            comparison = f"复拍在「{skill_focus}」维度暂时下降了 {abs(change)} 分。先保留这次尝试，回看关键问题后再练会更有价值。"
-        reshoot_task = "本周闭环已完成。把这次有效的动作带到下一次真实拍摄中。"
+        comparison = f"与{comparison_label}相比，{ability}表现{'提升' if change > 0 else '基本稳定' if change == 0 else '仍需稳定'}。"
     return {
         "skill_score": score,
-        "strength": reason,
-        "key_issue": key_issue,
-        "action_step": action,
-        "reshoot_task": reshoot_task,
+        "achieved_count": achieved_count,
+        "criteria_total": len(criterion_results),
+        "criterion_results": criterion_results,
+        "strength": f"{reason.rstrip('。')}。",
+        "key_issue": f"{key_issue.rstrip('。')}。",
+        "action_step": f"{action.rstrip('。')}。",
+        "reshoot_task": "下周换一个场景，继续稳定同一能力。",
         "comparison_summary": comparison,
-        "coach_note": str(task["coach_note"]),
     }
+
+
+def _preferred_category(preference: Preference | None) -> str:
+    values = list(preference.photography_categories or []) if preference else []
+    common = (preference.common_subjects or "") if preference else ""
+    for category in CATEGORIES:
+        if category in values or category in common:
+            return category
+    return "人像"
+
+
+def _dimension_detail(details: dict[str, Any], ability: str) -> dict[str, Any]:
+    value = details.get(DIMENSION_KEYS[ability], {})
+    return value if isinstance(value, dict) else {}
 
 
 def _json_object(value: object) -> dict[str, Any]:
@@ -122,3 +235,19 @@ def _score(value: object) -> int:
     except (TypeError, ValueError):
         number = 0
     return max(0, min(100, number))
+
+
+def _confidence(value: object) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return 0.72
+    return max(0.0, min(1.0, number if number <= 1 else number / 100))
+
+
+def _one_line(value: str, max_length: int) -> str:
+    normalized = " ".join(value.replace("\n", " ").split())
+    return normalized if len(normalized) <= max_length else f"{normalized[: max_length - 1]}…"
+
+
+assert len(TASK_LIBRARY) == 48

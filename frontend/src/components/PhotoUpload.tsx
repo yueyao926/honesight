@@ -1,15 +1,16 @@
 import { useRef, useState } from "react";
 import { getAssetUrl } from "../api/client";
 import { uploadImage } from "../api/upload";
-import type { ImageUploadStage } from "../utils/imageUpload";
+import type { ImageUploadPurpose, ImageUploadStage } from "../utils/imageUpload";
 
 type Props = {
   value: string | null;
   onChange: (url: string | null) => void;
   label?: string;
+  purpose?: ImageUploadPurpose;
 };
 
-export default function PhotoUpload({ value, onChange, label = "上传照片" }: Props) {
+export default function PhotoUpload({ value, onChange, label = "上传照片", purpose = "standard" }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [stage, setStage] = useState<ImageUploadStage | null>(null);
   const [error, setError] = useState("");
@@ -19,7 +20,7 @@ export default function PhotoUpload({ value, onChange, label = "上传照片" }:
     setError("");
     setStage("optimizing");
     try {
-      const uploaded = await uploadImage(file, "standard", setStage);
+      const uploaded = await uploadImage(file, purpose, setStage);
       onChange(uploaded.image_url);
     } catch (err) {
       setError(err instanceof Error ? err.message : "上传失败");
@@ -29,7 +30,11 @@ export default function PhotoUpload({ value, onChange, label = "上传照片" }:
     }
   }
 
-  const statusText = stage === "optimizing" ? "正在优化图片…" : "正在上传…";
+  const statusText = stage === "optimizing"
+    ? "正在准备图片…"
+    : stage === "processing"
+      ? "服务器正在确认图片…"
+      : "正在上传…";
 
   return (
     <div className="space-y-4">
@@ -58,7 +63,6 @@ export default function PhotoUpload({ value, onChange, label = "上传照片" }:
           <span className="font-display text-4xl font-light text-brand">+</span>
           <span className="mt-2 text-sm text-muted">{stage ? statusText : label}</span>
           <span className="mt-1 text-xs text-muted">JPG / PNG / WebP，单张最大 10MB</span>
-          <span className="mt-1 text-xs text-muted">上传前自动优化，不影响分析清晰度</span>
         </button>
       )}
       <input

@@ -1,0 +1,46 @@
+:root {
+  --home-header-height: 4.75rem;
+  /* 绳结在素材顶部，上移后挂在导航栏区域内 */
+  --home-hangtag-knot-lift: clamp(1.15rem, 2.6vw, 1.7rem);
+}
+
+.home-hangtag-root {
+  position: fixed;
+  top: calc(var(--home-header-height) - var(--home-hangtag-knot-lift));
+  right: clamp(0.75rem, 2.5vw, 2rem);
+  z-index: 51;
+  width: clamp(96px, 10vw, 128px);
+  pointer-events: none;
+}
+
+.home-hangtag-pivot {
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+}
+
+.home-hangtag-pivot:active {
+  cursor: grabbing;
+}
+
+.home-hangtag-figure {
+  width: 100%;
+  transform-origin: top center;
+  will-change: transform;
+}
+
+.home-hangtag-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+@media (max-width: 767px) {
+  .home-hangtag-root {
+    display: none;
+  }
+}

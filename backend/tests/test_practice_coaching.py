@@ -1,3 +1,4 @@
+import json
 from datetime import date
 
 import pytest
@@ -8,11 +9,12 @@ from sqlalchemy.pool import StaticPool
 import app.models  # noqa: F401
 from app.api import practice as practice_api
 from app.database import Base
-from app.models.practice import CoachMemory
+from app.models.practice import CoachMemory, PracticeProgress, PracticeSession
 from app.models.preference import Preference
 from app.models.user import User
-from app.schemas.practice import PracticeAttemptCreate
-from app.services.practice_coach import build_attempt_feedback, choose_practice, current_week_key
+from app.schemas.practice import PracticeAttemptCreate, PracticeDifficultyUpdate
+from app.services.practice_coach import analyze_practice_source, build_attempt_feedback, choose_practice, current_week_key, select_least_practiced_ability
+from app.services.practice_templates import TASK_LIBRARY, get_task
 
 
 def analysis_report(score: int) -> dict:
@@ -34,7 +36,40 @@ def test_week_key_and_preference_choose_one_focus() -> None:
     preference = Preference(user_id=1, improvement_goals="我想先提升光线和曝光")
     focus, task = choose_practice(preference)
     assert focus == "光线"
-    assert task["title"] == "用光线把主体说明白"
+    assert task["ability"] == "光线"
+
+
+def test_library_contains_48_fixed_templates_and_user_goal_wins() -> None:
+    assert len(TASK_LIBRARY) == 48
+    report = analysis_report(80)
+    report.update({"photo_type": "landscape", "exposure_score": 20, "style_confidence": "0.88"})
+    result = analyze_practice_source(report, "色彩")
+    assert result["photo_type"] == "风景"
+    assert result["ability"] == "色彩"
+    assert result["confidence"] == 0.88
+
+
+def test_shooting_suggestions_are_detailed_and_actionable() -> None:
+    task = get_task("人像", "构图", 1, 1)
+    assert len(task["steps"]) == 3
+    assert all(len(step) >= 30 for step in task["steps"])
+    assert "至少三大步" in task["steps"][0]
+
+
+def test_recommendation_basis_explains_category_selection(db) -> None:
+    session, user = db
+    weekly = practice_api.get_current_practice(user, session)
+    assert weekly["recommendation_basis"] == "根据你选择的「人像」，优先安排近期练得较少的「构图」。"
+
+
+def test_recommendation_finishes_active_four_week_cycle_first() -> None:
+    class Progress:
+        ability = "光线"
+        cycle_week = 3
+        completed_count = 0
+        last_practiced_at = None
+
+    assert select_least_practiced_ability([Progress()]) == "光线"
 
 
 def test_feedback_compares_reshoot_with_first_attempt() -> None:
@@ -42,7 +77,18 @@ def test_feedback_compares_reshoot_with_first_attempt() -> None:
     reshoot = build_attempt_feedback(analysis_report(76), "构图", int(first["skill_score"]))
     assert first["key_issue"] == "人物头部与背景路灯重叠。"
     assert reshoot["skill_score"] == 76
-    assert "提高了 8 分" in str(reshoot["comparison_summary"])
+    assert "构图表现提升" in str(reshoot["comparison_summary"])
+
+
+def test_fast_criterion_results_are_used_instead_of_score_thresholds() -> None:
+    report = analysis_report(20)
+    report["practice_criterion_results"] = [
+        {"criterion": "人物清楚", "achieved": True, "evidence": "眼睛轮廓清晰"},
+        {"criterion": "背景不抢眼", "achieved": False, "evidence": "右侧仍有亮点"},
+    ]
+    feedback = build_attempt_feedback(report, "构图", criteria=["人物清楚", "背景不抢眼"])
+    assert feedback["achieved_count"] == 1
+    assert feedback["criterion_results"][0]["evidence"] == "眼睛轮廓清晰"
 
 
 @pytest.fixture()
@@ -62,24 +108,103 @@ def db():
         session.close()
 
 
-def test_first_attempt_then_reshoot_completes_loop(db, monkeypatch) -> None:
+def test_weekly_submission_waits_for_user_to_complete_and_advances_once(db, monkeypatch) -> None:
     session, user = db
-    scores = iter((64, 73))
-    monkeypatch.setattr(practice_api, "analyze_photo_context", lambda **_kwargs: analysis_report(next(scores)))
+    monkeypatch.setattr(
+        practice_api,
+        "analyze_practice_context_cached",
+        lambda **_kwargs: (analysis_report(73), False),
+    )
 
-    first = practice_api.submit_practice_attempt(
+    first_round = practice_api.submit_practice_attempt(
         PracticeAttemptCreate(image_url="/uploads/first.jpg", self_reflection="背景有一点乱。"), user, session
     )
-    assert first["progress"] == 1
-    assert first["status"] == "active"
-    assert first["attempts"][0]["stage"] == "first"
+    assert first_round["status"] == "active"
+    assert first_round["progress"] == 1
+    assert first_round["attempts"][0]["stage"] == "weekly"
+    assert first_round["attempts"][0]["criteria_total"] == 2
+    assert session.scalar(select(CoachMemory).where(CoachMemory.user_id == user.id)) is None
 
-    completed = practice_api.submit_practice_attempt(
-        PracticeAttemptCreate(image_url="/uploads/reshoot.jpg", self_reflection="我向左移动了两步。"), user, session
-    )
-    assert completed["progress"] == 2
+    completed = practice_api.complete_practice_session(user, session)
     assert completed["status"] == "completed"
-    assert completed["attempts"][1]["score_change"] == 9
     memory = session.scalar(select(CoachMemory).where(CoachMemory.user_id == user.id))
+    progress = session.scalar(select(PracticeProgress).where(PracticeProgress.user_id == user.id))
     assert memory is not None
     assert memory.completed_sessions == 1
+    assert progress is not None
+    assert progress.cycle_week == 2
+
+    overview = practice_api.get_practice_overview(user, session)
+    assert len(overview["history"]) == 1
+    assert overview["history"][0]["id"] == completed["id"]
+
+
+def test_first_round_reuses_saved_source_analysis(db, monkeypatch) -> None:
+    session, user = db
+    practice_api.get_current_practice(user, session)
+    weekly = session.scalar(select(PracticeSession).where(PracticeSession.user_id == user.id))
+    assert weekly is not None
+    weekly.source_image_url = "/uploads/original.jpg"
+    weekly.source_analysis_json = json.dumps(analysis_report(60), ensure_ascii=False)
+    session.commit()
+    calls = 0
+
+    def analyze_attempt(**_kwargs):
+        nonlocal calls
+        calls += 1
+        return analysis_report(75), False
+
+    monkeypatch.setattr(practice_api, "analyze_practice_context_cached", analyze_attempt)
+    result = practice_api.submit_practice_attempt(
+        PracticeAttemptCreate(image_url="/uploads/practice.jpg"), user, session
+    )
+    assert calls == 1
+    assert "与原图相比" in result["attempts"][0]["comparison_summary"]
+
+
+def test_weekly_practice_accepts_three_rounds_and_compares_previous_round(db, monkeypatch) -> None:
+    session, user = db
+    scores = iter((65, 73, 80))
+    monkeypatch.setattr(
+        practice_api,
+        "analyze_practice_context_cached",
+        lambda **_kwargs: (analysis_report(next(scores)), False),
+    )
+
+    for round_number in range(1, 4):
+        weekly = practice_api.submit_practice_attempt(
+            PracticeAttemptCreate(image_url=f"/uploads/round-{round_number}.jpg"), user, session
+        )
+
+    assert weekly["status"] == "active"
+    assert len(weekly["attempts"]) == 3
+    assert [item["stage"] for item in weekly["attempts"]] == ["weekly", "weekly_2", "weekly_3"]
+    assert "与上一轮相比" in weekly["attempts"][-1]["comparison_summary"]
+
+    with pytest.raises(Exception) as exc_info:
+        practice_api.submit_practice_attempt(
+            PracticeAttemptCreate(image_url="/uploads/round-4.jpg"), user, session
+        )
+    assert getattr(exc_info.value, "status_code", None) == 409
+
+
+def test_difficulty_rating_is_persisted_and_returned(db, monkeypatch) -> None:
+    session, user = db
+    monkeypatch.setattr(
+        practice_api,
+        "analyze_practice_context_cached",
+        lambda **_kwargs: (analysis_report(73), False),
+    )
+    practice_api.submit_practice_attempt(
+        PracticeAttemptCreate(image_url="/uploads/rating.jpg", self_reflection="练习完成。"), user, session
+    )
+    practice_api.complete_practice_session(user, session)
+
+    rated = practice_api.update_practice_difficulty(
+        PracticeDifficultyUpdate(difficulty="just_right"), user, session
+    )
+    assert rated["attempts"][-1]["difficulty_feedback"] == "just_right"
+
+    session.expire_all()
+    overview = practice_api.get_practice_overview(user, session)
+    assert overview["current"]["attempts"][-1]["difficulty_feedback"] == "just_right"

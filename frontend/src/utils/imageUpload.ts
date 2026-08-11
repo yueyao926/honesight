@@ -2,8 +2,8 @@ export const MAX_IMAGE_SOURCE_BYTES = 10 * 1024 * 1024;
 export const MAX_IMAGE_SOURCE_PIXELS = 40_000_000;
 export const MAX_AVATAR_UPLOAD_BYTES = 1024 * 1024;
 
-export type ImageUploadPurpose = "standard" | "reference";
-export type ImageUploadStage = "optimizing" | "uploading";
+export type ImageUploadPurpose = "standard" | "reference" | "analysis";
+export type ImageUploadStage = "optimizing" | "uploading" | "processing";
 
 type CompressionProfile = {
   maxDimension: number;
@@ -13,8 +13,9 @@ type CompressionProfile = {
 
 const SUPPORTED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const PROFILES: Record<ImageUploadPurpose, CompressionProfile> = {
-  standard: { maxDimension: 3200, targetBytes: 2.5 * 1024 * 1024, initialQuality: 0.88 },
-  reference: { maxDimension: 1920, targetBytes: 1024 * 1024, initialQuality: 0.84 },
+  standard: { maxDimension: 2560, targetBytes: 1.5 * 1024 * 1024, initialQuality: 0.85 },
+  reference: { maxDimension: 1920, targetBytes: 800 * 1024, initialQuality: 0.82 },
+  analysis: { maxDimension: 2048, targetBytes: 800 * 1024, initialQuality: 0.8 },
 };
 
 function loadImage(file: Blob): Promise<HTMLImageElement> {
@@ -72,13 +73,27 @@ export async function optimizeImageForUpload(
     throw new Error("单张图片不能超过 10MB");
   }
 
+  const profile = PROFILES[purpose];
+  if (
+    typeof Worker !== "undefined"
+    && typeof OffscreenCanvas !== "undefined"
+    && typeof createImageBitmap !== "undefined"
+  ) {
+    try {
+      return await optimizeInWorker(file, profile);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("像素过高")) throw error;
+      // Older Safari/WebView builds may expose OffscreenCanvas without WebP encoding.
+      // Fall back to the DOM canvas path in that case.
+    }
+  }
+
   const image = await loadImage(file);
   const pixels = image.naturalWidth * image.naturalHeight;
   if (!image.naturalWidth || !image.naturalHeight || pixels > MAX_IMAGE_SOURCE_PIXELS) {
     throw new Error("图片像素过高，请缩小到 4000 万像素以内");
   }
 
-  const profile = PROFILES[purpose];
   if (
     file.size <= profile.targetBytes
     && Math.max(image.naturalWidth, image.naturalHeight) <= profile.maxDimension
@@ -91,26 +106,77 @@ export async function optimizeImageForUpload(
   let height = Math.max(1, Math.round(image.naturalHeight * initialScale));
   let smallest: Blob | null = null;
 
-  for (let resizeRound = 0; resizeRound < 9; resizeRound += 1) {
+  for (let resizeRound = 0; resizeRound < 3; resizeRound += 1) {
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
     const context = canvas.getContext("2d");
-    if (!context) throw new Error("浏览器不支持图片压缩");
+    if (!context) throw new Error("浏览器不支持图片处理");
     context.drawImage(image, 0, 0, width, height);
 
-    for (let quality = profile.initialQuality; quality >= 0.52; quality -= 0.06) {
+    let low = 0.5;
+    let high = profile.initialQuality;
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const quality = attempt === 0 ? high : (low + high) / 2;
       const blob = await canvasToBlob(canvas, "image/webp", quality);
       if (!smallest || blob.size < smallest.size) smallest = blob;
       if (blob.size <= profile.targetBytes) {
-        const filename = `${file.name.replace(/\.[^.]+$/, "") || "image"}.webp`;
-        return new File([blob], filename, { type: "image/webp", lastModified: Date.now() });
+        low = quality;
+        if (attempt === 4 || profile.targetBytes - blob.size < profile.targetBytes * 0.08) {
+          return webpFile(blob, file.name);
+        }
+      } else {
+        high = quality;
       }
     }
 
-    width = Math.max(1, Math.round(width * 0.85));
-    height = Math.max(1, Math.round(height * 0.85));
+    if (smallest && smallest.size <= profile.targetBytes) {
+      return webpFile(smallest, file.name);
+    }
+
+    const scale = Math.max(0.55, Math.min(0.88, Math.sqrt(profile.targetBytes / (smallest?.size || profile.targetBytes)) * 0.94));
+    width = Math.max(1, Math.round(width * scale));
+    height = Math.max(1, Math.round(height * scale));
   }
 
-  throw new Error(smallest ? "图片压缩后仍然过大，请换一张图片重试" : "图片压缩失败，请重试");
+  throw new Error(smallest ? "图片处理后仍然过大，请换一张图片重试" : "图片处理失败，请重试");
+}
+
+
+function optimizeInWorker(file: File, profile: CompressionProfile): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL("./imageUpload.worker.ts", import.meta.url), { type: "module" });
+    worker.onmessage = (event: MessageEvent<{
+      ok: boolean;
+      unchanged?: boolean;
+      buffer?: ArrayBuffer;
+      error?: string;
+    }>) => {
+      worker.terminate();
+      if (!event.data.ok) {
+        reject(new Error(event.data.error || "图片处理失败，请重试"));
+        return;
+      }
+      if (event.data.unchanged) {
+        resolve(file);
+        return;
+      }
+      if (!event.data.buffer) {
+        reject(new Error("图片处理失败，请重试"));
+        return;
+      }
+      resolve(webpFile(new Blob([event.data.buffer], { type: "image/webp" }), file.name));
+    };
+    worker.onerror = () => {
+      worker.terminate();
+      reject(new Error("浏览器后台图片处理不可用"));
+    };
+    worker.postMessage({ file, profile, maxPixels: MAX_IMAGE_SOURCE_PIXELS });
+  });
+}
+
+
+function webpFile(blob: Blob, originalName: string): File {
+  const filename = `${originalName.replace(/\.[^.]+$/, "") || "image"}.webp`;
+  return new File([blob], filename, { type: "image/webp", lastModified: Date.now() });
 }

@@ -46,7 +46,11 @@ export default function StyleReferenceUpload({ value, onChange, maxFiles = 3 }: 
     onChange(value.filter((_, i) => i !== index));
   }
 
-  const statusText = stage === "optimizing" ? "正在优化" : "正在上传";
+  const statusText = stage === "optimizing"
+    ? "正在准备"
+    : stage === "processing"
+      ? "正在确认"
+      : "正在上传";
 
   return (
     <div className="space-y-4">
@@ -89,7 +93,7 @@ export default function StyleReferenceUpload({ value, onChange, maxFiles = 3 }: 
         className="hidden"
         onChange={(event) => handleFiles(event.target.files)}
       />
-      <p className="text-xs text-muted">最多 {maxFiles} 张，单张最大 10MB，上传时自动优化</p>
+      <p className="text-xs text-muted">最多 {maxFiles} 张，单张最大 10MB</p>
       {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   );

@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
-import { previewAnalyze } from "../api/analyze";
+import { startPreviewAnalysis, waitForAnalysisJob } from "../api/analyze";
 import { getAssetUrl } from "../api/client";
 import { generateProcessedImage } from "../api/imageProcess";
 import { listPortfolio, savePhotoToPortfolio } from "../api/portfolio";
@@ -117,6 +117,7 @@ export default function AiStudio() {
   const [saveError, setSaveError] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [analysisStage, setAnalysisStage] = useState("正在准备分析…");
   const [saving, setSaving] = useState(false);
   const [generatingImage, setGeneratingImage] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
@@ -149,6 +150,7 @@ export default function AiStudio() {
     analysisControllerRef.current?.abort();
     analysisControllerRef.current = null;
     setLoading(false);
+    setAnalysisStage("正在准备分析…");
   }
 
   function handlePhotoChange(url: string | null) {
@@ -204,14 +206,25 @@ export default function AiStudio() {
     const requestId = ++analysisRequestIdRef.current;
     analysisControllerRef.current = controller;
     setLoading(true);
+    setAnalysisStage("正在准备分析…");
     setError("");
     try {
-      const data = await previewAnalyze({
+      const job = await startPreviewAnalysis({
         image_url: photoUrl,
         style_reference_image_urls: styleRefs,
         target_style: targetStyle,
         target_platform: targetPlatform,
       }, controller.signal);
+      const data = await waitForAnalysisJob(job, controller.signal, (current) => {
+        const labels: Record<string, string> = {
+          preparing: "正在准备照片…",
+          queued: "正在等待分析…",
+          analyzing: "正在理解画面与拍摄目标…",
+          organizing: "正在整理具体建议…",
+          completed: current.cache_hit ? "已找到相同照片的分析结果" : "分析完成",
+        };
+        setAnalysisStage(labels[current.stage] || "正在分析…");
+      });
       if (requestId !== analysisRequestIdRef.current) return;
       setAnalysis(data);
       setSaveSuccess("");
@@ -367,7 +380,7 @@ export default function AiStudio() {
   }
 
   return (
-    <main className="container-page studio-page">
+    <main className="handwriting-page container-page studio-page">
       <header className="animate-fade-up max-w-3xl">
         <p className="section-eyebrow">AI Studio</p>
         <h1 className="page-title mt-2">让照片更接近你想要的样子</h1>
@@ -379,7 +392,7 @@ export default function AiStudio() {
           <div className="card studio-step-card">
             <h2 className="font-display text-2xl font-semibold">选择照片</h2>
             <div className="mt-5">
-              <PhotoUpload value={photoUrl} onChange={handlePhotoChange} />
+              <PhotoUpload value={photoUrl} onChange={handlePhotoChange} purpose="analysis" />
             </div>
           </div>
         </StepSection>
@@ -442,7 +455,8 @@ export default function AiStudio() {
               {loading && (
                 <div className="mt-5 flex items-center gap-3 rounded-2xl bg-blush/35 px-4 py-3 text-sm text-brand-deep" role="status">
                   <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-brand border-t-transparent" />
-                  正在分析画面与目标风格…
+                  <span>{analysisStage}</span>
+                  <span className="ml-auto text-xs text-brand-deep/70">可以留在当前页面等待</span>
                 </div>
               )}
               {error && step === 2 && <p className="mt-4 text-sm text-red-500">{error}</p>}

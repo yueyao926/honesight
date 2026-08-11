@@ -17,7 +17,7 @@ export default function Community(){
   async function load(){setLoading(true);try{const r=await getFeed(kind,cursor||undefined);setPosts(x=>[...x,...r.items.filter(p=>!x.some(a=>a.id===p.id))]);setCursor(r.next_cursor)}catch(e){setError(e instanceof Error?e.message:'加载失败')}finally{setLoading(false)}}
   useEffect(()=>{setPosts([]);setCursor(undefined);setLoading(true);getFeed(kind).then(r=>{setPosts(r.items);setCursor(r.next_cursor)}).catch(e=>setError(e.message)).finally(()=>setLoading(false))},[kind]);
   useEffect(()=>{if(isAuthenticated)getUnreadCount().then(r=>setUnread(r.unread_count)).catch(()=>{})},[isAuthenticated]);
-  return <main className="container-page">
+  return <main className="handwriting-page container-page">
     <header className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
       <div><p className="section-eyebrow">LensCoach Community</p><h1 className="page-title mt-2">看见作品，也看见成长</h1><p className="mt-3 text-muted">分享摄影作品、参数与后期思路，获得真实反馈。</p></div>
       <div className="flex flex-wrap gap-2">

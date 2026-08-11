@@ -1,0 +1,11 @@
+ARG BASE_IMAGE=lenscoach-backend:dependency-cache
+FROM ${BASE_IMAGE}
+
+WORKDIR /app
+
+# Dependency compatibility is verified by deploy-production.sh before this
+# Dockerfile is selected. Replace the application source while preserving the
+# already-installed Python environment from the verified production image.
+RUN rm -rf /app/app /app/alembic /app/tests
+COPY . .
+RUN mkdir -p uploads
