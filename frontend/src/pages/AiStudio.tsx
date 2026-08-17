@@ -221,11 +221,14 @@ export default function AiStudio() {
   async function handleAnalyze() {
     if (!photoUrl) return;
     analysisControllerRef.current?.abort();
+    detailsControllerRef.current?.abort();
+    detailsControllerRef.current = null;
     const controller = new AbortController();
     const requestId = ++analysisRequestIdRef.current;
     analysisControllerRef.current = controller;
     setLoading(true);
-    setDeepLoading(false);
+    setDeepLoading(true);
+    setDetailsLoading(false);
     setQuickAnalysis(null);
     setAnalysis(null);
     setDetailsError("");
@@ -237,54 +240,76 @@ export default function AiStudio() {
       target_style: targetStyle,
       target_platform: targetPlatform,
     };
-    let showedQuickResult = false;
-    try {
-      try {
-        const quickJob = await startQuickAnalysis(payload, controller.signal);
-        const quick = await waitForAnalysisJob(quickJob, controller.signal, (current) => {
-          const labels: Record<string, string> = {
-            preparing: "正在准备照片…",
-            queued: "正在等待分析…",
-            quick_analyzing: "正在寻找最值得先改的一点…",
-            completed: current.cache_hit ? "已找到相同照片的分析结果" : "分析完成",
-          };
-          setAnalysisStage(labels[current.stage] || "正在分析…");
-        });
-        if (requestId !== analysisRequestIdRef.current) return;
-        showedQuickResult = true;
-        setQuickAnalysis(quick);
-        setSaveSuccess("");
-        setStep(3);
-        setLoading(false);
-        scrollToStep(stepThreeRef);
-      } catch (quickError) {
-        if (quickError instanceof DOMException && quickError.name === "AbortError") return;
-        if (requestId !== analysisRequestIdRef.current) return;
-        setLoading(false);
-        setAnalysisStage("快速判断未返回，正在直接完成详细分析…");
-      }
-
-      setDeepLoading(true);
-      if (showedQuickResult) setAnalysisStage("核心判断已完成，正在补充详细分析…");
-      const deepJob = await startPreviewAnalysis(payload, controller.signal);
-      const data = await waitForAnalysisJob(deepJob, controller.signal, (current) => {
-        const labels: Record<string, string> = {
-          preparing: "正在准备详细分析…",
-          queued: "详细分析正在排队…",
-          analyzing: "正在分析曝光、对焦、构图与色彩…",
-          organizing: "正在整理拍摄建议…",
-          completed: current.cache_hit ? "已读取详细分析" : "详细分析完成",
-        };
-        setAnalysisStage(labels[current.stage] || "正在补充详细分析…");
-      });
-      if (requestId !== analysisRequestIdRef.current) return;
-      setAnalysis(data);
+    let quickSettled = false;
+    let showedAnyResult = false;
+    const showResultStep = () => {
       setStep(3);
-      if (!showedQuickResult) scrollToStep(stepThreeRef);
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
+      if (!showedAnyResult) scrollToStep(stepThreeRef);
+      showedAnyResult = true;
+    };
+
+    try {
+      const quickTask = (async (): Promise<Error | null> => {
+        try {
+          const quickJob = await startQuickAnalysis(payload, controller.signal);
+          const quick = await waitForAnalysisJob(quickJob, controller.signal, (current) => {
+            const labels: Record<string, string> = {
+              preparing: "正在准备照片…",
+              queued: "正在等待快速分析…",
+              quick_analyzing: "正在快速评估曝光、对焦、构图与色彩…",
+              completed: current.cache_hit ? "已找到相同照片的快速评分" : "四项快速评分完成",
+            };
+            setAnalysisStage(labels[current.stage] || "正在快速分析…");
+          }, { maxWaitMs: 25_000 });
+          if (requestId !== analysisRequestIdRef.current) return null;
+          setQuickAnalysis(quick);
+          setSaveSuccess("");
+          showResultStep();
+          return null;
+        } catch (quickError) {
+          if (quickError instanceof DOMException && quickError.name === "AbortError") return null;
+          if (requestId !== analysisRequestIdRef.current) return null;
+          setAnalysisStage("快速评分未返回，详细分析仍在后台继续…");
+          return quickError instanceof Error ? quickError : new Error("快速分析失败");
+        } finally {
+          quickSettled = true;
+          if (requestId === analysisRequestIdRef.current) setLoading(false);
+        }
+      })();
+
+      const fullTask = (async (): Promise<Error | null> => {
+        try {
+          const fullJob = await startPreviewAnalysis(payload, controller.signal);
+          const data = await waitForAnalysisJob(fullJob, controller.signal, (current) => {
+            if (!quickSettled) return;
+            const labels: Record<string, string> = {
+              preparing: "正在准备详细分析…",
+              queued: "详细分析正在排队…",
+              analyzing: "快速评分已完成，正在补充四项依据与建议…",
+              organizing: "正在整理拍摄建议…",
+              completed: current.cache_hit ? "已读取详细分析" : "详细分析完成",
+            };
+            setAnalysisStage(labels[current.stage] || "正在补充详细分析…");
+          }, { maxWaitMs: 90_000 });
+          if (requestId !== analysisRequestIdRef.current) return null;
+          setAnalysis(data);
+          showResultStep();
+          void loadAnalysisDetails(data, requestId);
+          return null;
+        } catch (fullError) {
+          if (fullError instanceof DOMException && fullError.name === "AbortError") return null;
+          if (requestId !== analysisRequestIdRef.current) return null;
+          return fullError instanceof Error ? fullError : new Error("详细分析失败");
+        } finally {
+          if (requestId === analysisRequestIdRef.current) setDeepLoading(false);
+        }
+      })();
+
+      const [quickError, fullError] = await Promise.all([quickTask, fullTask]);
       if (requestId !== analysisRequestIdRef.current) return;
-      setError(err instanceof Error ? err.message : "分析失败，请稍后重试");
+      if (quickError && fullError) {
+        setError(fullError.message || quickError.message || "分析失败，请稍后重试");
+      }
     } finally {
       if (requestId === analysisRequestIdRef.current) {
         analysisControllerRef.current = null;
@@ -294,9 +319,13 @@ export default function AiStudio() {
     }
   }
 
-  async function handleLoadDetails() {
-    if (!photoUrl || !analysis || detailsLoading) return;
-    detailsControllerRef.current?.abort();
+  function handleLoadDetails() {
+    if (!analysis) return;
+    void loadAnalysisDetails(analysis, analysisRequestIdRef.current);
+  }
+
+  async function loadAnalysisDetails(coreAnalysis: PhotoAnalysis, requestId: number) {
+    if (!photoUrl || detailsLoading || detailsControllerRef.current) return;
     const controller = new AbortController();
     detailsControllerRef.current = controller;
     setDetailsLoading(true);
@@ -306,11 +335,17 @@ export default function AiStudio() {
         image_url: photoUrl,
         target_style: targetStyle,
         target_platform: targetPlatform,
-        analysis_summary: [analysis.summary, analysis.composition_advice, analysis.lighting_advice, analysis.color_advice]
-          .filter(Boolean)
-          .join(" "),
+        analysis_summary: JSON.stringify({
+          summary: coreAnalysis.summary,
+          benchmark: coreAnalysis.benchmark_detail,
+          composition_advice: coreAnalysis.composition_advice,
+          lighting_advice: coreAnalysis.lighting_advice,
+          color_advice: coreAnalysis.color_advice,
+          next_step: coreAnalysis.next_step,
+        }),
       }, controller.signal);
-      const details = await waitForAnalysisJob(job, controller.signal, () => undefined);
+      const details = await waitForAnalysisJob(job, controller.signal, () => undefined, { maxWaitMs: 25_000 });
+      if (requestId !== analysisRequestIdRef.current) return;
       setAnalysis((current) => current ? {
         ...current,
         editing_params: details.editing_params,
@@ -318,10 +353,13 @@ export default function AiStudio() {
       } : current);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
+      if (requestId !== analysisRequestIdRef.current) return;
       setDetailsError(err instanceof Error ? err.message : "详细参数生成失败，请稍后重试");
     } finally {
-      if (detailsControllerRef.current === controller) detailsControllerRef.current = null;
-      setDetailsLoading(false);
+      if (detailsControllerRef.current === controller) {
+        detailsControllerRef.current = null;
+        setDetailsLoading(false);
+      }
     }
   }
 
@@ -532,7 +570,7 @@ export default function AiStudio() {
 
               <div className="mt-7 flex flex-wrap items-center gap-3">
                 <button className="btn-primary" type="button" onClick={handleAnalyze} disabled={loading || deepLoading}>
-                  {loading ? "正在快速分析…" : deepLoading ? "正在补充分析…" : analysis || quickAnalysis ? "重新分析" : "开始分析"}
+                  {loading ? "正在快速分析…" : deepLoading ? "正在补充详细分析…" : analysis || quickAnalysis ? "重新分析" : "开始分析"}
                 </button>
                 <button className="btn-ghost" type="button" onClick={() => handlePhotoChange(null)}>更换照片</button>
               </div>
@@ -565,6 +603,19 @@ export default function AiStudio() {
                       {quickAnalysis.primary_ability}
                     </span>
                   </div>
+                  <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="快速四项评分">
+                    {([
+                      ["曝光", quickAnalysis.exposure_score],
+                      ["对焦", quickAnalysis.focus_score],
+                      ["构图", quickAnalysis.composition_score],
+                      ["色彩", quickAnalysis.color_score],
+                    ] as const).map(([label, score]) => (
+                      <div key={label} className="rounded-2xl bg-white/80 px-3 py-3 text-center">
+                        <p className="text-xs text-muted">{label}</p>
+                        <p className="mt-1 font-display text-2xl font-semibold text-brand-deep">{score}</p>
+                      </div>
+                    ))}
+                  </div>
                   <p className="mt-4 text-sm leading-7 text-muted">{quickAnalysis.summary}</p>
                   <div className="mt-4 rounded-2xl bg-white/75 px-4 py-3">
                     <p className="text-xs font-medium text-brand-deep">现在可以先这样拍</p>
@@ -577,11 +628,19 @@ export default function AiStudio() {
                 </div>
               )}
 
-              {deepLoading && (
+              {deepLoading && quickAnalysis && !analysis && (
                 <div className="flex items-center gap-3 rounded-2xl bg-blush/35 px-4 py-3 text-sm text-brand-deep" role="status">
                   <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-brand border-t-transparent" />
                   <span>{analysisStage}</span>
-                  <span className="ml-auto text-xs text-brand-deep/70">核心建议已经可以先看</span>
+                  <span className="ml-auto text-xs text-brand-deep/70">四项快速评分已可查看</span>
+                </div>
+              )}
+
+              {detailsLoading && analysis && (
+                <div className="flex items-center gap-3 rounded-2xl bg-blush/35 px-4 py-3 text-sm text-brand-deep" role="status">
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-brand border-t-transparent" />
+                  <span>正在后台补充修图参数与发布建议…</span>
+                  <span className="ml-auto text-xs text-brand-deep/70">四维核心结果已可查看</span>
                 </div>
               )}
 
@@ -594,13 +653,13 @@ export default function AiStudio() {
                     <ParamsPanel analysis={analysis} />
                   ) : (
                     <div className="card">
-                      <p className="section-eyebrow">需要时再生成</p>
+                      <p className="section-eyebrow">异步补全</p>
                       <h2 className="mt-1 font-display text-2xl font-semibold">修图参数与发布建议</h2>
                       <p className="mt-2 text-sm leading-7 text-muted">
-                        这部分不会阻塞照片分析。需要具体参数时再生成，可以更快看到核心建议。
+                        四维核心结果已完成；这部分在后台生成，不会阻塞你查看曝光、对焦、构图与色彩建议。
                       </p>
                       <button className="btn-secondary mt-5" type="button" onClick={handleLoadDetails} disabled={detailsLoading}>
-                        {detailsLoading ? "正在生成参数…" : "生成详细参数"}
+                        {detailsLoading ? "正在生成参数…" : "重新生成详细参数"}
                       </button>
                       {detailsError && <p className="mt-3 text-sm text-red-500">{detailsError}</p>}
                     </div>

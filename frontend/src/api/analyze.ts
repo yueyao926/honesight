@@ -20,8 +20,11 @@ export type PreviewAnalyzePayload = {
 
 export type QuickAnalysis = {
   photo_type: string;
-  intent: string;
   detected_style: string;
+  exposure_score: number;
+  focus_score: number;
+  composition_score: number;
+  color_score: number;
   priority_issue: string;
   primary_ability: "构图" | "光线" | "清晰度" | "色彩" | string;
   summary: string;
@@ -92,24 +95,38 @@ export async function waitForAnalysisJob<T>(
   initial: AnalysisJob<T>,
   signal: AbortSignal,
   onProgress: (job: AnalysisJob<T>) => void,
+  options: { maxWaitMs?: number } = {},
 ): Promise<T> {
+  const startedAt = performance.now();
+  const maxWaitMs = options.maxWaitMs ?? 60_000;
   let job = initial;
   while (true) {
     onProgress(job);
     if (job.status === "completed" && job.result) return job.result;
     if (job.status === "failed") throw new Error(job.error || "分析失败，请稍后重试");
-    await abortableDelay(650, signal);
+    const elapsedMs = performance.now() - startedAt;
+    if (elapsedMs >= maxWaitMs) throw new Error("分析等待超时，请重试；后台任务不会重复创建");
+    const pollMs = elapsedMs < 2_000 ? 400 : elapsedMs < 10_000 ? 750 : 1_500;
+    await abortableDelay(Math.min(pollMs, maxWaitMs - elapsedMs), signal);
     job = await getAnalysisJob<T>(job.id, signal);
   }
 }
 
 function abortableDelay(milliseconds: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
-    const timer = window.setTimeout(resolve, milliseconds);
-    signal.addEventListener("abort", () => {
+    if (signal.aborted) {
+      reject(new DOMException("Aborted", "AbortError"));
+      return;
+    }
+    const onAbort = () => {
       window.clearTimeout(timer);
       reject(new DOMException("Aborted", "AbortError"));
-    }, { once: true });
+    };
+    const timer = window.setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, milliseconds);
+    signal.addEventListener("abort", onAbort, { once: true });
   });
 }
 

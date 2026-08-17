@@ -1,10 +1,17 @@
 import json
+import hashlib
 import logging
+import threading
+import time
+from contextlib import contextmanager
+from collections.abc import Iterator
 from datetime import datetime, timedelta, timezone
+from typing import Callable
 from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -36,6 +43,7 @@ from app.services.vision_analyzer import VisionAnalysisError
 
 router = APIRouter(prefix="/analyze", tags=["analyze"])
 logger = logging.getLogger("uvicorn.error")
+_job_creation_locks = tuple(threading.Lock() for _ in range(64))
 
 
 def fail_stale_analysis_jobs() -> None:
@@ -110,28 +118,16 @@ def start_quick_analysis_job(
         target_platform=payload.target_platform or "作品集",
         category=payload.category,
     )
-    cached = get_cached_analysis(db, current_user.id, cache_key)
-    if cached is not None:
-        return _create_completed_job(
-            db,
-            user_id=current_user.id,
-            cache_key=cache_key,
-            kind="preview_quick",
-            request_json=payload.model_dump_json(),
-            result=cached,
-        )
-    active = _find_active_job(db, current_user.id, cache_key)
-    if active:
-        return _job_to_dict(active)
-    job = _create_queued_job(
+    job, created = _get_or_create_analysis_job(
         db,
         user_id=current_user.id,
         cache_key=cache_key,
         kind="preview_quick",
         request_json=payload.model_dump_json(),
     )
-    background_tasks.add_task(_run_quick_analysis_job, job.id)
-    return _job_to_dict(job)
+    if created:
+        background_tasks.add_task(_run_quick_analysis_job, job["id"])
+    return job
 
 
 @router.post(
@@ -152,28 +148,16 @@ def start_analysis_details_job(
         target_platform=payload.target_platform,
         analysis_summary=payload.analysis_summary,
     )
-    cached = get_cached_analysis(db, current_user.id, cache_key)
-    if cached is not None:
-        return _create_completed_job(
-            db,
-            user_id=current_user.id,
-            cache_key=cache_key,
-            kind="preview_details",
-            request_json=payload.model_dump_json(),
-            result=cached,
-        )
-    active = _find_active_job(db, current_user.id, cache_key)
-    if active:
-        return _job_to_dict(active)
-    job = _create_queued_job(
+    job, created = _get_or_create_analysis_job(
         db,
         user_id=current_user.id,
         cache_key=cache_key,
         kind="preview_details",
         request_json=payload.model_dump_json(),
     )
-    background_tasks.add_task(_run_analysis_details_job, job.id)
-    return _job_to_dict(job)
+    if created:
+        background_tasks.add_task(_run_analysis_details_job, job["id"])
+    return job
 
 
 @router.post(
@@ -200,54 +184,17 @@ def start_preview_analysis_job(
         description=payload.description,
         category=payload.category,
     )
-    cached = get_cached_analysis(db, current_user.id, cache_key)
-    if cached is not None:
-        result = preview_to_read_dict(cached)
-        job = AnalysisJob(
-            id=str(uuid4()),
-            user_id=current_user.id,
-            cache_key=cache_key,
-            kind="preview",
-            status="completed",
-            stage="completed",
-            progress=100,
-            request_json=payload.model_dump_json(),
-            result_json=json.dumps(result, ensure_ascii=False, default=str),
-            cache_hit=1,
-            completed_at=datetime.now(timezone.utc),
-        )
-        db.add(job)
-        db.commit()
-        db.refresh(job)
-        return _job_to_dict(job)
-
-    active = db.scalar(
-        select(AnalysisJob)
-        .where(
-            AnalysisJob.user_id == current_user.id,
-            AnalysisJob.cache_key == cache_key,
-            AnalysisJob.status.in_(("queued", "processing")),
-        )
-        .order_by(AnalysisJob.created_at.desc())
-    )
-    if active:
-        return _job_to_dict(active)
-
-    job = AnalysisJob(
-        id=str(uuid4()),
+    job, created = _get_or_create_analysis_job(
+        db,
         user_id=current_user.id,
         cache_key=cache_key,
         kind="preview",
-        status="queued",
-        stage="preparing",
-        progress=10,
         request_json=payload.model_dump_json(),
+        transform_cached=preview_to_read_dict,
     )
-    db.add(job)
-    db.commit()
-    db.refresh(job)
-    background_tasks.add_task(_run_preview_analysis_job, job.id)
-    return _job_to_dict(job)
+    if created:
+        background_tasks.add_task(_run_preview_analysis_job, job["id"])
+    return job
 
 
 @router.get("/jobs/{job_id}", response_model=AnalysisJobRead)
@@ -316,6 +263,7 @@ def _run_quick_analysis_job(job_id: str) -> None:
         job = db.get(AnalysisJob, job_id)
         if not job or job.status == "completed":
             return
+        started_at = time.perf_counter()
         try:
             payload = PreviewAnalyzeRequest.model_validate_json(job.request_json)
             job.status = "processing"
@@ -330,7 +278,7 @@ def _run_quick_analysis_job(job_id: str) -> None:
                 target_platform=payload.target_platform,
                 category=payload.category,
             )
-            _complete_job(db, job, result, cache_hit)
+            _complete_job(db, job, result, cache_hit, started_at=started_at)
         except VisionAnalysisError as exc:
             _fail_job(db, job, str(exc))
         except Exception:
@@ -343,6 +291,7 @@ def _run_analysis_details_job(job_id: str) -> None:
         job = db.get(AnalysisJob, job_id)
         if not job or job.status == "completed":
             return
+        started_at = time.perf_counter()
         try:
             payload = AnalysisDetailsRequest.model_validate_json(job.request_json)
             job.status = "processing"
@@ -357,7 +306,7 @@ def _run_analysis_details_job(job_id: str) -> None:
                 target_platform=payload.target_platform,
                 analysis_summary=payload.analysis_summary,
             )
-            _complete_job(db, job, result, cache_hit)
+            _complete_job(db, job, result, cache_hit, started_at=started_at)
         except VisionAnalysisError as exc:
             _fail_job(db, job, str(exc))
         except Exception:
@@ -370,6 +319,7 @@ def _run_preview_analysis_job(job_id: str) -> None:
         job = db.get(AnalysisJob, job_id)
         if not job or job.status == "completed":
             return
+        started_at = time.perf_counter()
         try:
             payload = PreviewAnalyzeRequest.model_validate_json(job.request_json)
             preference = db.scalar(select(Preference).where(Preference.user_id == job.user_id))
@@ -395,7 +345,7 @@ def _run_preview_analysis_job(job_id: str) -> None:
             db.commit()
 
             result = preview_to_read_dict(report)
-            _complete_job(db, job, result, cache_hit)
+            _complete_job(db, job, result, cache_hit, started_at=started_at)
         except VisionAnalysisError as exc:
             _fail_job(db, job, str(exc))
         except Exception:
@@ -411,7 +361,14 @@ def _fail_job(db: Session, job: AnalysisJob, message: str) -> None:
     db.commit()
 
 
-def _complete_job(db: Session, job: AnalysisJob, result: dict, cache_hit: bool) -> None:
+def _complete_job(
+    db: Session,
+    job: AnalysisJob,
+    result: dict,
+    cache_hit: bool,
+    *,
+    started_at: float,
+) -> None:
     job.result_json = json.dumps(result, ensure_ascii=False, default=str)
     job.cache_hit = int(cache_hit)
     job.status = "completed"
@@ -419,6 +376,73 @@ def _complete_job(db: Session, job: AnalysisJob, result: dict, cache_hit: bool) 
     job.progress = 100
     job.completed_at = datetime.now(timezone.utc)
     db.commit()
+    elapsed_ms = max(0, int(round((time.perf_counter() - started_at) * 1000)))
+    logger.info(
+        "analysis_job kind=%s cache_hit=%s elapsed_ms=%s",
+        job.kind,
+        cache_hit,
+        elapsed_ms,
+    )
+
+
+def _get_or_create_analysis_job(
+    db: Session,
+    *,
+    user_id: int,
+    cache_key: str,
+    kind: str,
+    request_json: str,
+    transform_cached: Callable[[dict], dict] | None = None,
+) -> tuple[dict, bool]:
+    """Atomically reuse a cache/active job or create exactly one queued job."""
+    with _job_creation_lock(db, user_id, cache_key):
+        cached = get_cached_analysis(db, user_id, cache_key)
+        if cached is not None:
+            result = transform_cached(cached) if transform_cached else cached
+            return (
+                _create_completed_job(
+                    db,
+                    user_id=user_id,
+                    cache_key=cache_key,
+                    kind=kind,
+                    request_json=request_json,
+                    result=result,
+                ),
+                False,
+            )
+        active = _find_active_job(db, user_id, cache_key)
+        if active:
+            result = _job_to_dict(active)
+            db.commit()
+            return result, False
+        try:
+            job = _create_queued_job(
+                db,
+                user_id=user_id,
+                cache_key=cache_key,
+                kind=kind,
+                request_json=request_json,
+            )
+        except IntegrityError:
+            db.rollback()
+            active = _find_active_job(db, user_id, cache_key)
+            if active:
+                return _job_to_dict(active), False
+            raise
+        return _job_to_dict(job), True
+
+
+@contextmanager
+def _job_creation_lock(db: Session, user_id: int, cache_key: str) -> Iterator[None]:
+    """Serialize identical job creation in-process and across PostgreSQL workers."""
+    digest = hashlib.sha256(f"{user_id}:{cache_key}".encode("utf-8")).digest()
+    lock_key = int.from_bytes(digest[:8], byteorder="big", signed=True)
+    local_lock = _job_creation_locks[lock_key % len(_job_creation_locks)]
+    with local_lock:
+        bind = db.get_bind()
+        if bind.dialect.name == "postgresql":
+            db.execute(text("SELECT pg_advisory_xact_lock(:lock_key)"), {"lock_key": lock_key})
+        yield
 
 
 def _find_active_job(db: Session, user_id: int, cache_key: str) -> AnalysisJob | None:

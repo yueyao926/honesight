@@ -94,8 +94,11 @@ class AnalysisRead(BaseModel):
 
 class QuickAnalysisRead(BaseModel):
     photo_type: str
-    intent: str = ""
     detected_style: str = ""
+    exposure_score: int
+    focus_score: int
+    composition_score: int
+    color_score: int
     priority_issue: str
     primary_ability: str
     summary: str

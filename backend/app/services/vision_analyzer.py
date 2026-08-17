@@ -78,6 +78,7 @@ def call_vision_model(
                 "content": user_content,
             },
         ],
+        "thinking": {"type": "disabled"},
     }
 
     provider_started_at = time.perf_counter()
@@ -218,7 +219,7 @@ def call_quick_vision_model(
     target_platform: str,
     category: str | None = None,
 ) -> dict[str, Any]:
-    """Return the smallest useful first-screen analysis with the low-latency model."""
+    """Return four scores plus one priority action inside a short latency budget."""
     started_at = time.perf_counter()
     settings = get_settings()
     if not settings.ai_analysis_enabled:
@@ -230,9 +231,14 @@ def call_quick_vision_model(
         raise VisionAnalysisError("The uploaded image could not be read")
 
     contract = {
-        "photo_type": "portrait|landscape|food|street|product|night|general",
-        "intent": "一句话判断拍摄意图",
+        "photo_type": "portrait|landscape|food|street|campus|product|night|general",
         "detected_style": "当前画面风格",
+        "scores": {
+            "exposure": 78,
+            "focus": 82,
+            "composition": 74,
+            "color": 80,
+        },
         "priority_issue": "最值得先解决的一个问题",
         "primary_ability": "构图|光线|清晰度|色彩",
         "summary": "一句话概括画面现状",
@@ -240,17 +246,17 @@ def call_quick_vision_model(
         "confidence": 0.86,
     }
     prompt = (
-        "请快速判断照片，只给最重要的一层结论，不要评分，也不要分析次要问题。\n"
+        "快速评估照片。给出曝光、对焦、构图、色彩四项 0-100 初评分，再指出一个最优先问题。\n"
         f"目标风格：{target_style}；发布平台：{target_platform}；类别提示：{category or '无'}。\n"
         f"只返回紧凑 JSON：{json.dumps(contract, ensure_ascii=False)}\n"
-        "所有文字使用简体中文；不要输出 Markdown 或解释文字。"
+        "分数必须根据照片重算；文字使用简体中文；不要输出 Markdown 或解释。"
     )
     payload = {
         "model": settings.resolved_ai_fast_model,
         "input": [
             {
                 "role": "system",
-                "content": [{"type": "input_text", "text": "你是反应迅速的摄影教练，只指出一个最优先改进点。"}],
+                "content": [{"type": "input_text", "text": "你是反应迅速的摄影教练，只做首屏四项初评。"}],
             },
             {
                 "role": "user",
@@ -260,20 +266,28 @@ def call_quick_vision_model(
                 ],
             },
         ],
-        "max_output_tokens": 450,
+        "max_output_tokens": 360,
         "thinking": {"type": "disabled"},
     }
     provider_started_at = time.perf_counter()
-    data = _post_fast_vision_request(payload, profile="quick", fallback_to_full=False)
+    data = _post_fast_vision_request(
+        payload,
+        profile="quick",
+        fallback_timeout_seconds=max(1, settings.ai_fast_timeout_seconds * 2),
+    )
     text = _extract_response_text(data)
     parsed = _parse_json_object(text)
     provider_ms = _elapsed_ms(provider_started_at)
     if not parsed:
         raise VisionAnalysisError("Vision API did not return a valid quick analysis object")
+    scores = parsed.get("scores") if isinstance(parsed.get("scores"), dict) else {}
     result = {
         "photo_type": _as_text(parsed.get("photo_type")) or "general",
-        "intent": _as_text(parsed.get("intent")),
         "detected_style": _as_text(parsed.get("detected_style")),
+        "exposure_score": _coerce_score(scores.get("exposure")),
+        "focus_score": _coerce_score(scores.get("focus")),
+        "composition_score": _coerce_score(scores.get("composition")),
+        "color_score": _coerce_score(scores.get("color")),
         "priority_issue": _as_text(parsed.get("priority_issue")),
         "primary_ability": _normalize_ability(parsed.get("primary_ability")),
         "summary": _as_text(parsed.get("summary")),
@@ -306,38 +320,21 @@ def call_analysis_details_model(
         raise VisionAnalysisError("AI analysis is disabled on the server")
     if not settings.resolved_ai_api_key:
         raise VisionAnalysisError("AI analysis API key is not configured")
-    image_input = _resolve_image_input(image_url)
-    if not image_input:
-        raise VisionAnalysisError("The uploaded image could not be read")
-
     contract = {
         "editing_params": {
-            "lightroom": {
-                "曝光": "+0.20",
-                "高光": "-25",
-                "阴影": "+18",
-                "色温": "-3",
-                "饱和度": "-6",
-            },
-            "mobile_apps": {
-                "亮度": "+5",
-                "对比度": "-4",
-                "高光": "-20",
-                "锐化": "+8",
-            },
+            "lightroom": {"曝光": "+0.20", "高光": "-20", "阴影": "+15", "色温": "-3", "饱和度": "-6"},
+            "mobile_apps": {"亮度": "+5", "对比度": "-4", "高光": "-20", "锐化": "+8"},
         },
-        "platform_suggestions": {
-            target_platform: {
-                "crop_ratio": "建议比例",
-                "visual_priority": "第一视觉重点",
-                "publishing_advice": "一条发布建议",
-            }
+        "platform_suggestion": {
+            "crop_ratio": "建议比例",
+            "visual_priority": "第一视觉重点",
+            "publishing_advice": "一条发布建议",
         },
     }
     prompt = (
-        f"根据照片生成「{target_style}」方向的修图参数，并适配「{target_platform}」。\n"
-        f"已有分析：{analysis_summary[:500]}\n"
-        f"只返回 JSON：{json.dumps(contract, ensure_ascii=False)}\n"
+        f"根据已完成的照片四维分析生成「{target_style}」方向的修图参数，并适配「{target_platform}」。\n"
+        f"已有分析：{analysis_summary[:1800]}\n"
+        f"只返回紧凑 JSON：{json.dumps(contract, ensure_ascii=False)}\n"
         "参数必须具体、克制且可直接操作；所有文字使用简体中文；不要输出 Markdown。"
     )
     payload = {
@@ -349,27 +346,28 @@ def call_analysis_details_model(
             },
             {
                 "role": "user",
-                "content": [
-                    {"type": "input_image", "image_url": image_input},
-                    {"type": "input_text", "text": prompt},
-                ],
+                "content": [{"type": "input_text", "text": prompt}],
             },
         ],
         "max_output_tokens": 900,
         "thinking": {"type": "disabled"},
     }
-    data = _post_fast_vision_request(payload, profile="details")
+    data = _post_fast_vision_request(
+        payload,
+        profile="details",
+        fallback_timeout_seconds=max(1, settings.ai_fast_timeout_seconds * 2),
+    )
     text = _extract_response_text(data)
     parsed = _parse_json_object(text)
     if not parsed:
-        parsed, text = _retry_invalid_json_response(payload, profile="details", first_data=data)
-    if not parsed:
         raise VisionAnalysisError("Vision API did not return valid analysis details")
     editing_params = parsed.get("editing_params")
-    platform_suggestions = parsed.get("platform_suggestions")
+    platform_suggestion = parsed.get("platform_suggestion")
     result = {
         "editing_params": editing_params if isinstance(editing_params, dict) else {},
-        "platform_suggestions": platform_suggestions if isinstance(platform_suggestions, dict) else {},
+        "platform_suggestions": {
+            target_platform: platform_suggestion if isinstance(platform_suggestion, dict) else {}
+        },
         "model_used": str(payload["model"]),
         "elapsed_ms": _elapsed_ms(started_at),
     }
@@ -541,28 +539,37 @@ def _post_fast_vision_request(
     *,
     profile: str,
     fallback_to_full: bool = True,
+    fallback_timeout_seconds: int | None = None,
 ) -> dict[str, Any]:
     """Use the configured fast model, then degrade safely to the proven full model."""
     settings = get_settings()
+    started_at = time.perf_counter()
     try:
         return _post_vision_request(
             payload,
             timeout_seconds=max(1, settings.ai_fast_timeout_seconds),
         )
-    except VisionAnalysisError:
+    except VisionAnalysisError as exc:
         current_model = str(payload.get("model") or "")
         fallback_model = settings.resolved_ai_model
         if not fallback_to_full or not current_model or current_model == fallback_model:
+            logger.warning(
+                "vision_analysis fast_model_failed profile=%s model=%s elapsed_ms=%s fallback=false error=%s",
+                profile,
+                current_model or "unknown",
+                _elapsed_ms(started_at),
+                type(exc).__name__,
+            )
             raise
         logger.warning(
-            "vision_analysis fast_model_fallback profile=%s from_model=%s to_model=%s",
+            "vision_analysis fast_model_fallback profile=%s from_model=%s to_model=%s elapsed_ms=%s",
             profile,
             current_model,
             fallback_model,
+            _elapsed_ms(started_at),
         )
         payload["model"] = fallback_model
-        payload.pop("thinking", None)
-        return _post_vision_request(payload)
+        return _post_vision_request(payload, timeout_seconds=fallback_timeout_seconds)
 
 
 def _retry_invalid_json_response(
