@@ -1,7 +1,49 @@
+import type { User } from "../types";
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
+const SESSION_REQUEST_HEADER = "LensCoach";
+
+export type AuthSession = {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  user: User;
+};
+
+type AuthSessionListener = (session: AuthSession | null) => void;
+
+let currentSession: AuthSession | null = null;
+let refreshPromise: Promise<AuthSession> | null = null;
+const authSessionListeners = new Set<AuthSessionListener>();
 
 export function getApiBaseUrl() {
   return API_BASE_URL;
+}
+
+export function getAccessToken() {
+  return currentSession?.access_token ?? null;
+}
+
+export function setAuthSession(session: AuthSession | null) {
+  currentSession = session;
+  authSessionListeners.forEach((listener) => listener(session));
+}
+
+export function updateAuthUser(user: User) {
+  if (!currentSession) return;
+  setAuthSession({ ...currentSession, user });
+}
+
+export function subscribeToAuthSession(listener: AuthSessionListener) {
+  authSessionListeners.add(listener);
+  return () => {
+    authSessionListeners.delete(listener);
+  };
+}
+
+export function clearLegacyStoredAuth() {
+  localStorage.removeItem("lenscoach_token");
+  localStorage.removeItem("lenscoach_user");
 }
 
 function formatApiError(detail: unknown, fallback: string): string {
@@ -42,14 +84,26 @@ function formatApiError(detail: unknown, fallback: string): string {
   return fallback;
 }
 
-export function getAssetUrl(path: string) {
-  if (!path) return "";
-  if (path.startsWith("http")) return path;
-  return `${API_BASE_URL}${path}`;
+async function responseError(response: Response): Promise<Error> {
+  const responseText = await response.text().catch(() => "");
+  let data: { detail?: unknown } | null = null;
+  if (responseText) {
+    try {
+      data = JSON.parse(responseText) as { detail?: unknown };
+    } catch {
+      data = null;
+    }
+  }
+  if (response.status === 500 && !data?.detail) {
+    return new Error("服务器内部错误，请检查数据库是否已启动");
+  }
+  const fallback = response.status === 504
+    ? "AI 处理超时（HTTP 504），请重试"
+    : `请求失败（HTTP ${response.status}），请稍后重试`;
+  return new Error(formatApiError(data?.detail, fallback));
 }
 
-export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem("lenscoach_token");
+function fetchApi(path: string, options: RequestInit, token: string | null) {
   const headers = new Headers(options.headers);
   if (!(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
@@ -57,39 +111,70 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
-
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  return fetch(`${API_BASE_URL}${path}`, {
     ...options,
+    credentials: "include",
     headers,
   }).catch((error: unknown) => {
     if (error instanceof DOMException && error.name === "AbortError") throw error;
     throw new Error("无法连接后端服务，请确认后端已启动：uvicorn app.main:app --reload");
   });
+}
+
+export function refreshAuthSession(): Promise<AuthSession> {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = fetchApi(
+    "/auth/refresh",
+    { method: "POST", headers: { "X-Session-Request": SESSION_REQUEST_HEADER } },
+    null,
+  )
+    .then(async (response) => {
+      if (!response.ok) {
+        if (response.status === 401) setAuthSession(null);
+        throw response.status === 401
+          ? new Error("登录已过期，请重新登录")
+          : await responseError(response);
+      }
+      const session = await response.json() as AuthSession;
+      setAuthSession(session);
+      return session;
+    })
+    .finally(() => {
+      refreshPromise = null;
+    });
+  return refreshPromise;
+}
+
+export function getAssetUrl(path: string) {
+  if (!path) return "";
+  if (path.startsWith("http")) return path;
+  return `${API_BASE_URL}${path}`;
+}
+
+export async function apiRequest<T>(
+  path: string,
+  options: RequestInit = {},
+  allowRefresh = true,
+): Promise<T> {
+  const token = getAccessToken();
+  let response = await fetchApi(path, options, token);
+
+  if (response.status === 401 && token && allowRefresh && !path.startsWith("/auth/")) {
+    try {
+      await refreshAuthSession();
+    } catch {
+      throw new Error("登录已过期，请重新登录");
+    }
+    response = await fetchApi(path, options, getAccessToken());
+  }
 
   if (response.status === 401) {
-    localStorage.removeItem("lenscoach_token");
-    localStorage.removeItem("lenscoach_user");
-    window.location.href = "/login";
+    if (token) setAuthSession(null);
     throw new Error("登录已过期，请重新登录");
   }
 
   if (!response.ok) {
-    const responseText = await response.text().catch(() => "");
-    let data: { detail?: unknown } | null = null;
-    if (responseText) {
-      try {
-        data = JSON.parse(responseText) as { detail?: unknown };
-      } catch {
-        data = null;
-      }
-    }
-    if (response.status === 500 && !data?.detail) {
-      throw new Error("服务器内部错误，请检查数据库是否已启动");
-    }
-    const fallback = response.status === 504
-      ? "AI 处理超时（HTTP 504），请重试"
-      : `请求失败（HTTP ${response.status}），请稍后重试`;
-    throw new Error(formatApiError(data?.detail, fallback));
+    throw await responseError(response);
   }
 
   if (response.status === 204) {
@@ -97,4 +182,8 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   }
 
   return response.json() as Promise<T>;
+}
+
+export function sessionRequestHeaders() {
+  return { "X-Session-Request": SESSION_REQUEST_HEADER };
 }

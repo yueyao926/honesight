@@ -1,11 +1,7 @@
-import { apiRequest } from "./client";
+import { apiRequest, sessionRequestHeaders, type AuthSession } from "./client";
 import type { User } from "../types";
 
-export type LoginResponse = {
-  access_token: string;
-  token_type: string;
-  user: User;
-};
+export type LoginResponse = AuthSession;
 
 export function register(payload: { username: string; email: string; password: string }) {
   return apiRequest<User>("/auth/register", {
@@ -19,6 +15,13 @@ export function login(payload: { email: string; password: string }) {
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+export function logout() {
+  return apiRequest<void>("/auth/logout", {
+    method: "POST",
+    headers: sessionRequestHeaders(),
+  }, false);
 }
 
 export function getMe() {

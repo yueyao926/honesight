@@ -1,7 +1,8 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -9,7 +10,21 @@ class Settings(BaseSettings):
     database_url: str = Field(default="postgresql://postgres:password@localhost:5432/lenscoach", alias="DATABASE_URL")
     jwt_secret_key: str = Field(default="please-change-this", alias="JWT_SECRET_KEY")
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
-    access_token_expire_minutes: int = Field(default=10080, alias="ACCESS_TOKEN_EXPIRE_MINUTES")
+    access_token_expire_minutes: int = Field(default=15, ge=1, le=10080, alias="ACCESS_TOKEN_EXPIRE_MINUTES")
+    refresh_token_expire_days: int = Field(default=14, ge=1, le=365, alias="REFRESH_TOKEN_EXPIRE_DAYS")
+    refresh_token_reuse_grace_seconds: int = Field(
+        default=30,
+        ge=0,
+        le=300,
+        alias="REFRESH_TOKEN_REUSE_GRACE_SECONDS",
+    )
+    session_cookie_name: str = Field(default="lenscoach_refresh", alias="SESSION_COOKIE_NAME")
+    session_cookie_secure: bool = Field(default=False, alias="SESSION_COOKIE_SECURE")
+    session_cookie_samesite: Literal["lax", "strict", "none"] = Field(
+        default="lax",
+        alias="SESSION_COOKIE_SAMESITE",
+    )
+    session_cookie_domain: str | None = Field(default=None, alias="SESSION_COOKIE_DOMAIN")
     backend_cors_origins: str = Field(default="http://localhost:5173", alias="BACKEND_CORS_ORIGINS")
     upload_dir: str = Field(default="uploads", alias="UPLOAD_DIR")
     ark_api_key: str | None = Field(default=None, alias="ARK_API_KEY")
@@ -67,9 +82,19 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8-sig", populate_by_name=True, extra="ignore")
 
+    @model_validator(mode="after")
+    def validate_session_cookie(self) -> "Settings":
+        if self.session_cookie_samesite == "none" and not self.session_cookie_secure:
+            raise ValueError("SESSION_COOKIE_SECURE must be true when SESSION_COOKIE_SAMESITE=none")
+        return self
+
     @property
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.backend_cors_origins.split(",") if origin.strip()]
+
+    @property
+    def resolved_session_cookie_domain(self) -> str | None:
+        return self.session_cookie_domain.strip() if self.session_cookie_domain else None
 
     @property
     def upload_path(self) -> Path:

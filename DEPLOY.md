@@ -131,6 +131,16 @@ DATABASE_URL=postgresql://postgres:你的密码@localhost:5432/lenscoach
 # 必填 - 用下面的命令生成一个随机密钥
 JWT_SECRET_KEY=你生成的随机密钥
 
+# 会话默认值：访问令牌 15 分钟，关闭浏览器后最多保持登录 14 天
+ACCESS_TOKEN_EXPIRE_MINUTES=15
+REFRESH_TOKEN_EXPIRE_DAYS=14
+REFRESH_TOKEN_REUSE_GRACE_SECONDS=30
+SESSION_COOKIE_NAME=lenscoach_refresh
+# 配好 HTTPS 后必须设为 true；若当前只用 http://IP，暂时设为 false
+SESSION_COOKIE_SECURE=true
+SESSION_COOKIE_SAMESITE=lax
+SESSION_COOKIE_DOMAIN=
+
 # 前端端口
 PORT=80
 
