@@ -80,7 +80,7 @@ def _build_prompt(item: PortfolioItem, preference: Preference | None) -> str:
         )
 
     return f"""
-你是 LensCoach 的摄影成长教练。请根据用户上传的照片内容、目标风格和发布平台，生成可执行的中文摄影建议报告。
+你是 HoneSight 的摄影成长教练。请根据用户上传的照片内容、目标风格和发布平台，生成可执行的中文摄影建议报告。
 
 作品信息：
 - 标题：{item.title}

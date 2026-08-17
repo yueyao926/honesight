@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+﻿import { useRef, useState } from "react";
 import { getAssetUrl } from "../api/client";
 import { uploadImage } from "../api/upload";
 import type { ImageUploadPurpose, ImageUploadStage } from "../utils/imageUpload";
@@ -56,13 +56,13 @@ export default function PhotoUpload({ value, onChange, label = "上传照片", p
       ) : (
         <button
           type="button"
-          className="flex min-h-56 w-full flex-col items-center justify-center rounded-3xl border-2 border-dashed border-sand bg-white/50 transition hover:border-brand hover:bg-blush/30"
+          className="group flex min-h-56 w-full flex-col items-center justify-center rounded-3xl border-2 border-dashed border-sand bg-white/50 shadow-card transition hover:border-ink hover:bg-blush/30"
           onClick={() => inputRef.current?.click()}
           disabled={Boolean(stage)}
         >
-          <span className="font-display text-4xl font-light text-brand">+</span>
-          <span className="mt-2 text-sm text-muted">{stage ? statusText : label}</span>
-          <span className="mt-1 text-xs text-muted">JPG / PNG / WebP，单张最大 10MB</span>
+          <span className="font-display text-4xl font-light text-ink transition group-hover:text-ink">+</span>
+          <span className="mt-2 text-sm text-muted transition group-hover:text-ink">{stage ? statusText : label}</span>
+          <span className="mt-1 text-xs text-muted transition group-hover:text-ink">JPG / PNG / WebP，单张最大 10MB</span>
         </button>
       )}
       <input
@@ -72,7 +72,7 @@ export default function PhotoUpload({ value, onChange, label = "上传照片", p
         className="hidden"
         onChange={(event) => handleFile(event.target.files?.[0] || null)}
       />
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="text-xs text-ink">{error}</p>}
     </div>
   );
 }

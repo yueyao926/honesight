@@ -15,7 +15,7 @@ export default function HomeLogoMark() {
               baseFrequency={0.018}
               className="home-logo-type whitespace-nowrap text-[3.5rem] text-ink sm:text-[4.5rem] md:text-[5.5rem] lg:text-[6.5rem]"
             >
-              LENSCOACH
+              HoneSight
             </SquigglyText>
           </h1>
           <p className="home-logo-tagline mt-3 whitespace-nowrap sm:mt-4">

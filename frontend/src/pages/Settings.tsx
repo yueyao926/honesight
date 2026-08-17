@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { getMyPreferences, updateMyPreferences } from "../api/preferences";
 import PreferenceForm from "../components/PreferenceForm";
 import type { Preference } from "../types";
@@ -27,7 +27,7 @@ export default function Settings() {
             }}
           />
         </div>
-        {message && <p className="mt-4 text-sm text-brand">{message}</p>}
+        {message && <p className="mt-4 text-sm text-ink">{message}</p>}
       </div>
     </main>
   );

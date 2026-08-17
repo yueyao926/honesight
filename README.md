@@ -1,6 +1,6 @@
-# LensCoach
+# HoneSight
 
-LensCoach 是一个面向摄影新手的 AI 摄影成长教练 MVP。用户可以注册登录、设置摄影偏好、上传照片建立个人作品集，并获得基于目标风格和发布平台的模板化摄影建议报告。
+HoneSight 是一个面向摄影新手的 AI 摄影成长教练 MVP。用户可以注册登录、设置摄影偏好、上传照片建立个人作品集，并获得基于目标风格和发布平台的模板化摄影建议报告。
 
 当前版本不接入真实 AI API，先用规则和模板分析实现完整产品闭环。
 
@@ -43,7 +43,7 @@ net start postgresql-x64-14
 
 如果服务名不同，请在 Windows 服务管理器中查看实际名称。
 
-## 如何创建数据库 lenscoach
+## 如何创建数据库 HoneSight
 
 进入 PostgreSQL：
 
@@ -54,7 +54,7 @@ psql -U postgres
 创建数据库：
 
 ```sql
-CREATE DATABASE lenscoach;
+CREATE DATABASE HoneSight;
 ```
 
 退出：
@@ -66,7 +66,7 @@ CREATE DATABASE lenscoach;
 确保 `backend/.env` 中的 `DATABASE_URL` 与本地 PostgreSQL 密码一致：
 
 ```env
-DATABASE_URL=postgresql://postgres:your-password@localhost:5432/lenscoach
+DATABASE_URL=postgresql://postgres:your-password@localhost:5432/HoneSight
 ```
 
 ## 如何启动后端
@@ -124,7 +124,7 @@ http://localhost:5173
 ### backend/.env
 
 ```env
-DATABASE_URL=postgresql://postgres:your-password@localhost:5432/lenscoach
+DATABASE_URL=postgresql://postgres:your-password@localhost:5432/HoneSight
 JWT_SECRET_KEY=change-this-to-a-random-local-secret
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=10080
@@ -170,7 +170,7 @@ VITE_API_BASE_URL=http://localhost:8000
 
 ## 默认测试流程
 
-1. 启动 PostgreSQL，并创建 `lenscoach` 数据库。
+1. 启动 PostgreSQL，并创建 `HoneSight` 数据库。
 2. 在 `backend` 中安装依赖并执行 `alembic upgrade head`。
 3. 启动后端：`uvicorn app.main:app --reload`。
 4. 在 `frontend` 中安装依赖并执行 `npm run dev`。
@@ -185,7 +185,7 @@ VITE_API_BASE_URL=http://localhost:8000
 
 ## AI 摄影教练功能说明
 
-LensCoach 的核心能力不是“判断照片好坏”，而是基于用户选择的目标风格和发布平台，给出摄影成长建议：
+HoneSight 的核心能力不是“判断照片好坏”，而是基于用户选择的目标风格和发布平台，给出摄影成长建议：
 
 - 基础画面质量 benchmark
 - 目标风格匹配度

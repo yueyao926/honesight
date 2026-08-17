@@ -6,15 +6,15 @@ services:
       - "5433:5432"
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: lenscoach
-      POSTGRES_DB: lenscoach
+      POSTGRES_PASSWORD: HoneSight
+      POSTGRES_DB: HoneSight
     volumes:
-      - lenscoach_pgdata:/var/lib/postgresql/data
+      - HoneSight_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d lenscoach"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d HoneSight"]
       interval: 5s
       timeout: 5s
       retries: 5
 
 volumes:
-  lenscoach_pgdata:
+  HoneSight_pgdata:

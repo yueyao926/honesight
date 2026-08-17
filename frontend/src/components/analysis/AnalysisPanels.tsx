@@ -1,4 +1,4 @@
-import { FormEvent } from "react";
+﻿import { FormEvent } from "react";
 import type { BenchmarkDimension, ChatMessage, PhotoAnalysis } from "../../types";
 
 const dimensions = [
@@ -86,7 +86,7 @@ export function DimensionCards({ analysis }: { analysis: PhotoAnalysis }) {
                   <span className="flex items-center gap-4">
                     <span className="font-display text-3xl font-semibold text-ink">{score}</span>
                     <span
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-blush/55 text-lg text-brand-deep transition-transform group-open:rotate-180"
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-blush/55 text-lg text-ink transition-transform group-open:rotate-180"
                       aria-hidden="true"
                     >
                       ↓
@@ -140,7 +140,7 @@ export function AdvicePanel({ analysis }: { analysis: PhotoAnalysis }) {
             </span>
           </span>
           <span
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blush/55 text-lg text-brand-deep transition-transform group-open:rotate-180"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blush/55 text-lg text-ink transition-transform group-open:rotate-180"
             aria-hidden="true"
           >
             ↓
@@ -218,7 +218,7 @@ export function ChatPanel({
           <button
             key={question}
             type="button"
-            className="rounded-full border border-sand bg-white/60 px-3 py-2 text-xs text-muted transition hover:border-brand hover:text-brand-deep"
+            className="rounded-full border border-sand bg-white/60 px-3 py-2 text-xs text-muted transition hover:border-brand hover:text-ink"
             onClick={() => onSubmit(undefined, question)}
             disabled={loading}
           >

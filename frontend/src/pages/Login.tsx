@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+﻿import { FormEvent, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import BackHomeLink from "../components/BackHomeLink";
 import { useAuth } from "../contexts/AuthContext";
@@ -43,13 +43,13 @@ export default function Login() {
             <label className="label">密码</label>
             <input className="input" name="password" type="password" required placeholder="••••••••" />
           </div>
-          {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>}
+          {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-ink">{error}</p>}
           <button className="btn-primary w-full" type="submit" disabled={submitting}>
             {submitting ? "登录中..." : "登录"}
           </button>
         </form>
         <p className="mt-6 text-center text-sm text-muted">
-          还没有账号？<Link className="ml-1 text-brand-deep" to="/register">去注册</Link>
+          还没有账号？<Link className="ml-1 text-ink" to="/register">去注册</Link>
         </p>
       </div>
     </main>

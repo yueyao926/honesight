@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-cd ~/lenscoach
+cd ~/HoneSight
 
 echo ">>> 拉取最新代码..."
 git pull

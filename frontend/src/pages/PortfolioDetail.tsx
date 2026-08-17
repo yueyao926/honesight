@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+﻿import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { getAssetUrl } from "../api/client";
 import {
@@ -105,7 +105,7 @@ export default function PortfolioDetail() {
   if (!collection) {
     return (
       <main className="handwriting-page container-page">
-        <Link className="text-sm text-brand-deep" to="/portfolio">← 返回作品集</Link>
+        <Link className="text-sm text-ink" to="/portfolio">← 返回作品集</Link>
         <div className="card mt-8 text-center text-sm text-muted">{error || "加载中…"}</div>
       </main>
     );
@@ -113,7 +113,7 @@ export default function PortfolioDetail() {
 
   return (
     <main className="handwriting-page container-page">
-      <Link className="text-sm text-brand-deep" to="/portfolio">← 返回作品集</Link>
+      <Link className="text-sm text-ink" to="/portfolio">← 返回作品集</Link>
 
       <header className="mt-6 flex flex-col justify-between gap-5 md:flex-row md:items-end">
         <div>
@@ -141,7 +141,7 @@ export default function PortfolioDetail() {
             {!renaming ? (
               <div className="flex flex-wrap gap-3">
                 <button className="btn-secondary" type="button" onClick={() => setRenaming(true)}>重命名</button>
-                <button className="btn-ghost text-red-500" type="button" onClick={handleDeleteCollection}>删除作品集</button>
+                <button className="btn-ghost text-ink" type="button" onClick={handleDeleteCollection}>删除作品集</button>
               </div>
             ) : (
               <form className="flex max-w-xl flex-col gap-3 sm:flex-row" onSubmit={handleRename}>
@@ -154,7 +154,7 @@ export default function PortfolioDetail() {
         </section>
       )}
 
-      {error && <p className="mt-5 text-sm text-red-500">{error}</p>}
+      {error && <p className="mt-5 text-sm text-ink">{error}</p>}
 
       {collection.photos.length === 0 ? (
         <div className="card mt-10 text-center">

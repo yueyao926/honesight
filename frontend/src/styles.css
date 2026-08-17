@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Amatic+SC:wght@400;700&family=Caveat:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;500;600;700&display=swap");
+﻿@import url("https://fonts.googleapis.com/css2?family=Amatic+SC:wght@400;700&family=Caveat:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;500;600;700&display=swap");
 
 @font-face {
   font-family: "JasonHandwriting";
@@ -74,8 +74,17 @@ body {
     box-shadow: 0 0 40px rgba(113, 90, 74, 0.2);
   }
 
+  .btn-primary--ink {
+    @apply bg-ink hover:bg-black;
+    box-shadow: 0 20px 60px rgba(39, 37, 34, 0.12);
+  }
+
+  .btn-primary--ink:hover {
+    box-shadow: 0 0 40px rgba(39, 37, 34, 0.16);
+  }
+
   .btn-secondary {
-    @apply inline-flex min-h-11 items-center justify-center rounded-full border border-sand bg-white/80 px-6 py-3 text-center text-sm font-medium text-ink transition hover:border-brand hover:text-brand-deep focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose/50 disabled:cursor-not-allowed disabled:opacity-55;
+    @apply inline-flex min-h-11 items-center justify-center rounded-full border border-sand bg-white/80 px-6 py-3 text-center text-sm font-medium text-ink transition hover:border-brand hover:text-ink focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose/50 disabled:cursor-not-allowed disabled:opacity-55;
   }
 
   .btn-ghost {
@@ -128,37 +137,44 @@ body {
   }
 
   .studio-step {
-    @apply relative grid scroll-mt-24 grid-cols-[2.5rem_minmax(0,1fr)] gap-3 md:grid-cols-[9rem_minmax(0,1fr)] md:gap-8;
+    @apply relative grid scroll-mt-24 grid-cols-[4rem_minmax(0,1fr)] gap-3 md:grid-cols-[9rem_minmax(0,1fr)] md:gap-8;
   }
 
   .studio-step:not(:last-child)::before {
     content: "";
-    @apply absolute left-[1.22rem] top-10 -bottom-14 w-px bg-sand md:left-5 md:-bottom-20;
+    @apply absolute left-8 top-16 -bottom-14 w-px bg-sand md:left-8 md:-bottom-20;
   }
 
   .studio-step-rail {
     @apply sticky top-24 z-10 flex h-fit items-center gap-3 self-start md:top-28;
   }
 
-  .studio-step-number {
-    @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-sand bg-cream text-sm font-semibold text-muted transition;
+  .studio-step-marker {
+    @apply relative flex h-16 w-16 shrink-0 items-center justify-center;
+  }
+
+  .studio-step-marker-bg {
+    @apply pointer-events-none absolute inset-0 h-full w-full object-contain;
+  }
+
+  .studio-step-marker-label {
+    @apply relative text-lg font-semibold text-muted;
   }
 
   .studio-step-label {
     @apply hidden text-sm font-medium text-muted md:block;
   }
 
-  .studio-step-active .studio-step-number {
-    @apply border-brand bg-brand text-white;
-    box-shadow: 0 10px 28px rgba(113, 90, 74, 0.2);
+  .studio-step-active .studio-step-marker-label {
+    @apply text-white;
   }
 
   .studio-step-active .studio-step-label {
     @apply text-ink;
   }
 
-  .studio-step-done .studio-step-number {
-    @apply border-matcha/60 bg-matcha/45 text-ink;
+  .studio-step-done .studio-step-marker-label {
+    @apply text-ink;
   }
 
   .studio-step-card {
@@ -402,6 +418,7 @@ body {
 
   .interactive-camera-person--practice-header {
     right: clamp(30.5rem, calc(16vw + 26rem), 35rem);
+    top: -2rem;
   }
 
   .daily-inspiration-section {
@@ -751,12 +768,185 @@ body {
     padding-inline: clamp(1.25rem, 2.8vw, 1.75rem);
   }
 
+  .home-drawn-btn--circle {
+    @apply relative inline-flex items-center justify-center overflow-visible text-sm text-ink;
+    min-height: 2.85rem;
+    min-width: 0;
+    width: auto;
+    padding-inline: clamp(1.5rem, 3.2vw, 2rem);
+    padding-block: 0.55rem 0.6rem;
+  }
+
+  .home-drawn-btn--circle-wide {
+    padding-inline: clamp(1.75rem, 3.8vw, 2.35rem);
+  }
+
+  .home-drawn-btn--circle .home-drawn-btn-label {
+    transform: none;
+    @apply relative z-10 whitespace-nowrap;
+  }
+
+  .home-drawn-btn--circle.is-idle .practice-choice-btn__border {
+    @apply text-ink;
+    opacity: 0.35;
+  }
+
+  .home-drawn-btn--circle.is-idle:hover .practice-choice-btn__border {
+    opacity: 0.55;
+  }
+
+  .home-drawn-btn--circle.is-selected .practice-choice-btn__border {
+    @apply text-ink;
+    opacity: 1;
+  }
+
+  .home-drawn-btn--circle.is-selected {
+    @apply text-ink;
+  }
+
+  .practice-choice-btn__border {
+    inset: -10px -12px;
+    width: calc(100% + 24px);
+    height: calc(100% + 20px);
+  }
+
+  .practice-task-hero {
+    @apply relative isolate overflow-visible;
+  }
+
+  .practice-task-hero-bg {
+    @apply pointer-events-none absolute inset-0 h-full w-full object-fill;
+  }
+
+  .practice-task-hero-content {
+    @apply relative z-10;
+    text-shadow: 0 1px 10px rgba(0, 0, 0, 0.55);
+  }
+
+  .practice-task-hero-meta {
+    @apply text-sm tracking-wide text-white/90;
+  }
+
+  .practice-task-hero-title {
+    @apply mt-4 text-white;
+    font-size: clamp(2.35rem, 5.5vw, 3.5rem);
+    line-height: 1.06;
+    text-shadow:
+      0 0 1px rgba(255, 255, 255, 0.9),
+      0 2px 16px rgba(0, 0, 0, 0.65);
+  }
+
+  .practice-task-hero-brief {
+    @apply mt-4 max-w-xl text-base leading-7 text-white/95;
+  }
+
+  .practice-task-hero-cycle-label {
+    @apply text-sm text-white/85;
+  }
+
+  .practice-task-hero-quote {
+    @apply font-display text-2xl font-semibold leading-relaxed text-white/95 sm:text-3xl;
+  }
+
+  .practice-task-hero-aside {
+    @apply flex min-h-48 flex-col justify-between p-6 sm:p-8;
+  }
+
+  .practice-task-hero-camera {
+    @apply mx-auto w-full max-w-[8.5rem] object-contain sm:max-w-[10rem];
+  }
+
+  .practice-step-marker {
+    @apply relative flex h-10 w-10 items-center justify-center;
+  }
+
+  .practice-step-marker-bg {
+    @apply pointer-events-none absolute inset-0 h-full w-full object-contain;
+  }
+
+  .practice-step-marker-label {
+    @apply relative text-xs font-medium text-ink;
+  }
+
+  .practice-drawn-panels {
+    @apply grid items-stretch gap-6 lg:grid-cols-[0.75fr_1.25fr] lg:gap-8;
+  }
+
+  .practice-drawn-panels .practice-drawn-panel {
+    @apply h-full min-h-0;
+  }
+
+  .practice-drawn-panels .practice-drawn-panel-inner {
+    @apply h-auto px-4 py-4 md:px-5 md:py-5;
+  }
+
+  .practice-drawn-panels .practice-drawn-panel--box-5 .practice-drawn-panel-inner {
+    @apply pl-9 md:pl-11;
+  }
+
+  .practice-drawn-panel {
+    @apply relative grid w-full overflow-visible;
+  }
+
+  .practice-drawn-panel-inner {
+    @apply relative z-10 col-start-1 row-start-1 p-5 md:p-8;
+  }
+
+  .practice-drawn-panel-border {
+    @apply pointer-events-none col-start-1 row-start-1 h-full w-full min-h-full text-ink;
+  }
+
+  .practice-drawn-panel--box-5 .practice-drawn-panel-inner {
+    @apply pl-7 md:pl-9;
+  }
+
+  .practice-drawn-panel--box-5 .practice-drawn-panel-border {
+    @apply absolute col-auto row-auto;
+    inset: -6px -12px 12px -22px;
+    width: auto;
+    height: auto;
+  }
+
+  .practice-drawn-panel--vector-7 .practice-drawn-panel-border {
+    @apply absolute col-auto row-auto;
+    inset: -6px -10px 12px -10px;
+    width: auto;
+    height: auto;
+  }
+
+  /* 并排时高度由内容决定，边框绝对定位铺满，留少量外扩防止描边被裁切 */
+  .practice-drawn-panels .practice-drawn-panel--box-5 .practice-drawn-panel-border {
+    @apply absolute col-auto row-auto h-full w-full min-h-0;
+    inset: -2px -8px -2px -10px;
+  }
+
+  .practice-drawn-panels .practice-drawn-panel--vector-7 .practice-drawn-panel-border {
+    @apply absolute col-auto row-auto h-full w-full min-h-0;
+    inset: -6px -10px -6px -10px;
+  }
+
+  .practice-completion {
+    @apply relative z-20 mt-8 lg:mt-10;
+  }
+
+  .practice-drawn-note {
+    @apply relative mt-4 grid w-full overflow-visible;
+  }
+
+  .practice-drawn-note-inner {
+    @apply relative z-10 col-start-1 row-start-1 flex gap-3 px-6 py-5 text-sm leading-6;
+  }
+
+  .practice-drawn-note-border {
+    @apply pointer-events-none col-start-1 row-start-1 h-full w-full min-h-full text-ink;
+  }
+
   .practice-drawn-card-frame {
     @apply relative w-full overflow-visible;
   }
 
   .practice-drawn-card-border {
-    @apply pointer-events-none absolute z-20 text-ink;
+    @apply pointer-events-none absolute z-0 text-ink;
     inset: 0;
     width: 100%;
     height: 100%;

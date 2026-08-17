@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="520" viewBox="0 0 1000 520">
+  <title>Organic hand-drawn dashed frame</title>
+  <desc>Loose irregular hand-drawn dashed rectangular frame with imperfect spacing and jitter.</desc>
+
+  <g fill="none" stroke="#2b2926" stroke-linecap="round" stroke-linejoin="round">
+
+    <!-- TOP: intentionally uneven lengths, angles and thickness -->
+    <path d="M186 79
+             C206 76, 224 78, 247 75
+             C262 73, 274 74, 287 74"
+          stroke-width="5.30"/>
+    <path d="M323 72
+             C339 70, 351 69, 365 70
+             C381 71, 392 67, 408 68"
+          stroke-width="5.93"/>
+    <path d="M445 66
+             C459 64, 472 66, 488 64
+             C501 62, 515 62, 528 63"
+          stroke-width="4.84"/>
+    <path d="M565 61
+             C581 58, 595 60, 611 58
+             C625 57, 639 57, 654 57"
+          stroke-width="5.62"/>
+    <path d="M694 55
+             C709 54, 724 53, 739 53
+             C752 54, 767 51, 781 52"
+          stroke-width="4.99"/>
+    <path d="M821 52
+             C836 51, 850 50, 867 51"
+          stroke-width="5.77"/>
+
+    <!-- LEFT: loose, slightly kinked -->
+    <path d="M161 125
+             C159 144, 160 161, 160 177
+             C161 185, 159 195, 160 204"
+          stroke-width="4.99"/>
+    <path d="M159 239
+             C158 254, 159 268, 158 281
+             C158 294, 160 305, 159 318"
+          stroke-width="5.69"/>
+    <path d="M160 353
+             C159 367, 159 382, 160 395
+             C161 405, 159 414, 160 426"
+          stroke-width="5.23"/>
+
+    <!-- RIGHT: irregular and slightly leaning -->
+    <path d="M919 89
+             C921 103, 920 118, 921 133
+             C923 145, 921 157, 922 169"
+          stroke-width="5.15"/>
+    <path d="M922 205
+             C923 220, 921 235, 922 250
+             C921 261, 924 272, 923 283"
+          stroke-width="5.69"/>
+    <path d="M923 320
+             C925 335, 923 349, 924 362
+             C924 375, 925 389, 924 402"
+          stroke-width="5.07"/>
+    <path d="M923 425
+             C923 432, 922 440, 922 446"
+          stroke-width="5.85"/>
+
+    <!-- BOTTOM: noticeably more imperfect than geometric -->
+    <path d="M205 445
+             C219 447, 234 445, 248 446
+             C262 445, 274 446, 289 445"
+          stroke-width="5.46"/>
+    <path d="M326 445
+             C340 444, 354 446, 368 445
+             C381 446, 395 444, 409 445"
+          stroke-width="4.91"/>
+    <path d="M449 445
+             C463 446, 476 444, 491 445
+             C505 445, 518 447, 532 445"
+          stroke-width="5.85"/>
+    <path d="M571 445
+             C586 443, 600 446, 614 445
+             C629 446, 643 444, 658 445"
+          stroke-width="5.15"/>
+    <path d="M698 445
+             C712 446, 726 444, 740 445
+             C754 446, 769 444, 781 445"
+          stroke-width="5.62"/>
+    <path d="M819 445
+             C836 443, 852 445, 870 444"
+          stroke-width="5.07"/>
+
+    <!-- slight overdraw / sketch ghost lines -->
+    <path d="M185 82 C218 79, 249 78, 287 77" stroke-width="1.17" opacity=".32"/>
+    <path d="M160 126 C157 153, 158 181, 157 204" stroke-width="1.01" opacity=".25"/>
+    <path d="M923 90 C925 119, 923 145, 925 169" stroke-width="1.09" opacity=".28"/>
+    <path d="M205 448 C233 449, 261 447, 289 448" stroke-width="1.17" opacity=".30"/>
+  </g>
+
+  <!-- dots/smudges; deliberately non-uniform -->
+  <g fill="#2b2926">
+    <circle cx="171" cy="78" r="3.3"/>
+    <circle cx="304" cy="73" r="2.6"/>
+    <circle cx="427" cy="67" r="3.2"/>
+    <circle cx="545" cy="62" r="2.2"/>
+    <circle cx="675" cy="57" r="3.0"/>
+    <circle cx="800" cy="52" r="2.7"/>
+
+    <circle cx="160" cy="220" r="2.8"/>
+    <circle cx="159" cy="337" r="3.2"/>
+    <circle cx="922" cy="188" r="2.5"/>
+    <circle cx="923" cy="301" r="3.1"/>
+    <circle cx="923" cy="414" r="2.4"/>
+
+    <ellipse cx="307" cy="445" rx="3.4" ry="2.5" transform="rotate(-8 307 445)"/>
+    <ellipse cx="428" cy="445" rx="2.5" ry="3.0" transform="rotate(12 428 445)"/>
+    <ellipse cx="550" cy="445" rx="3.2" ry="2.3" transform="rotate(-10 550 445)"/>
+    <ellipse cx="680" cy="445" rx="2.6" ry="3.1" transform="rotate(8 680 445)"/>
+    <ellipse cx="801" cy="445" rx="3.1" ry="2.2" transform="rotate(-5 801 445)"/>
+  </g>
+</svg>

@@ -14,31 +14,31 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem("lenscoach_token"));
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem("HoneSight_token"));
   const [user, setUser] = useState<User | null>(() => {
-    const raw = localStorage.getItem("lenscoach_user");
+    const raw = localStorage.getItem("HoneSight_user");
     return raw ? (JSON.parse(raw) as User) : null;
   });
 
   async function login(email: string, password: string) {
     const data = await loginApi({ email, password });
-    localStorage.setItem("lenscoach_token", data.access_token);
-    localStorage.setItem("lenscoach_user", JSON.stringify(data.user));
+    localStorage.setItem("HoneSight_token", data.access_token);
+    localStorage.setItem("HoneSight_user", JSON.stringify(data.user));
     setToken(data.access_token);
     setUser(data.user);
   }
 
   function logout() {
-    localStorage.removeItem("lenscoach_token");
-    localStorage.removeItem("lenscoach_user");
+    localStorage.removeItem("HoneSight_token");
+    localStorage.removeItem("HoneSight_user");
     setToken(null);
     setUser(null);
   }
 
   async function refreshMe() {
-    if (!localStorage.getItem("lenscoach_token")) return;
+    if (!localStorage.getItem("HoneSight_token")) return;
     const current = await getMe();
-    localStorage.setItem("lenscoach_user", JSON.stringify(current));
+    localStorage.setItem("HoneSight_user", JSON.stringify(current));
     setUser(current);
   }
 

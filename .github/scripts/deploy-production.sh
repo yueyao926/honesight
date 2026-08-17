@@ -7,7 +7,7 @@ if [[ ! "$release_sha" =~ ^[0-9a-f]{40}$ ]]; then
   exit 2
 fi
 
-app_dir="$HOME/lenscoach"
+app_dir="$HOME/HoneSight"
 release_dir="$app_dir/releases/$release_sha"
 compose_file="$release_dir/docker-compose.prod.yml"
 env_file="$app_dir/.env"
@@ -18,21 +18,21 @@ sha256sum --check SHA256SUMS
 test -s "$env_file"
 chmod 600 "$env_file"
 
-previous_backend="$(sudo -n docker inspect --format '{{.Image}}' lenscoach-backend-1 2>/dev/null || true)"
-previous_frontend="$(sudo -n docker inspect --format '{{.Image}}' lenscoach-frontend-1 2>/dev/null || true)"
+previous_backend="$(sudo -n docker inspect --format '{{.Image}}' HoneSight-backend-1 2>/dev/null || true)"
+previous_frontend="$(sudo -n docker inspect --format '{{.Image}}' HoneSight-frontend-1 2>/dev/null || true)"
 
 if [[ -n "$previous_backend" ]]; then
-  sudo -n docker tag "$previous_backend" "lenscoach-backend:$rollback_tag"
+  sudo -n docker tag "$previous_backend" "HoneSight-backend:$rollback_tag"
 fi
 if [[ -n "$previous_frontend" ]]; then
-  sudo -n docker tag "$previous_frontend" "lenscoach-frontend:$rollback_tag"
+  sudo -n docker tag "$previous_frontend" "HoneSight-frontend:$rollback_tag"
 fi
 
-gzip --decompress --stdout lenscoach-images.tar.gz | sudo -n docker load
+gzip --decompress --stdout HoneSight-images.tar.gz | sudo -n docker load
 
 compose() {
   sudo -n env IMAGE_TAG="$1" PORT=80 docker compose \
-    --project-name lenscoach \
+    --project-name HoneSight \
     --env-file "$env_file" \
     --file "$compose_file" \
     "${@:2}"
@@ -56,7 +56,7 @@ fi
 
 healthy=0
 for _ in $(seq 1 90); do
-  backend_health="$(sudo -n docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' lenscoach-backend-1 2>/dev/null || true)"
+  backend_health="$(sudo -n docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' HoneSight-backend-1 2>/dev/null || true)"
   if [[ "$backend_health" == "healthy" ]] && curl --fail --silent --show-error http://127.0.0.1/health >/dev/null; then
     healthy=1
     break

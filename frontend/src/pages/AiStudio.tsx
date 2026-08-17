@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useRef, useState } from "react";
+﻿import { FormEvent, useEffect, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
 import { startPreviewAnalysis, waitForAnalysisJob } from "../api/analyze";
 import { getAssetUrl } from "../api/client";
@@ -15,6 +15,8 @@ import {
 import PhotoUpload from "../components/PhotoUpload";
 import StyleReferenceUpload from "../components/StyleReferenceUpload";
 import type { PhotoAnalysis, PhotoTag, PortfolioCollection } from "../types";
+import misc27Svg from "../SVG/misc-27.svg?url";
+import misc47Svg from "../SVG/misc-47.svg?url";
 
 const targetStyles = [
   "清新自然",
@@ -94,7 +96,16 @@ function StepSection({
   return (
     <section ref={sectionRef} className={`studio-step studio-step-${state}`}>
       <div className="studio-step-rail" aria-label={`步骤 ${number}：${title}`}>
-        <span className="studio-step-number">{number}</span>
+        <span className="studio-step-marker">
+          <img
+            src={state === "active" ? misc47Svg : misc27Svg}
+            alt=""
+            aria-hidden
+            className="studio-step-marker-bg"
+            draggable={false}
+          />
+          <span className="studio-step-marker-label">{number}</span>
+        </span>
         <span className="studio-step-label">{title}</span>
       </div>
       <div className="min-w-0">{children}</div>
@@ -453,13 +464,13 @@ export default function AiStudio() {
               </div>
 
               {loading && (
-                <div className="mt-5 flex items-center gap-3 rounded-2xl bg-blush/35 px-4 py-3 text-sm text-brand-deep" role="status">
+                <div className="mt-5 flex items-center gap-3 rounded-2xl bg-blush/35 px-4 py-3 text-sm text-ink" role="status">
                   <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-brand border-t-transparent" />
                   <span>{analysisStage}</span>
-                  <span className="ml-auto text-xs text-brand-deep/70">可以留在当前页面等待</span>
+                  <span className="ml-auto text-xs text-ink/70">可以留在当前页面等待</span>
                 </div>
               )}
-              {error && step === 2 && <p className="mt-4 text-sm text-red-500">{error}</p>}
+              {error && step === 2 && <p className="mt-4 text-sm text-ink">{error}</p>}
             </div>
           ) : (
             <div className="studio-step-placeholder">上传照片后，这里会自动展开。</div>
@@ -486,7 +497,7 @@ export default function AiStudio() {
                       <div key={gen.imageUrl} className={`${isExpanded && gen.editingStrategy ? "flex w-full flex-col gap-4 md:flex-row" : "w-72"}`}>
                         {isExpanded && gen.editingStrategy && (
                           <div className="flex-1 rounded-2xl bg-white/80 p-5 text-sm leading-7 text-ink md:order-first">
-                            <p className="mb-2 text-xs font-medium text-brand-deep">AI 修图思路</p>
+                            <p className="mb-2 text-xs font-medium text-ink">AI 修图思路</p>
                             <div className="max-h-80 overflow-y-auto whitespace-pre-line">{gen.editingStrategy}</div>
                           </div>
                         )}
@@ -585,7 +596,7 @@ export default function AiStudio() {
                 </div>
                 <button className="btn-ghost mt-5" type="button" onClick={handleAnotherPhoto}>再来一张</button>
               </div>
-              {error && step === 3 && <p className="text-sm text-red-500">{error}</p>}
+              {error && step === 3 && <p className="text-sm text-ink">{error}</p>}
             </div>
           ) : (
             <div className="studio-step-placeholder">完成设置并开始分析后，结果会出现在这里。</div>
@@ -630,7 +641,7 @@ export default function AiStudio() {
                 />
               </div>
             )}
-            {saveError && <p className="text-sm text-red-500">{saveError}</p>}
+            {saveError && <p className="text-sm text-ink">{saveError}</p>}
             <div className="flex gap-3">
               <button className="btn-primary" type="submit" disabled={saving}>{saving ? "保存中..." : "确认保存"}</button>
               <button className="btn-secondary" type="button" onClick={closeSaveDialog} disabled={saving}>取消</button>

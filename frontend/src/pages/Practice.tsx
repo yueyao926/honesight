@@ -1,5 +1,4 @@
-import { FormEvent, useEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
+﻿import { FormEvent, useEffect, useRef, useState } from "react";
 import { getAssetUrl } from "../api/client";
 import {
   completePracticeSession,
@@ -12,10 +11,16 @@ import {
   type StartPracticePayload,
 } from "../api/practice";
 import PhotoUpload from "../components/PhotoUpload";
+import PracticeChoiceButton from "../components/practice/PracticeChoiceButton";
 import PracticeDrawnCard from "../components/practice/PracticeDrawnCard";
+import PracticeDrawnNote from "../components/practice/PracticeDrawnNote";
+import PracticeDrawnPanel from "../components/practice/PracticeDrawnPanel";
 import PracticeModeToggle from "../components/practice/PracticeModeToggle";
 import InteractiveCameraPerson from "../components/practice/InteractiveCameraPerson";
 import standingCharacterSvg from "../SVG/standing-3.svg?url";
+import misc27Svg from "../SVG/misc-27.svg?url";
+import cameraSvg from "../SVG/相机.svg?url";
+import practiceTaskBg from "../SVG/黑色底1.svg?url";
 import type { PracticeOverview, PracticeProgress, PracticeSession } from "../types";
 
 const TARGETS = ["构图", "光线", "清晰度", "色彩", "不确定"] as const;
@@ -35,30 +40,17 @@ const DIFFICULTY_CONFIRMATIONS: Record<DifficultyValue, string> = {
   too_hard: "已记录：太难。已为你准备 10 分钟简化版。",
 };
 
-function ChoiceButton({ selected, children, onClick }: { selected: boolean; children: ReactNode; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={selected}
-      onClick={onClick}
-      className={`min-h-11 rounded-full border px-4 text-sm transition ${
-        selected ? "border-brand bg-brand text-white" : "border-sand bg-white/70 text-ink hover:border-brand/60"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
 function PracticeStarter({
   replacing,
   loading,
   loadingText,
+  error,
   onStart,
 }: {
   replacing: boolean;
   loading: boolean;
   loadingText: string;
+  error?: string;
   onStart: (payload: StartPracticePayload) => Promise<void>;
 }) {
   const [mode, setMode] = useState<"improve" | "category">("improve");
@@ -105,11 +97,11 @@ function PracticeStarter({
             </div>
             <fieldset className="mt-7">
               <legend className="text-sm font-medium">这次最想改善什么？</legend>
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="home-drawn-btn-group mt-3">
                 {TARGETS.map((item) => (
-                  <ChoiceButton key={item} selected={target === item} onClick={() => setTarget(item)}>
+                  <PracticeChoiceButton key={item} selected={target === item} onClick={() => setTarget(item)}>
                     {item === "不确定" ? "不确定，帮我判断" : item}
-                  </ChoiceButton>
+                  </PracticeChoiceButton>
                 ))}
               </div>
             </fieldset>
@@ -128,8 +120,8 @@ function PracticeStarter({
                     type="button"
                     aria-pressed={category === item}
                     onClick={() => setCategory(item)}
-                    className={`rounded-3xl border p-6 text-left transition ${
-                      category === item ? "border-brand bg-blush/70 shadow-card" : "border-sand bg-white/55 hover:border-brand/60"
+                    className={`rounded-3xl border border-ink p-6 text-left transition ${
+                      category === item ? "bg-blush/70 shadow-card" : "bg-white/55 hover:bg-white/80"
                     }`}
                   >
                     <span className="text-xs text-muted">分类练习</span>
@@ -140,19 +132,31 @@ function PracticeStarter({
             </fieldset>
           </>
         )}
-        <button className="btn-primary mt-7 min-w-40" type="submit" disabled={loading || (mode === "improve" && !sourceImage)}>
+        <button className="btn-primary btn-primary--ink mt-7 min-w-40" type="submit" disabled={loading || (mode === "improve" && !sourceImage)}>
           {loading ? loadingText : replacing ? "换成这个重点" : "生成本周任务"}
         </button>
+        {error && (
+          <p className="mt-4 text-sm text-[#b42318]" role="alert">
+            {error}
+          </p>
+        )}
       </PracticeDrawnCard>
     </section>
   );
 }
 
-function CycleProgress({ week }: { week: number }) {
+function CycleProgress({ week, onDark = false }: { week: number; onDark?: boolean }) {
   return (
     <div className="flex items-center gap-2" aria-label={`四周周期，第 ${week} 周`}>
       {[1, 2, 3, 4].map((item) => (
-        <span key={item} className={`h-2 rounded-full transition ${item <= week ? "w-7 bg-accent" : "w-4 bg-sand"}`} />
+        <span
+          key={item}
+          className={`h-2.5 rounded-full transition ${
+            item <= week
+              ? onDark ? "w-8 bg-white" : "w-7 bg-accent"
+              : onDark ? "w-4 bg-white/35" : "w-4 bg-sand"
+          }`}
+        />
       ))}
     </div>
   );
@@ -202,7 +206,7 @@ function SubmissionForm({ onSubmit, loading, loadingText }: {
           placeholder="例如：我让人物离背景更远了"
         />
       </label>
-      <button className="btn-primary mt-5" type="submit" disabled={loading || !images.some(Boolean)}>
+      <button className="btn-primary btn-primary--ink mt-5" type="submit" disabled={loading || !images.some(Boolean)}>
         {loading ? loadingText : "提交练习"}
       </button>
     </form>
@@ -226,33 +230,43 @@ function TaskView({ session, onChange, onSubmit, submitting, submittingText }: {
 
   return (
     <>
-      <section className="overflow-hidden rounded-[2rem] bg-ink text-white shadow-soft md:rounded-[2.5rem]">
-        <div className="grid md:grid-cols-[1fr_16rem]">
+      <section className="practice-task-hero text-white">
+        <img
+          src={practiceTaskBg}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          className="practice-task-hero-bg"
+        />
+        <div className="practice-task-hero-content grid md:grid-cols-[1fr_16rem]">
           <div className="p-6 sm:p-9 lg:p-11">
-            <div className="flex flex-wrap items-center gap-3 text-xs text-white/60">
+            <div className="practice-task-hero-meta flex flex-wrap items-center gap-3">
               <span>本周练习</span><span>·</span><span>{session.category}</span><span>·</span><span>{session.time_minutes}分钟</span><span>·</span><span>L{session.level}</span>
             </div>
-            <h2 className="mt-4 font-display text-4xl font-semibold sm:text-5xl">{session.title}</h2>
-            <p className="mt-4 max-w-xl text-sm leading-7 text-white/70">{session.brief}</p>
+            <h2 className="practice-task-hero-title font-display font-semibold">{session.title}</h2>
+            <p className="practice-task-hero-brief">{session.brief}</p>
             <div className="mt-7 flex flex-wrap items-center gap-4">
-              <CycleProgress week={session.cycle_week} />
-              <span className="text-xs text-white/55">第{session.cycle_week}周 · {session.cycle_label}</span>
+              <CycleProgress week={session.cycle_week} onDark />
+              <span className="practice-task-hero-cycle-label">第{session.cycle_week}周 · {session.cycle_label}</span>
             </div>
           </div>
-          <div className="flex min-h-48 items-end bg-sand/20 p-6 sm:p-8">
+          <div className={session.source_image_url ? "flex min-h-48 items-end p-6 sm:p-8" : "practice-task-hero-aside"}>
             {session.source_image_url ? (
               <img className="h-44 w-full rounded-2xl object-cover ring-1 ring-white/20" src={getAssetUrl(session.source_image_url)} alt="本周目标原图" />
             ) : (
-              <p className="font-display text-2xl font-semibold leading-relaxed text-white/70">光会路过，记得按下快门。</p>
+              <>
+                <img src={cameraSvg} alt="" aria-hidden className="practice-task-hero-camera" draggable={false} />
+                <p className="practice-task-hero-quote">光会路过，记得按下快门。</p>
+              </>
             )}
           </div>
         </div>
       </section>
 
-      <div className="mt-4 flex gap-3 rounded-2xl border border-sand bg-white/55 px-5 py-4 text-sm leading-6">
+      <PracticeDrawnNote>
         <span className="shrink-0 font-medium text-ink">推荐依据</span>
         <p className="text-muted">{session.recommendation_basis}</p>
-      </div>
+      </PracticeDrawnNote>
 
       {session.photo_analysis && (
         <details className="mt-4 rounded-2xl border border-sand bg-white/55 px-5 py-4 text-sm">
@@ -265,26 +279,29 @@ function TaskView({ session, onChange, onSubmit, submitting, submittingText }: {
         </details>
       )}
 
-      <section className="mt-6 grid gap-4 lg:grid-cols-[0.75fr_1.25fr]">
-        <div className="card-soft">
+      <section className="practice-drawn-panels mt-6">
+        <PracticeDrawnPanel border="box-5">
           <p className="section-eyebrow">目标</p>
           <h3 className="mt-3 font-display text-2xl font-semibold leading-tight">{session.coach_note}</h3>
           <p className="mt-3 text-sm leading-7 text-muted">本周重点：{session.skill_focus}</p>
-        </div>
-        <div className="card">
+        </PracticeDrawnPanel>
+        <PracticeDrawnPanel border="vector-7">
           <p className="section-eyebrow">拍摄建议</p>
-          <ol className="mt-5 space-y-4">
+          <ol className="mt-4 space-y-3">
             {session.steps.slice(0, 3).map((step, index) => (
               <li key={step} className="flex items-start gap-4">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blush text-xs font-medium text-brand-deep">{index + 1}</span>
+                <span className="practice-step-marker shrink-0">
+                  <img src={misc27Svg} alt="" aria-hidden className="practice-step-marker-bg" draggable={false} />
+                  <span className="practice-step-marker-label">{index + 1}</span>
+                </span>
                 <span className="pt-1 text-sm leading-6">{step}</span>
               </li>
             ))}
           </ol>
-        </div>
+        </PracticeDrawnPanel>
       </section>
 
-      <section className="mt-4 rounded-3xl border border-sand bg-white/55 p-5 sm:flex sm:items-center sm:justify-between sm:p-6">
+      <section className="practice-completion rounded-3xl border border-sand bg-white/55 p-5 sm:flex sm:items-center sm:justify-between sm:p-6">
         <div>
           <p className="text-xs text-muted">完成标准</p>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -292,14 +309,14 @@ function TaskView({ session, onChange, onSubmit, submitting, submittingText }: {
           </div>
         </div>
         <details className="mt-4 text-sm sm:mt-0 sm:text-right">
-          <summary className="cursor-pointer text-brand-deep">想加点难度？</summary>
+          <summary className="cursor-pointer text-ink">想加点难度？</summary>
           <p className="mt-2 max-w-md text-muted">{session.optional_challenge}</p>
         </details>
       </section>
 
       {!started && (
         <div className="mt-6 flex flex-wrap items-center gap-3">
-          <button type="button" className="btn-primary min-w-40" onClick={start}>开始练习</button>
+          <button type="button" className="btn-primary btn-primary--ink min-w-40" onClick={start}>开始练习</button>
           <button type="button" className="btn-ghost" onClick={onChange}>换个重点</button>
         </div>
       )}
@@ -382,8 +399,8 @@ function FeedbackView({ session, onRate, onComplete, onSubmit, working, workingT
           <p className="mt-2 text-sm text-muted">每一轮都继续练「{session.skill_focus}」。</p>
         </div>
         <div className="mt-5 flex flex-wrap gap-3 sm:ml-6 sm:mt-0">
-          {canRetry && <button type="button" className="btn-primary" disabled={working} onClick={() => setRetrying(true)}>再练一轮</button>}
-          {!completed && <button type="button" className={canRetry ? "btn-secondary" : "btn-primary"} disabled={working} onClick={() => void onComplete()}>完成本周</button>}
+          {canRetry && <button type="button" className="btn-primary btn-primary--ink" disabled={working} onClick={() => setRetrying(true)}>再练一轮</button>}
+          {!completed && <button type="button" className={canRetry ? "btn-secondary" : "btn-primary btn-primary--ink"} disabled={working} onClick={() => void onComplete()}>完成本周</button>}
         </div>
       </section>
 
@@ -571,14 +588,22 @@ export default function Practice() {
     <main className="handwriting-page container-page max-w-5xl">
       <header className="relative mb-4 animate-fade-up md:pr-[clamp(7.5rem,17vw,11rem)]">
         <div className="min-w-0">
-          <p className="section-eyebrow">LensCoach</p>
+          <p className="section-eyebrow">HoneSight</p>
           <h1 className="page-title mt-2">每周一练</h1>
           <p className="mt-2 text-base text-muted">慢慢拍，也是在慢慢看见。</p>
         </div>
-        <InteractiveCameraPerson className="interactive-camera-person--practice-header absolute top-0 hidden shrink-0 md:block" />
+        <InteractiveCameraPerson className="interactive-camera-person--practice-header absolute hidden shrink-0 md:block" />
       </header>
 
-      {(!session || changing) && <PracticeStarter replacing={Boolean(session)} loading={working} loadingText={workingText} onStart={start} />}
+      {(!session || changing) && (
+        <PracticeStarter
+          replacing={Boolean(session)}
+          loading={working}
+          loadingText={workingText}
+          error={error}
+          onStart={start}
+        />
+      )}
       {session && !changing && session.attempts.length === 0 && (
         <TaskView session={session} onChange={() => setChanging(true)} onSubmit={submit} submitting={working} submittingText={workingText} />
       )}
@@ -586,7 +611,11 @@ export default function Practice() {
         <FeedbackView session={session} onRate={rate} onComplete={complete} onSubmit={submit} working={working} workingText={workingText} />
       )}
 
-      {error && <p className="mt-5 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+      {error && session && !changing && (
+        <p className="mt-5 rounded-2xl bg-red-50 px-4 py-3 text-sm text-[#b42318]" role="alert">
+          {error}
+        </p>
+      )}
       <GrowthSummary progress={overview?.progress || []} history={overview?.history || []} />
     </main>
   );

@@ -1,4 +1,4 @@
-import { ChangeEvent, useEffect, useRef, useState } from "react";
+﻿import { ChangeEvent, useEffect, useRef, useState } from "react";
 import {
   encodeCanvasWithinLimit,
   MAX_AVATAR_UPLOAD_BYTES,
@@ -132,7 +132,7 @@ export default function AvatarUploader({ onSave, onReset, onClose }: Props) {
             </label>
           </>
         )}
-        {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
+        {error && <p className="mt-4 text-sm text-ink">{error}</p>}
         <div className="mt-6 flex flex-wrap gap-3">
           <button className="btn-primary" disabled={!src || busy} onClick={crop}>
             {busy ? "正在上传…" : "裁剪并保存"}

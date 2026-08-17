@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createMyPreferences } from "../api/preferences";
 import PreferenceForm from "../components/PreferenceForm";
@@ -25,7 +25,7 @@ export default function Onboarding() {
             }}
           />
         </div>
-        {error && <p className="mt-4 text-sm text-red-500">{error}</p>}
+        {error && <p className="mt-4 text-sm text-ink">{error}</p>}
       </div>
     </main>
   );

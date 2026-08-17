@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { NavLink, Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { getAssetUrl } from "../api/client";
@@ -46,7 +46,7 @@ export default function Layout() {
         <nav className="container-page relative flex items-center justify-center !py-4 md:!py-5" aria-label="主导航">
           <div className="hidden items-center justify-center gap-1 md:flex lg:gap-2">
             <Link to="/" className="home-logo-type mr-2 text-[1.75rem] leading-none text-ink lg:mr-4 lg:text-[2rem]">
-              LENSCOACH
+              HoneSight
             </Link>
             {isAuthenticated && authenticatedNavItems.map((item) => (
               <NavLink key={item.to} to={item.to} className={navClass}>{item.label}</NavLink>
@@ -57,14 +57,14 @@ export default function Layout() {
                 <Link to="/register" className="btn-primary ml-1 py-2 text-xs md:text-sm">注册</Link>
               </>
             ) : (
-              <Link className="ml-1 flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-blush text-sm font-medium text-brand-deep" to="/profile" aria-label="个人主页">
+              <Link className="ml-1 flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-blush text-sm font-medium text-ink" to="/profile" aria-label="个人主页">
                 {user?.avatar_url ? <img className="h-full w-full object-cover" src={getAssetUrl(user.avatar_url)} alt="" /> : user?.username?.slice(0, 1).toUpperCase()}
               </Link>
             )}
           </div>
 
           <Link to="/" className="home-logo-type text-[1.75rem] leading-none text-ink md:hidden">
-            LENSCOACH
+            HoneSight
           </Link>
 
           <button
@@ -91,7 +91,7 @@ export default function Layout() {
             {isAuthenticated ? (
               <>
                 <div className="mb-4 flex items-center gap-3 rounded-2xl bg-white/70 p-3">
-                  <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-blush font-medium text-brand-deep">
+                  <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-blush font-medium text-ink">
                     {user?.avatar_url ? <img className="h-full w-full object-cover" src={getAssetUrl(user.avatar_url)} alt="" /> : user?.username?.slice(0, 1).toUpperCase()}
                   </span>
                   <div className="min-w-0">
@@ -130,7 +130,7 @@ export default function Layout() {
       <footer className="border-t border-sand/50 px-4 py-7 text-center text-sm text-muted">
         <a
           className="transition hover:text-ink hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose/50"
-          href="https://github.com/yueyao926/lenscoach/issues/new"
+          href="https://github.com/yueyao926/HoneSight/issues/new"
           target="_blank"
           rel="noreferrer"
         >

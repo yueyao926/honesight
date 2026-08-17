@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { favoriteInspiration, getDailyInspirations, unfavoriteInspiration } from "../api/inspirations";
 import { getAssetUrl } from "../api/client";
@@ -203,7 +203,7 @@ export default function DailyInspirationSection({ embedded = false }: { embedded
           </div>
           <div className="hidden items-end gap-5 sm:flex">
             <p className="text-xs tracking-widest text-muted">{String(index + 1).padStart(2, "0")} / {String(items.length).padStart(2, "0")}</p>
-            <Link to="/community" className="text-sm font-medium text-brand-deep transition hover:text-ink">发现更多作品 →</Link>
+            <Link to="/community" className="text-sm font-medium text-ink transition hover:opacity-80">发现更多作品 →</Link>
           </div>
         </div>
 
@@ -267,7 +267,7 @@ export default function DailyInspirationSection({ embedded = false }: { embedded
         </div>
 
         <div className="mt-5 flex items-center justify-between sm:justify-center">
-          <Link to="/community" className="text-sm font-medium text-brand-deep sm:hidden">发现更多作品 →</Link>
+          <Link to="/community" className="text-sm font-medium text-ink sm:hidden">发现更多作品 →</Link>
           <div className="flex items-center gap-4">
             {items.map((item, itemIndex) => {
               const isActive = itemIndex === index;
@@ -329,7 +329,7 @@ export default function DailyInspirationSection({ embedded = false }: { embedded
 function Analysis({ title, text }: { title: string; text: string }) {
   return (
     <div className="mt-6 border-t border-sand pt-4">
-      <h4 className="text-xs font-medium uppercase tracking-widest text-brand-deep">{title}</h4>
+      <h4 className="text-xs font-medium uppercase tracking-widest text-ink">{title}</h4>
       <p className="mt-2 text-sm leading-7 text-muted">{text}</p>
     </div>
   );

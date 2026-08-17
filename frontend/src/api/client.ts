@@ -49,7 +49,7 @@ export function getAssetUrl(path: string) {
 }
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem("lenscoach_token");
+  const token = localStorage.getItem("HoneSight_token");
   const headers = new Headers(options.headers);
   if (!(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
@@ -67,8 +67,8 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   });
 
   if (response.status === 401) {
-    localStorage.removeItem("lenscoach_token");
-    localStorage.removeItem("lenscoach_user");
+    localStorage.removeItem("HoneSight_token");
+    localStorage.removeItem("HoneSight_user");
     window.location.href = "/login";
     throw new Error("登录已过期，请重新登录");
   }

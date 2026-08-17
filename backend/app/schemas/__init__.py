@@ -1,1 +1,1 @@
-"""Pydantic schemas for LensCoach."""
+"""Pydantic schemas for HoneSight."""

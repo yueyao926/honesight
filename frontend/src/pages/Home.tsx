@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+﻿import { Link } from "react-router-dom";
 import DailyInspirationSection from "../components/DailyInspirationSection";
 import HomeFeatureIcons from "../components/home/HomeFeatureIcons";
 import HomeFilmLanyard from "../components/home/HomeFilmLanyard";
@@ -59,10 +59,10 @@ function ProductJourney() {
             className="card group relative flex min-h-64 w-[82vw] shrink-0 snap-center flex-col overflow-hidden !p-5 transition duration-300 hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose/50 sm:w-[22rem] md:w-auto md:!p-6 lg:!p-8"
           >
             <div className={`absolute -right-10 -top-10 h-32 w-32 rounded-full ${item.accent} blur-2xl transition group-hover:scale-125`} />
-            <span className="relative font-display text-4xl font-semibold text-brand/35">{item.number}</span>
+            <span className="relative font-display text-4xl font-semibold text-ink/35">{item.number}</span>
             <h3 className="relative mt-auto pt-10 font-display text-2xl font-semibold">{item.title}</h3>
             <p className="relative mt-3 text-sm leading-7 text-muted">{item.description}</p>
-            <span className="relative mt-5 flex items-center justify-between text-sm font-medium text-brand-deep">
+            <span className="relative mt-5 flex items-center justify-between text-sm font-medium text-ink">
               体验这一步 <span aria-hidden="true" className="transition group-hover:translate-x-1">→</span>
             </span>
           </Link>

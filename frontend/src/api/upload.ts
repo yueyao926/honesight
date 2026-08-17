@@ -35,14 +35,14 @@ function uploadRequest(
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
     request.open("POST", `${getApiBaseUrl()}/upload/image`);
-    const token = localStorage.getItem("lenscoach_token");
+    const token = localStorage.getItem("HoneSight_token");
     if (token) request.setRequestHeader("Authorization", `Bearer ${token}`);
     request.upload.onload = () => onStage?.("processing");
     request.onerror = () => reject(new Error("图片上传失败，请检查网络后重试"));
     request.onload = () => {
       if (request.status === 401) {
-        localStorage.removeItem("lenscoach_token");
-        localStorage.removeItem("lenscoach_user");
+        localStorage.removeItem("HoneSight_token");
+        localStorage.removeItem("HoneSight_user");
         window.location.href = "/login";
         reject(new Error("登录已过期，请重新登录"));
         return;

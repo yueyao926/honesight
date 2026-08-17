@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+﻿import { FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getAssetUrl } from "../api/client";
 import { createPortfolio, listPortfolio } from "../api/portfolio";
@@ -67,7 +67,7 @@ export default function Portfolio() {
         </form>
       )}
 
-      {error && <p className="mt-5 text-sm text-red-500">{error}</p>}
+      {error && <p className="mt-5 text-sm text-ink">{error}</p>}
 
       {collections.length === 0 ? (
         <div className="card mt-10 text-center">

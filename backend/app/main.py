@@ -28,7 +28,7 @@ async def lifespan(_app: FastAPI):
         close_vision_http_client()
 
 
-app = FastAPI(title="LensCoach API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="HoneSight API", version="0.1.0", lifespan=lifespan)
 
 @app.exception_handler(VisionAnalysisError)
 async def handle_vision_analysis_error(_request: Request, exc: VisionAnalysisError) -> JSONResponse:

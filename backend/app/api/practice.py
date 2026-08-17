@@ -27,6 +27,7 @@ from app.schemas.practice import (
     PracticeSessionRead,
 )
 from app.services.practice_analyzer import analyze_practice_context_cached
+from app.services.vision_analyzer import VisionAnalysisError
 from app.services.practice_coach import (
     analyze_practice_source,
     build_attempt_feedback,
@@ -436,6 +437,9 @@ def _run_practice_attempt_job(job_id: str) -> None:
             db.commit()
         except HTTPException as exc:
             _fail_practice_job(db, job, str(exc.detail))
+        except VisionAnalysisError as exc:
+            logger.warning("practice attempt job vision failed job_id=%s: %s", job_id, exc)
+            _fail_practice_job(db, job, str(exc))
         except Exception:
             logger.exception("practice attempt job failed job_id=%s", job_id)
             _fail_practice_job(db, job, "练习反馈暂时生成失败，请稍后重试")
@@ -465,6 +469,9 @@ def _run_practice_session_job(job_id: str) -> None:
             db.commit()
         except HTTPException as exc:
             _fail_practice_job(db, job, str(exc.detail))
+        except VisionAnalysisError as exc:
+            logger.warning("practice session job vision failed job_id=%s: %s", job_id, exc)
+            _fail_practice_job(db, job, str(exc))
         except Exception:
             logger.exception("practice session job failed job_id=%s", job_id)
             _fail_practice_job(db, job, "本周任务暂时生成失败，请稍后重试")

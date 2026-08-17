@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+﻿import { useRef, useState } from "react";
 import { getAssetUrl } from "../api/client";
 import { uploadImage } from "../api/upload";
 import type { ImageUploadStage } from "../utils/imageUpload";
@@ -74,11 +74,11 @@ export default function StyleReferenceUpload({ value, onChange, maxFiles = 3 }: 
         {value.length < maxFiles && (
           <button
             type="button"
-            className="flex h-28 w-28 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-sand bg-white/50 text-xs text-muted transition hover:border-brand hover:text-brand-deep"
+            className="flex h-28 w-28 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-sand bg-white/50 text-xs text-muted transition hover:border-brand hover:text-ink"
             onClick={() => inputRef.current?.click()}
             disabled={Boolean(stage)}
           >
-            <span className="text-2xl font-light text-brand">+</span>
+            <span className="text-2xl font-light text-ink">+</span>
             <span className="mt-1">
               {stage ? `${statusText} ${progress.current}/${progress.total}` : "添加参考图"}
             </span>
@@ -94,7 +94,7 @@ export default function StyleReferenceUpload({ value, onChange, maxFiles = 3 }: 
         onChange={(event) => handleFiles(event.target.files)}
       />
       <p className="text-xs text-muted">最多 {maxFiles} 张，单张最大 10MB</p>
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="text-xs text-ink">{error}</p>}
     </div>
   );
 }

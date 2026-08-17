@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    database_url: str = Field(default="postgresql://postgres:password@localhost:5432/lenscoach", alias="DATABASE_URL")
+    database_url: str = Field(default="postgresql://postgres:password@localhost:5432/HoneSight", alias="DATABASE_URL")
     jwt_secret_key: str = Field(default="please-change-this", alias="JWT_SECRET_KEY")
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
     access_token_expire_minutes: int = Field(default=10080, alias="ACCESS_TOKEN_EXPIRE_MINUTES")
@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     ai_base_url: str = Field(default="https://ark.cn-beijing.volces.com/api/v3", alias="AI_BASE_URL")
     ai_model: str = Field(default="doubao-seed-1-6-vision-250815", alias="AI_MODEL")
     ai_practice_model: str = Field(default="", alias="AI_PRACTICE_MODEL")
+    ai_fast_model: str = Field(default="doubao-seed-2-0-lite-260215", alias="AI_FAST_MODEL")
+    ai_fast_timeout_seconds: int = Field(default=8, alias="AI_FAST_TIMEOUT_SECONDS")
     ai_timeout_seconds: int = Field(default=45, alias="AI_TIMEOUT_SECONDS")
     ai_public_api_base_url: str = Field(default="", alias="AI_PUBLIC_API_BASE_URL")
     analysis_cache_ttl_hours: int = Field(default=720, alias="ANALYSIS_CACHE_TTL_HOURS")
@@ -81,6 +83,10 @@ class Settings(BaseSettings):
     @property
     def resolved_ai_practice_model(self) -> str:
         return self.ai_practice_model or self.resolved_ai_model
+
+    @property
+    def resolved_ai_fast_model(self) -> str:
+        return self.ai_fast_model or self.resolved_ai_model
 
     @property
     def resolved_ai_public_api_base_url(self) -> str:
