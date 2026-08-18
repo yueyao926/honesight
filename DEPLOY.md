@@ -131,6 +131,16 @@ DATABASE_URL=postgresql://postgres:你的密码@localhost:5432/HoneSight
 # 必填 - 用下面的命令生成一个随机密钥
 JWT_SECRET_KEY=你生成的随机密钥
 
+# 会话默认值：访问令牌 15 分钟，关闭浏览器后最多保持登录 14 天
+ACCESS_TOKEN_EXPIRE_MINUTES=15
+REFRESH_TOKEN_EXPIRE_DAYS=14
+REFRESH_TOKEN_REUSE_GRACE_SECONDS=30
+SESSION_COOKIE_NAME=lenscoach_refresh
+# 配好 HTTPS 后必须设为 true；若当前只用 http://IP，暂时设为 false
+SESSION_COOKIE_SECURE=true
+SESSION_COOKIE_SAMESITE=lax
+SESSION_COOKIE_DOMAIN=
+
 # 前端端口
 PORT=80
 
@@ -140,11 +150,22 @@ CORS_ORIGINS=http://你的服务器IP或域名
 # AI 分析（可选，不填也能用 mock 模式）
 AI_API_KEY=
 ARK_API_KEY=
-# 留空时每周练习沿用主视觉模型
+# 快速首屏与每周练习使用；必须支持图片理解
+AI_FAST_MODEL=doubao-seed-2-0-lite-260215
+AI_FAST_TIMEOUT_SECONDS=8
+# 留空时每周练习沿用 AI_FAST_MODEL
 AI_PRACTICE_MODEL=
-# 建议填写 https://你的域名/api，避免将图片编码成 Base64 发送
+# 可选；只有确认 AI 服务商能从公网访问该地址时才填写，例如 https://你的域名/api
+# 留空会在 AI 请求中直接发送压缩后的图片，是默认且更稳妥的方式
 AI_PUBLIC_API_BASE_URL=
 ANALYSIS_CACHE_TTL_HOURS=720
+UPLOAD_CLEANUP_ENABLED=true
+UPLOAD_CLEANUP_INTERVAL_HOURS=12
+UPLOAD_CLEANUP_STARTUP_DELAY_SECONDS=30
+ANALYSIS_IMAGE_RETENTION_HOURS=72
+GENERATED_IMAGE_RETENTION_HOURS=168
+PRACTICE_IMAGE_RETENTION_DAYS=30
+ORPHAN_IMAGE_RETENTION_HOURS=72
 ```
 
 生成 JWT 密钥：

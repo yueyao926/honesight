@@ -116,18 +116,6 @@ export function DimensionCards({ analysis }: { analysis: PhotoAnalysis }) {
   );
 }
 
-export function StylePanel({ analysis }: { analysis: PhotoAnalysis }) {
-  return (
-    <div className="card">
-      <p className="section-eyebrow">风格判断</p>
-      <div className="mt-4">
-        <Metric label="当前风格" value={analysis.detected_style} small />
-      </div>
-      <p className="mt-4 text-sm leading-7 text-muted">{analysis.style_reasoning}</p>
-    </div>
-  );
-}
-
 export function AdvicePanel({ analysis }: { analysis: PhotoAnalysis }) {
   return (
     <details className="card group" open>

@@ -3,6 +3,7 @@ import {Link} from "react-router-dom";
 import {getFeed,type CommunityPost} from "../api/community";
 import {getUnreadCount} from "../api/messages";
 import PostCard from "../components/community/PostCard";
+import CommunityPublishButton from "../components/community/CommunityPublishButton";
 import UnreadMessageBadge from "../components/messages/UnreadMessageBadge";
 import {useAuth} from "../contexts/AuthContext";
 
@@ -21,10 +22,10 @@ export default function Community(){
     <header className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
       <div><p className="section-eyebrow">HoneSight Community</p><h1 className="page-title mt-2">看见作品，也看见成长</h1><p className="mt-3 text-muted">分享摄影作品、参数与后期思路，获得真实反馈。</p></div>
       <div className="flex flex-wrap gap-2">
-        <Link className="btn-secondary" to="/community/search">搜索</Link>
-        {isAuthenticated&&<Link className="btn-secondary" to="/community/messages">消息<UnreadMessageBadge count={unread}/></Link>}
-        {isAuthenticated&&<Link className="btn-secondary" to="/community/notifications">通知</Link>}
-        <Link className="btn-primary" to="/community/post/create">发布</Link>
+        <Link className="hand-drawn-outline-button" to="/community/search">搜索</Link>
+        {isAuthenticated&&<Link className="hand-drawn-outline-button" to="/community/messages">消息<UnreadMessageBadge count={unread}/></Link>}
+        {isAuthenticated&&<Link className="hand-drawn-outline-button" to="/community/notifications">通知</Link>}
+        <CommunityPublishButton />
       </div>
     </header>
     <nav className="my-8 flex gap-2 overflow-auto border-b border-sand pb-3">{[['recommended','推荐'],['following','关注'],['latest','最新'],['hot','热门']].map(([v,l])=><button key={v} className={kind===v?'rounded-full bg-brand px-5 py-2 text-sm text-white':'btn-ghost'} onClick={()=>setKind(v)}>{l}</button>)}</nav>

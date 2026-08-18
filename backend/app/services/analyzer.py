@@ -9,9 +9,12 @@ from app.models.portfolio import PortfolioItem
 from app.models.preference import Preference
 from app.services.benchmark import build_benchmark
 from app.services.mock_analyzer import build_mock_vision_result
-from app.services.platform_advisor import build_platform_suggestions
 from app.services.style_detector import detect_style
-from app.services.vision_analyzer import call_vision_model
+from app.services.vision_analyzer import (
+    call_analysis_details_model,
+    call_quick_vision_model,
+    call_vision_model,
+)
 from app.services.analysis_cache import build_analysis_cache_key, run_cached_analysis
 
 
@@ -46,20 +49,41 @@ def analyze_photo_context(
         )
         analysis_mode = "api"
 
-    photo_type = str(model_result.get("photo_type") or category or "general")
+    return _build_analysis_report(
+        model_result=model_result,
+        style=style,
+        platform=platform,
+        style_reference_urls=style_reference_urls,
+        analysis_mode=analysis_mode,
+        model_used=settings.resolved_ai_model if analysis_mode == "api" else "mock-analyzer-v1",
+        fallback_photo_type=category,
+        description=description,
+    )
+
+
+def _build_analysis_report(
+    *,
+    model_result: dict,
+    style: str,
+    platform: str,
+    style_reference_urls: list[str] | None,
+    analysis_mode: str,
+    model_used: str,
+    fallback_photo_type: str | None = None,
+    description: str | None = None,
+) -> dict:
+    photo_type = str(model_result.get("photo_type") or fallback_photo_type or "general")
     benchmark = build_benchmark(model_result, photo_type, style, platform, use_fallbacks=analysis_mode == "mock")
     style_result = detect_style(
         model_result,
         f"{style} {description or ''}",
         use_fallbacks=analysis_mode == "mock",
     )
-    if analysis_mode == "api":
-        raw_platform_suggestions = model_result.get("platform_suggestions")
-        platform_suggestions = raw_platform_suggestions if isinstance(raw_platform_suggestions, dict) else {}
-    else:
-        platform_suggestions = build_platform_suggestions(platform, style, model_result)
+    # Editing parameters and publishing advice are intentionally deferred to
+    # the background details request so they never block the core analysis.
+    platform_suggestions: dict = {}
     target_match = model_result.get("target_style_match") if isinstance(model_result.get("target_style_match"), dict) else {}
-    editing_params = model_result.get("editing_params") if isinstance(model_result.get("editing_params"), dict) else {}
+    editing_params: dict = {}
     expected_effect = model_result.get("expected_effect") if isinstance(model_result.get("expected_effect"), dict) else {}
     detail = benchmark["benchmark_detail"]
     weights = benchmark["weights"]
@@ -94,8 +118,6 @@ def analyze_photo_context(
             model_result.get("next_step")
             or "先完成一次基础裁切和调色，再继续向 AI 追问更具体参数。"
         )
-    settings = get_settings()
-
     return {
         "photo_type": benchmark["photo_type"],
         "detected_style": style_result["detected_style"],
@@ -133,7 +155,7 @@ def analyze_photo_context(
         "next_step": next_step,
         "raw_response": str(model_result.get("_raw_response") or "")[:12000],
         "analysis_mode": analysis_mode,
-        "model_used": settings.resolved_ai_model if analysis_mode == "api" else "mock-analyzer-v1",
+        "model_used": model_used,
     }
 
 
@@ -185,7 +207,7 @@ def analyze_photo_context_cached(
         db,
         user_id=user_id,
         cache_key=cache_key,
-        profile="full-v2",
+        profile="full-v3",
         model_used=settings.resolved_ai_model,
         analyze=lambda: analyze_photo_context(
             image_url=image_url,
@@ -214,7 +236,7 @@ def build_full_analysis_cache_key(
 ) -> str:
     settings = get_settings()
     return build_analysis_cache_key(
-        profile="full-v2",
+        profile="full-v3",
         image_url=image_url,
         user_id=user_id,
         preference=preference,
@@ -230,12 +252,171 @@ def build_full_analysis_cache_key(
     )
 
 
+def analyze_quick_context_cached(
+    *,
+    db: Session,
+    user_id: int,
+    image_url: str,
+    target_style: str | None,
+    target_platform: str | None,
+    category: str | None = None,
+) -> tuple[dict, bool]:
+    settings = get_settings()
+    style = target_style or "清新自然"
+    platform = target_platform or "作品集"
+    cache_key = build_quick_analysis_cache_key(
+        user_id=user_id,
+        image_url=image_url,
+        target_style=style,
+        target_platform=platform,
+        category=category,
+    )
+
+    def analyze() -> dict:
+        if settings.ai_analysis_mode.strip().lower() == "mock":
+            mock = build_mock_vision_result(category or "general", style, platform)
+            benchmark = mock.get("benchmark") if isinstance(mock.get("benchmark"), dict) else {}
+            composition = benchmark.get("composition") if isinstance(benchmark.get("composition"), dict) else {}
+            suggestions = composition.get("suggestions") if isinstance(composition.get("suggestions"), list) else []
+            return {
+                "photo_type": str(mock.get("photo_type") or category or "general"),
+                "detected_style": str(mock.get("detected_style") or style),
+                "exposure_score": _quick_dimension_score(benchmark, "exposure"),
+                "focus_score": _quick_dimension_score(benchmark, "focus"),
+                "composition_score": _quick_dimension_score(benchmark, "composition"),
+                "color_score": _quick_dimension_score(benchmark, "color"),
+                "priority_issue": str(mock.get("summary") or "让主体更明确"),
+                "primary_ability": "构图",
+                "summary": str(mock.get("summary") or "先明确主体，再处理其他细节。"),
+                "suggestion": str(suggestions[0] if suggestions else "靠近主体，并减少画面里的干扰元素。"),
+                "confidence": 0.8,
+                "model_used": "mock-quick-v2",
+                "elapsed_ms": 0,
+            }
+        return call_quick_vision_model(
+            image_url=image_url,
+            target_style=style,
+            target_platform=platform,
+            category=category,
+        )
+
+    return run_cached_analysis(
+        db,
+        user_id=user_id,
+        cache_key=cache_key,
+        profile="quick-v2",
+        model_used=settings.resolved_ai_fast_model,
+        analyze=analyze,
+    )
+
+
+def build_quick_analysis_cache_key(
+    *,
+    user_id: int,
+    image_url: str,
+    target_style: str,
+    target_platform: str,
+    category: str | None = None,
+) -> str:
+    settings = get_settings()
+    return build_analysis_cache_key(
+        profile="quick-v2",
+        image_url=image_url,
+        user_id=user_id,
+        parameters={
+            "target_style": target_style,
+            "target_platform": target_platform,
+            "category": category or "",
+        },
+        model=settings.resolved_ai_fast_model,
+    )
+
+
+def analyze_details_context_cached(
+    *,
+    db: Session,
+    user_id: int,
+    image_url: str,
+    target_style: str,
+    target_platform: str,
+    analysis_summary: str,
+) -> tuple[dict, bool]:
+    settings = get_settings()
+    cache_key = build_details_analysis_cache_key(
+        user_id=user_id,
+        image_url=image_url,
+        target_style=target_style,
+        target_platform=target_platform,
+        analysis_summary=analysis_summary,
+    )
+
+    def analyze() -> dict:
+        if settings.ai_analysis_mode.strip().lower() == "mock":
+            return {
+                "editing_params": {
+                    "lightroom": {"曝光": "+0.20", "高光": "-20", "阴影": "+15"},
+                    "mobile_apps": {"亮度": "+5", "对比度": "-4", "锐化": "+8"},
+                },
+                "platform_suggestions": {
+                    target_platform: {
+                        "crop_ratio": "保持主体完整",
+                        "visual_priority": "主体",
+                        "publishing_advice": "选择干净封面",
+                    }
+                },
+                "model_used": "mock-details-v1",
+                "elapsed_ms": 0,
+            }
+        return call_analysis_details_model(
+            image_url=image_url,
+            target_style=target_style,
+            target_platform=target_platform,
+            analysis_summary=analysis_summary,
+        )
+
+    return run_cached_analysis(
+        db,
+        user_id=user_id,
+        cache_key=cache_key,
+        profile="details-v2-text-only",
+        model_used=settings.resolved_ai_fast_model,
+        analyze=analyze,
+    )
+
+
+def build_details_analysis_cache_key(
+    *,
+    user_id: int,
+    image_url: str,
+    target_style: str,
+    target_platform: str,
+    analysis_summary: str,
+) -> str:
+    settings = get_settings()
+    return build_analysis_cache_key(
+        profile="details-v2-text-only",
+        image_url=image_url,
+        user_id=user_id,
+        parameters={
+            "target_style": target_style,
+            "target_platform": target_platform,
+            "analysis_summary": analysis_summary[:1800],
+        },
+        model=settings.resolved_ai_fast_model,
+    )
+
+
 def _clamp_score(value: object) -> int:
     try:
         number = int(round(float(value)))
     except (TypeError, ValueError):
         number = 0
     return max(0, min(100, number))
+
+
+def _quick_dimension_score(benchmark: dict, dimension: str) -> int:
+    detail = benchmark.get(dimension)
+    return _clamp_score(detail.get("score") if isinstance(detail, dict) else 0)
 
 
 def _build_expected_effect_fallback(style: str, style_reference_urls: list[str] | None) -> str:

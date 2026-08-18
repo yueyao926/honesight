@@ -106,11 +106,18 @@ def choose_practice(preference: Preference | None) -> tuple[str, dict[str, Any]]
     }
 
 
-def select_least_practiced_ability(progress_rows: list[Any]) -> str:
+def select_least_practiced_ability(
+    progress_rows: list[Any],
+    excluded_abilities: set[str] | None = None,
+) -> str:
+    excluded = excluded_abilities or set()
+    available_abilities = [ability for ability in ABILITIES if ability not in excluded]
+    if not available_abilities:
+        return ABILITIES[0]
     by_ability = {row.ability: row for row in progress_rows}
     active_cycles = [
         row for row in progress_rows
-        if 1 < int(row.cycle_week or 1) <= 4 and row.ability in ABILITIES
+        if 1 < int(row.cycle_week or 1) <= 4 and row.ability in available_abilities
     ]
     if active_cycles:
         # Finish the four-week micro-cycle before introducing a new ability.
@@ -122,7 +129,7 @@ def select_least_practiced_ability(progress_rows: list[Any]) -> str:
             ),
         ).ability
     return min(
-        ABILITIES,
+        available_abilities,
         key=lambda ability: (
             by_ability[ability].completed_count if ability in by_ability else -1,
             by_ability[ability].last_practiced_at.isoformat() if ability in by_ability and by_ability[ability].last_practiced_at else "",

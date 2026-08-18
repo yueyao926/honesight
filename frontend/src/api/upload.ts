@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from "./client";
+import { getAccessToken, getApiBaseUrl, refreshAuthSession } from "./client";
 import {
   optimizeImageForUpload,
   type ImageUploadPurpose,
@@ -31,20 +31,28 @@ export async function uploadImage(
 function uploadRequest(
   formData: FormData,
   onStage?: (stage: ImageUploadStage) => void,
+  allowRefresh = true,
 ): Promise<UploadedImage> {
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
     request.open("POST", `${getApiBaseUrl()}/upload/image`);
-    const token = localStorage.getItem("HoneSight_token");
+    request.withCredentials = true;
+    const token = getAccessToken();
     if (token) request.setRequestHeader("Authorization", `Bearer ${token}`);
     request.upload.onload = () => onStage?.("processing");
     request.onerror = () => reject(new Error("图片上传失败，请检查网络后重试"));
-    request.onload = () => {
+    request.onload = async () => {
       if (request.status === 401) {
-        localStorage.removeItem("HoneSight_token");
-        localStorage.removeItem("HoneSight_user");
-        window.location.href = "/login";
-        reject(new Error("登录已过期，请重新登录"));
+        if (token && allowRefresh) {
+          try {
+            await refreshAuthSession();
+            resolve(uploadRequest(formData, onStage, false));
+          } catch {
+            reject(new Error("登录已过期，请重新登录"));
+          }
+        } else {
+          reject(new Error("登录已过期，请重新登录"));
+        }
         return;
       }
       let payload: unknown;

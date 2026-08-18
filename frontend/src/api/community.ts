@@ -19,6 +19,6 @@ export const getComments=(id:number)=>apiRequest<CommunityComment[]>(`/community
 export const addComment=(id:number,content:string,parent_id?:number)=>apiRequest<{id:number}>(`/community/posts/${id}/comments`,{method:"POST",body:JSON.stringify({content,parent_id})});
 export const likeComment=(id:number)=>apiRequest<{liked:boolean;like_count:number}>(`/community/comments/${id}/like`,{method:"POST"});
 export const unlikeComment=(id:number)=>apiRequest<{liked:boolean;like_count:number}>(`/community/comments/${id}/like`,{method:"DELETE"});
-export const uploadCommunityImage=(file:File)=>uploadImage(file,"standard");
+export const uploadCommunityImage=(file:File)=>uploadImage(file,"community");
 export const getNotifications=()=>apiRequest<any[]>("/community/notifications");
 export const markNotificationsRead=()=>apiRequest("/community/notifications/read-all",{method:"POST"});

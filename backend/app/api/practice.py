@@ -3,15 +3,16 @@ from __future__ import annotations
 import json
 import hashlib
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import get_current_user
+from app.core.config import get_settings
 from app.database import SessionLocal, get_db
 from app.models.analysis import AnalysisJob
 from app.models.practice import CoachMemory, PracticeAttempt, PracticeProgress, PracticeSession
@@ -37,11 +38,13 @@ from app.services.practice_coach import (
     select_least_practiced_ability,
 )
 from app.services.practice_templates import CYCLE_LABELS, get_task, simplified_task
+from app.services.image_storage import local_upload_path
 
 
 router = APIRouter(prefix="/practice", tags=["practice"])
 logger = logging.getLogger("uvicorn.error")
 MAX_PRACTICE_ROUNDS = 3
+MAX_WEEKLY_PRACTICES = 3
 
 
 @router.get("/overview", response_model=PracticeOverviewRead)
@@ -49,7 +52,9 @@ def get_practice_overview(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    current = _get_current_week_session(current_user.id, db)
+    current_sessions = _get_plan_sessions(current_user.id, db)
+    current = current_sessions[0] if current_sessions else None
+    preference = db.scalar(select(Preference).where(Preference.user_id == current_user.id))
     history = list(
         db.scalars(
             select(PracticeSession)
@@ -68,6 +73,12 @@ def get_practice_overview(
     )
     return {
         "current": _session_to_dict(current) if current else None,
+        "current_sessions": [_session_to_dict(item) for item in current_sessions],
+        "week_key": current_week_key(),
+        "weekly_budget_minutes": int(preference.weekly_practice_minutes if preference else 20),
+        "scheduled_minutes": sum(item.time_minutes for item in current_sessions),
+        "completed_minutes": sum(item.time_minutes for item in current_sessions if item.status == "completed"),
+        "can_add": len(current_sessions) < MAX_WEEKLY_PRACTICES,
         "history": [_session_to_dict(item) for item in history],
         "progress": [_progress_to_dict(item) for item in progress],
     }
@@ -79,11 +90,22 @@ def start_practice_session(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    existing = _get_current_week_session(current_user.id, db)
+    existing: PracticeSession | None = None
+    if payload.replace_session_id:
+        existing = _get_owned_session(payload.replace_session_id, current_user.id, db)
+        if not existing:
+            raise HTTPException(status_code=404, detail="要更换的练习不存在")
+    elif payload.replace_current:
+        existing = _get_current_week_session(current_user.id, db)
     if existing and (existing.attempts or existing.status == "completed"):
-        raise HTTPException(status_code=409, detail="本周练习已经完成，下周会生成新任务")
-    if existing and not payload.replace_current:
-        raise HTTPException(status_code=409, detail="本周已有任务，可选择换个重点")
+        raise HTTPException(status_code=409, detail="已经开始的练习不能更换，可以添加一个选练")
+
+    plan_sessions = _get_plan_sessions(current_user.id, db)
+    if not existing and len(plan_sessions) >= MAX_WEEKLY_PRACTICES:
+        raise HTTPException(status_code=409, detail="本周最多安排三个练习，请先完成当前计划")
+    planned_abilities = {
+        item.skill_focus for item in plan_sessions if item.id != (existing.id if existing else None)
+    }
 
     preference = db.scalar(select(Preference).where(Preference.user_id == current_user.id))
     photo_analysis: dict | None = None
@@ -102,17 +124,42 @@ def start_practice_session(
         photo_analysis = analyze_practice_source(report, payload.target_goal)
         category = str(photo_analysis["photo_type"])
         ability = str(photo_analysis["ability"])
-    else:
-        category = str(payload.category)
-        rows = list(
-            db.scalars(
-                select(PracticeProgress).where(
-                    PracticeProgress.user_id == current_user.id,
-                    PracticeProgress.category == category,
+        if payload.target_goal == "不确定" and ability in planned_abilities:
+            rows = list(
+                db.scalars(
+                    select(PracticeProgress).where(
+                        PracticeProgress.user_id == current_user.id,
+                        PracticeProgress.category == category,
+                    )
                 )
             )
-        )
-        ability = select_least_practiced_ability(rows)
+            ability = select_least_practiced_ability(rows, planned_abilities)
+            photo_analysis["ability"] = ability
+            photo_analysis["priority_issue"] = f"本周还可以继续稳定{ability}。"
+    else:
+        category = str(payload.category)
+        if payload.target_goal in {"构图", "光线", "清晰度", "色彩"}:
+            ability = payload.target_goal
+        else:
+            rows = list(
+                db.scalars(
+                    select(PracticeProgress).where(
+                        PracticeProgress.user_id == current_user.id,
+                        PracticeProgress.category == category,
+                    )
+                )
+            )
+            ability = select_least_practiced_ability(rows, planned_abilities)
+
+    duplicate = next(
+        (
+            item for item in plan_sessions
+            if item.skill_focus == ability and item.id != (existing.id if existing else None)
+        ),
+        None,
+    )
+    if duplicate:
+        raise HTTPException(status_code=409, detail=f"本周计划里已经有「{ability}」练习")
 
     progress = _get_or_create_progress(current_user.id, category, ability, preference, db)
     if payload.entry_mode == "improve" and payload.source_image_url and not progress.cycle_source_image_url:
@@ -127,9 +174,15 @@ def start_practice_session(
     priority_issue = str(photo_analysis["priority_issue"] if photo_analysis else task["issue"])
     brief = f"你的上张照片中，{priority_issue}" if payload.entry_mode == "improve" else str(task["issue"])
 
+    has_primary = any(item.plan_role == "primary" and item.id != (existing.id if existing else None) for item in plan_sessions)
+    requested_role = payload.plan_role
+    plan_role = "optional" if requested_role == "primary" and has_primary else requested_role
+    next_position = max((item.position for item in plan_sessions), default=-1) + 1
     values = {
         "user_id": current_user.id,
         "week_key": current_week_key(),
+        "plan_role": existing.plan_role if existing else plan_role,
+        "position": existing.position if existing else next_position,
         "entry_mode": payload.entry_mode,
         "category": category,
         "skill_focus": ability,
@@ -151,6 +204,7 @@ def start_practice_session(
         "simplified_task_json": "{}",
         "coach_note": str(task["goal"]),
         "status": "active",
+        "started_at": None,
         "completed_at": None,
     }
     if existing:
@@ -181,11 +235,17 @@ def start_practice_session_job(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    existing = _get_current_week_session(current_user.id, db)
+    existing: PracticeSession | None = None
+    if payload.replace_session_id:
+        existing = _get_owned_session(payload.replace_session_id, current_user.id, db)
+        if not existing:
+            raise HTTPException(status_code=404, detail="要更换的练习不存在")
+    elif payload.replace_current:
+        existing = _get_current_week_session(current_user.id, db)
     if existing and (existing.attempts or existing.status == "completed"):
-        raise HTTPException(status_code=409, detail="本周练习已经完成，下周会生成新任务")
-    if existing and not payload.replace_current:
-        raise HTTPException(status_code=409, detail="本周已有任务，可选择换个重点")
+        raise HTTPException(status_code=409, detail="已经开始的练习不能更换，可以添加一个选练")
+    if not existing and len(_get_plan_sessions(current_user.id, db)) >= MAX_WEEKLY_PRACTICES:
+        raise HTTPException(status_code=409, detail="本周最多安排三个练习，请先完成当前计划")
     cache_key = hashlib.sha256(
         json.dumps(
             {
@@ -253,6 +313,40 @@ def get_current_practice(
     return _session_to_dict(session)
 
 
+@router.patch("/sessions/{session_id}/start", response_model=PracticeSessionRead)
+def mark_practice_started(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    session = _get_owned_session(session_id, current_user.id, db)
+    if not session:
+        raise HTTPException(status_code=404, detail="练习不存在")
+    if session.status == "completed":
+        return _session_to_dict(session)
+    if not session.started_at:
+        session.started_at = datetime.now(timezone.utc)
+        db.commit()
+    return _session_to_dict(_load_session(session.id, db) or session)
+
+
+@router.post(
+    "/sessions/{session_id}/attempts",
+    response_model=PracticeSessionRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def submit_session_practice_attempt(
+    session_id: int,
+    payload: PracticeAttemptCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    session = _get_owned_session(session_id, current_user.id, db)
+    if not session:
+        raise HTTPException(status_code=404, detail="练习不存在")
+    return _submit_practice_attempt(session, payload, current_user, db)
+
+
 @router.post("/current/attempts", response_model=PracticeSessionRead, status_code=status.HTTP_201_CREATED)
 def submit_practice_attempt(
     payload: PracticeAttemptCreate,
@@ -260,6 +354,17 @@ def submit_practice_attempt(
     db: Session = Depends(get_db),
 ) -> dict:
     session = _get_current_week_session(current_user.id, db) or _create_legacy_session(current_user, db)
+    return _submit_practice_attempt(session, payload, current_user, db)
+
+
+def _submit_practice_attempt(
+    session: PracticeSession,
+    payload: PracticeAttemptCreate,
+    current_user: User,
+    db: Session,
+) -> dict:
+    if session.status == "completed":
+        raise HTTPException(status_code=409, detail="这个练习已经完成")
     previous_attempts = list(session.attempts)
     if len(previous_attempts) >= MAX_PRACTICE_ROUNDS:
         raise HTTPException(status_code=409, detail="本周已完成三轮练习")
@@ -333,9 +438,28 @@ def submit_practice_attempt(
         analysis_snapshot_json=json.dumps(report, ensure_ascii=False, default=str),
     )
     db.add(attempt)
+    session.started_at = session.started_at or datetime.now(timezone.utc)
     session.coach_note = str(feedback["action_step"])
     db.commit()
     return _session_to_dict(_load_session(session.id, db) or session)
+
+
+@router.post(
+    "/sessions/{session_id}/attempt-jobs",
+    response_model=PracticeAttemptJobRead,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def start_session_practice_attempt_job(
+    session_id: int,
+    payload: PracticeAttemptCreate,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    session = _get_owned_session(session_id, current_user.id, db)
+    if not session:
+        raise HTTPException(status_code=404, detail="练习不存在")
+    return _start_practice_attempt_job(session, payload, background_tasks, current_user, db)
 
 
 @router.post(
@@ -350,8 +474,20 @@ def start_practice_attempt_job(
     db: Session = Depends(get_db),
 ) -> dict:
     session = _get_current_week_session(current_user.id, db) or _create_legacy_session(current_user, db)
+    return _start_practice_attempt_job(session, payload, background_tasks, current_user, db)
+
+
+def _start_practice_attempt_job(
+    session: PracticeSession,
+    payload: PracticeAttemptCreate,
+    background_tasks: BackgroundTasks,
+    current_user: User,
+    db: Session,
+) -> dict:
+    if session.status == "completed":
+        raise HTTPException(status_code=409, detail="这个练习已经完成")
     if len(session.attempts) >= MAX_PRACTICE_ROUNDS:
-        raise HTTPException(status_code=409, detail="本周已完成三轮练习")
+        raise HTTPException(status_code=409, detail="这个练习已完成三轮复练")
     cache_key = hashlib.sha256(
         json.dumps(
             {
@@ -384,7 +520,10 @@ def start_practice_attempt_job(
         status="queued",
         stage="preparing",
         progress=15,
-        request_json=payload.model_dump_json(),
+        request_json=json.dumps(
+            {"session_id": session.id, "payload": payload.model_dump(mode="json")},
+            ensure_ascii=False,
+        ),
     )
     db.add(job)
     db.commit()
@@ -420,13 +559,21 @@ def _run_practice_attempt_job(job_id: str) -> None:
             user = db.get(User, job.user_id)
             if not user:
                 raise HTTPException(status_code=404, detail="用户不存在")
-            payload = PracticeAttemptCreate.model_validate_json(job.request_json)
+            request = json.loads(job.request_json)
+            if isinstance(request, dict) and "payload" in request:
+                payload = PracticeAttemptCreate.model_validate(request["payload"])
+                session = _get_owned_session(int(request["session_id"]), user.id, db)
+            else:
+                payload = PracticeAttemptCreate.model_validate(request)
+                session = _get_current_week_session(user.id, db)
+            if not session:
+                raise HTTPException(status_code=404, detail="练习不存在")
             job.status = "processing"
             job.stage = "analyzing"
             job.progress = 45
             db.commit()
 
-            result = submit_practice_attempt(payload, user, db)
+            result = _submit_practice_attempt(session, payload, user, db)
             job.stage = "organizing"
             job.progress = 90
             job.result_json = json.dumps(result, ensure_ascii=False, default=str)
@@ -511,6 +658,24 @@ def complete_practice_session(
     db: Session = Depends(get_db),
 ) -> dict:
     session = _get_current_week_session(current_user.id, db)
+    return _complete_practice_session(session, current_user, db)
+
+
+@router.post("/sessions/{session_id}/complete", response_model=PracticeSessionRead)
+def complete_session_practice(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    session = _get_owned_session(session_id, current_user.id, db)
+    return _complete_practice_session(session, current_user, db)
+
+
+def _complete_practice_session(
+    session: PracticeSession | None,
+    current_user: User,
+    db: Session,
+) -> dict:
     if not session or not session.attempts:
         raise HTTPException(status_code=409, detail="请先完成至少一轮练习")
     if session.status == "completed":
@@ -540,6 +705,26 @@ def update_practice_difficulty(
     db: Session = Depends(get_db),
 ) -> dict:
     session = _get_current_week_session(current_user.id, db)
+    return _update_practice_difficulty(session, payload, current_user, db)
+
+
+@router.patch("/sessions/{session_id}/difficulty", response_model=PracticeSessionRead)
+def update_session_practice_difficulty(
+    session_id: int,
+    payload: PracticeDifficultyUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    session = _get_owned_session(session_id, current_user.id, db)
+    return _update_practice_difficulty(session, payload, current_user, db)
+
+
+def _update_practice_difficulty(
+    session: PracticeSession | None,
+    payload: PracticeDifficultyUpdate,
+    current_user: User,
+    db: Session,
+) -> dict:
     if not session or not session.attempts:
         raise HTTPException(status_code=409, detail="请先提交本周练习")
     if session.status != "completed":
@@ -575,7 +760,51 @@ def _get_current_week_session(user_id: int, db: Session) -> PracticeSession | No
         select(PracticeSession)
         .options(selectinload(PracticeSession.attempts))
         .where(PracticeSession.user_id == user_id, PracticeSession.week_key == current_week_key())
-        .order_by(PracticeSession.created_at.desc())
+        .order_by(
+            PracticeSession.status.asc(),
+            PracticeSession.plan_role.desc(),
+            PracticeSession.position.asc(),
+            PracticeSession.created_at.asc(),
+        )
+    )
+
+
+def _get_plan_sessions(user_id: int, db: Session) -> list[PracticeSession]:
+    week_started_at = datetime.combine(
+        date.today() - timedelta(days=date.today().weekday()),
+        time.min,
+        tzinfo=timezone.utc,
+    )
+    sessions = list(
+        db.scalars(
+            select(PracticeSession)
+            .options(selectinload(PracticeSession.attempts))
+            .where(
+                PracticeSession.user_id == user_id,
+                or_(
+                    PracticeSession.status == "active",
+                    PracticeSession.week_key == current_week_key(),
+                    PracticeSession.completed_at >= week_started_at,
+                ),
+            )
+        )
+    )
+    return sorted(
+        sessions,
+        key=lambda item: (
+            item.status == "completed",
+            item.plan_role != "primary",
+            item.position,
+            item.created_at,
+        ),
+    )
+
+
+def _get_owned_session(session_id: int, user_id: int, db: Session) -> PracticeSession | None:
+    return db.scalar(
+        select(PracticeSession)
+        .options(selectinload(PracticeSession.attempts))
+        .where(PracticeSession.id == session_id, PracticeSession.user_id == user_id)
     )
 
 
@@ -595,6 +824,8 @@ def _create_legacy_session(user: User, db: Session) -> PracticeSession:
     session = PracticeSession(
         user_id=user.id,
         week_key=current_week_key(),
+        plan_role="primary",
+        position=0,
         entry_mode="category",
         category=category,
         skill_focus=ability,
@@ -670,6 +901,18 @@ def _update_coach_memory(user_id: int, session: PracticeSession, feedback: dict,
 
 def _session_to_dict(session: PracticeSession) -> dict:
     attempts = list(session.attempts)
+    if session.status == "completed":
+        progress_stage = "completed"
+        completion_percent = 100
+    elif attempts:
+        progress_stage = "submitted"
+        completion_percent = 70
+    elif session.started_at:
+        progress_stage = "started"
+        completion_percent = 25
+    else:
+        progress_stage = "not_started"
+        completion_percent = 0
     current_task = get_task(session.category, session.skill_focus, session.level, session.cycle_week)
     task_steps = list(current_task["steps"])
     saved_simplified_task = _json_object(session.simplified_task_json)
@@ -689,13 +932,15 @@ def _session_to_dict(session: PracticeSession) -> dict:
         "id": session.id,
         "week_key": session.week_key,
         "entry_mode": session.entry_mode,
+        "plan_role": session.plan_role,
+        "position": session.position,
         "category": session.category,
         "skill_focus": session.skill_focus,
         "level": session.level,
         "cycle_week": session.cycle_week,
         "cycle_label": CYCLE_LABELS.get(session.cycle_week, "看见问题"),
         "time_minutes": session.time_minutes,
-        "source_image_url": session.source_image_url,
+        "source_image_url": _retained_image_url(session.source_image_url),
         "target_goal": session.target_goal,
         "photo_analysis": photo_analysis,
         "title": session.title,
@@ -709,7 +954,11 @@ def _session_to_dict(session: PracticeSession) -> dict:
         "coach_note": session.coach_note,
         "status": session.status,
         "progress": len(attempts),
+        "progress_stage": progress_stage,
+        "completion_percent": completion_percent,
+        "is_carryover": session.status == "active" and session.week_key != current_week_key(),
         "attempts": [_attempt_to_dict(item) for item in attempts],
+        "started_at": session.started_at,
         "created_at": session.created_at,
         "updated_at": session.updated_at,
         "completed_at": session.completed_at,
@@ -721,17 +970,24 @@ def _recommendation_basis(session: PracticeSession) -> str:
         if session.target_goal in {"构图", "光线", "清晰度", "色彩"}:
             return f"优先按你选择的「{session.target_goal}」，再结合照片问题、当前等级和每周时间安排。"
         return f"根据照片中最需要改善的「{session.skill_focus}」，再结合当前等级和每周时间安排。"
+    if session.target_goal in {"构图", "光线", "清晰度", "色彩"}:
+        return f"按你选择的「{session.skill_focus}」能力，并结合「{session.category}」场景、当前等级和可用时间安排。"
     if session.cycle_week > 1:
         return f"延续「{session.skill_focus}」四周练习，并结合当前等级和每周时间安排本周难度。"
     return f"根据你选择的「{session.category}」，优先安排近期练得较少的「{session.skill_focus}」。"
 
 
 def _attempt_to_dict(attempt: PracticeAttempt) -> dict:
+    retained_urls = [
+        value
+        for value in (_json_list(attempt.image_urls_json) or [attempt.image_url])
+        if _retained_image_url(value)
+    ]
     return {
         "id": attempt.id,
         "stage": attempt.stage,
-        "image_url": attempt.image_url,
-        "image_urls": _json_list(attempt.image_urls_json) or [attempt.image_url],
+        "image_url": retained_urls[0] if retained_urls else "",
+        "image_urls": retained_urls,
         "self_reflection": attempt.self_reflection,
         "skill_score": attempt.skill_score,
         "score_change": None,
@@ -746,6 +1002,13 @@ def _attempt_to_dict(attempt: PracticeAttempt) -> dict:
         "comparison_summary": attempt.comparison_summary,
         "created_at": attempt.created_at,
     }
+
+
+def _retained_image_url(image_url: str | None) -> str | None:
+    if not image_url or not image_url.startswith("/uploads/"):
+        return image_url
+    path = local_upload_path(image_url, get_settings().upload_path)
+    return image_url if path and path.is_file() else None
 
 
 def _progress_to_dict(progress: PracticeProgress) -> dict:

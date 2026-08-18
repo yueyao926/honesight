@@ -132,7 +132,7 @@ export default function PortfolioDetail() {
             <h2 className="font-display text-2xl font-semibold">添加照片</h2>
             <p className="mt-2 text-sm text-muted">可上传原图，或你根据建议自行调整后的作品。</p>
             <div className="mt-5 max-w-xl">
-              <PhotoUpload value={uploadUrl} onChange={setUploadUrl} label="选择要加入的原图" />
+              <PhotoUpload value={uploadUrl} onChange={setUploadUrl} label="选择要加入的原图" purpose="portfolio" />
             </div>
             {uploadUrl && <button className="btn-primary mt-4" type="button" onClick={handleAddPhoto} disabled={saving}>{saving ? "添加中…" : "加入作品集"}</button>}
           </div>

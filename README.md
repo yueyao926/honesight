@@ -9,7 +9,7 @@ HoneSight 是一个面向摄影新手的 AI 摄影成长教练 MVP。用户可�
 - Frontend: React + Vite + TypeScript + Tailwind CSS
 - Backend: FastAPI + SQLAlchemy + Alembic
 - Database: PostgreSQL
-- Auth: JWT + bcrypt password hash
+- Auth: short-lived JWT + revocable refresh-cookie session + bcrypt password hash
 - Upload: FastAPI static uploads
 - Vision Model: Volcengine Ark Responses API, with template fallback
 
@@ -127,7 +127,13 @@ http://localhost:5173
 DATABASE_URL=postgresql://postgres:your-password@localhost:5432/HoneSight
 JWT_SECRET_KEY=change-this-to-a-random-local-secret
 JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=10080
+ACCESS_TOKEN_EXPIRE_MINUTES=15
+REFRESH_TOKEN_EXPIRE_DAYS=14
+REFRESH_TOKEN_REUSE_GRACE_SECONDS=30
+SESSION_COOKIE_NAME=lenscoach_refresh
+SESSION_COOKIE_SECURE=false
+SESSION_COOKIE_SAMESITE=lax
+SESSION_COOKIE_DOMAIN=
 BACKEND_CORS_ORIGINS=http://localhost:5173
 UPLOAD_DIR=uploads
 AI_ANALYSIS_MODE=api
@@ -135,10 +141,20 @@ AI_ANALYSIS_ENABLED=true
 AI_API_KEY=replace-with-your-own-api-key
 AI_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
 AI_MODEL=doubao-seed-1-6-vision-250815
+AI_FAST_MODEL=doubao-seed-2-0-lite-260215
+AI_FAST_TIMEOUT_SECONDS=8
 AI_PRACTICE_MODEL=
 AI_TIMEOUT_SECONDS=45
+# 可选；仅在 AI 服务商可公网访问 /api/upload/ai-media 时填写，否则留空
 AI_PUBLIC_API_BASE_URL=
 ANALYSIS_CACHE_TTL_HOURS=720
+# 未保存的分析图 72 小时、生成图 7 天、练习周期结束后 30 天自动清理
+UPLOAD_CLEANUP_ENABLED=true
+UPLOAD_CLEANUP_INTERVAL_HOURS=12
+ANALYSIS_IMAGE_RETENTION_HOURS=72
+GENERATED_IMAGE_RETENTION_HOURS=168
+PRACTICE_IMAGE_RETENTION_DAYS=30
+ORPHAN_IMAGE_RETENTION_HOURS=72
 ARK_API_KEY=replace-with-your-own-api-key
 ARK_API_URL=https://ark.cn-beijing.volces.com/api/v3/responses
 ARK_VISION_MODEL=doubao-seed-1-6-vision-250815
@@ -150,14 +166,23 @@ ARK_VISION_MODEL=doubao-seed-1-6-vision-250815
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
+### 登录会话
+
+- 访问 JWT 默认有效 15 分钟，只保存在浏览器内存中；API 遇到过期令牌会自动刷新并重试一次。
+- 刷新会话默认固定有效 14 天，保存在 `HttpOnly`、`SameSite=Lax` 的持久 Cookie 中，因此关闭浏览器后仍可恢复登录。
+- 刷新令牌每次使用都会轮换；旧令牌仅保留默认 30 秒的并发宽限期，超期复用会撤销该会话。
+- 主动登出会在服务端撤销会话并删除 Cookie，已签发的访问 JWT 也会因会话已撤销而失效。
+- 本地 HTTP 使用 `SESSION_COOKIE_SECURE=false`；HTTPS 生产环境必须设为 `true`。若跨站部署必须使用 `SameSite=None`，配置校验也会要求同时启用 `Secure`。
+
 ## 当前已完成功能
 
-- 用户注册、登录、JWT 鉴权
+- 用户注册、登录、服务端可撤销的 JWT 会话鉴权
 - 密码 hash 保存
 - 获取当前用户信息
 - 用户摄影偏好创建、读取、更新
 - 作品集 CRUD
 - 图片上传到 `backend/uploads`
+- 图片按分析、练习、作品集和社区用途分目录保存；后台定时清理过期且未被引用的文件
 - 静态访问上传图片
 - 模板化照片分析报告
 - 豆包视觉模型识图分析，未配置或调用失败时自动回退模板报告
@@ -235,6 +260,8 @@ AI_ANALYSIS_MODE=api
 AI_API_KEY=replace-with-your-own-api-key
 AI_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
 AI_MODEL=doubao-seed-1-6-vision-250815
+AI_FAST_MODEL=doubao-seed-2-0-lite-260215
+AI_FAST_TIMEOUT_SECONDS=8
 AI_TIMEOUT_SECONDS=45
 ```
 

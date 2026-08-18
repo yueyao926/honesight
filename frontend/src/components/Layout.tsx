@@ -35,8 +35,8 @@ export default function Layout() {
     return () => document.removeEventListener("keydown", closeOnEscape);
   }, [mobileMenuOpen]);
 
-  function handleLogout() {
-    logout();
+  async function handleLogout() {
+    await logout();
     setMobileMenuOpen(false);
   }
 

@@ -27,7 +27,7 @@ logger = logging.getLogger("uvicorn.error")
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 MAX_FILE_SIZE = 10 * 1024 * 1024
-UPLOAD_PURPOSES = {"standard", "reference", "analysis"}
+UPLOAD_PURPOSES = {"standard", "reference", "analysis", "practice", "portfolio", "community"}
 
 
 @router.get("/ai-media/{token}", response_class=FileResponse, include_in_schema=False)
@@ -69,7 +69,7 @@ async def upload_image(
         raise HTTPException(status_code=400, detail="文件内容不是有效的 JPG、PNG 或 WEBP 图片")
 
     settings = get_settings()
-    upload_dir = settings.upload_path
+    upload_dir = settings.upload_path / purpose
     upload_dir.mkdir(parents=True, exist_ok=True)
     try:
         options = {"create_thumbnail": True}
@@ -99,7 +99,7 @@ async def upload_image(
     except ImageProcessingError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    image_url = upload_url(stored.image_path, upload_dir)
+    image_url = upload_url(stored.image_path, settings.upload_path)
     total_ms = int(round((time.perf_counter() - started_at) * 1000))
     response.headers["Server-Timing"] = f"read;dur={read_ms}, image;dur={process_ms}, total;dur={total_ms}"
     logger.info(
@@ -113,7 +113,7 @@ async def upload_image(
     )
     return {
         "image_url": image_url,
-        "thumbnail_url": upload_url(stored.thumbnail_path, upload_dir) if stored.thumbnail_path else image_url,
+        "thumbnail_url": upload_url(stored.thumbnail_path, settings.upload_path) if stored.thumbnail_path else image_url,
         "width": stored.width,
         "height": stored.height,
     }

@@ -1,54 +1,73 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { getMe, login as loginApi } from "../api/auth";
+import { getMe, login as loginApi, logout as logoutApi } from "../api/auth";
+import {
+  clearLegacyStoredAuth,
+  refreshAuthSession,
+  setAuthSession,
+  subscribeToAuthSession,
+  updateAuthUser,
+  type AuthSession,
+} from "../api/client";
 import type { User } from "../types";
 
 type AuthContextValue = {
   user: User | null;
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   refreshMe: () => Promise<void>;
   isAuthenticated: boolean;
+  isLoading: boolean;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem("HoneSight_token"));
-  const [user, setUser] = useState<User | null>(() => {
-    const raw = localStorage.getItem("HoneSight_user");
-    return raw ? (JSON.parse(raw) as User) : null;
-  });
+  const [session, setSession] = useState<AuthSession | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => subscribeToAuthSession(setSession), []);
+
+  useEffect(() => {
+    let active = true;
+    clearLegacyStoredAuth();
+    refreshAuthSession()
+      .catch(() => null)
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function login(email: string, password: string) {
-    const data = await loginApi({ email, password });
-    localStorage.setItem("HoneSight_token", data.access_token);
-    localStorage.setItem("HoneSight_user", JSON.stringify(data.user));
-    setToken(data.access_token);
-    setUser(data.user);
+    const nextSession = await loginApi({ email, password });
+    setAuthSession(nextSession);
   }
 
-  function logout() {
-    localStorage.removeItem("HoneSight_token");
-    localStorage.removeItem("HoneSight_user");
-    setToken(null);
-    setUser(null);
+  async function logout() {
+    await logoutApi();
+    setAuthSession(null);
   }
 
   async function refreshMe() {
-    if (!localStorage.getItem("HoneSight_token")) return;
+    if (!session) return;
     const current = await getMe();
-    localStorage.setItem("HoneSight_user", JSON.stringify(current));
-    setUser(current);
+    updateAuthUser(current);
   }
 
-  useEffect(() => {
-    refreshMe().catch(() => logout());
-  }, []);
-
   const value = useMemo(
-    () => ({ user, token, login, logout, refreshMe, isAuthenticated: Boolean(token) }),
-    [user, token],
+    () => ({
+      user: session?.user ?? null,
+      token: session?.access_token ?? null,
+      login,
+      logout,
+      refreshMe,
+      isAuthenticated: Boolean(session),
+      isLoading,
+    }),
+    [session, isLoading],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
