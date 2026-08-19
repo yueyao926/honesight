@@ -8,7 +8,6 @@ import UnreadMessageBadge from "../components/messages/UnreadMessageBadge";
 import {useAuth} from "../contexts/AuthContext";
 import feedTabLineSvg from "../SVG/line-3.svg?url";
 import filmRollSvg from "../SVG/胶卷.svg?url";
-import cameraSvg from "../SVG/相机.svg?url";
 
 const FEED_TABS = [
   ["recommended", "推荐"],
@@ -100,7 +99,6 @@ export default function Community(){
           <p className="community-wall-end">已经看到这里了</p>
         )}
         <div className="community-wall-footer">
-          <img src={cameraSvg} alt="" aria-hidden="true" draggable={false} className="community-wall-footer-icon" />
           <button type="button" className="community-wall-footer-link" onClick={() => setKind("hot")}>
             没有灵感？去看看大家的作品吧！ →
           </button>

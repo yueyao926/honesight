@@ -1,0 +1,131 @@
+.heart-container {
+  --heart-color: rgb(255, 91, 137);
+  --heart-size: 50px;
+  position: relative;
+  width: var(--heart-size);
+  height: var(--heart-size);
+  flex-shrink: 0;
+}
+
+.heart-container--sm {
+  --heart-size: 22px;
+}
+
+.heart-container--xs {
+  --heart-size: 24px;
+}
+
+.heart-container .heart-checkbox {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  z-index: 20;
+  cursor: pointer;
+  margin: 0;
+}
+
+.heart-container .svg-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.heart-container .svg-outline,
+.heart-container .svg-filled {
+  position: absolute;
+  width: 60%;
+  height: 60%;
+  fill: var(--heart-color);
+  transform-origin: center center;
+}
+
+.heart-container .svg-filled {
+  display: none;
+}
+
+.heart-container .heart-checkbox:checked ~ .svg-container .svg-outline {
+  display: none;
+}
+
+.heart-container .heart-checkbox:checked ~ .svg-container .svg-filled {
+  display: block;
+}
+
+.heart-container--liking .svg-filled {
+  animation: keyframes-svg-filled 0.65s ease;
+}
+
+.heart-container .svg-celebrate {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  display: none;
+  stroke: var(--heart-color);
+  fill: var(--heart-color);
+  stroke-width: 2px;
+  pointer-events: none;
+  transform-origin: center center;
+}
+
+.heart-container--liking .svg-celebrate {
+  display: block;
+  animation: keyframes-svg-celebrate 0.55s ease forwards;
+}
+
+@keyframes keyframes-svg-filled {
+  0% {
+    transform: scale(0);
+    opacity: 0.4;
+  }
+
+  35% {
+    transform: scale(1.3);
+    opacity: 1;
+    filter: brightness(1.3);
+  }
+
+  60% {
+    transform: scale(0.92);
+  }
+
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+@keyframes keyframes-svg-celebrate {
+  0% {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+
+  40% {
+    opacity: 1;
+    filter: brightness(1.35);
+  }
+
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+.heart-like-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.heart-like-count {
+  font-size: 0.875rem;
+  line-height: 1;
+  color: inherit;
+}
+
+.heart-like-count--sm {
+  font-size: 0.75rem;
+}

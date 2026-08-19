@@ -2,6 +2,7 @@
 import { Link } from "react-router-dom";
 import { getAssetUrl } from "../api/client";
 import { createPortfolio, listPortfolio } from "../api/portfolio";
+import HandDrawnPressButton from "../components/HandDrawnPressButton";
 import type { PortfolioCollection } from "../types";
 
 export default function Portfolio() {
@@ -42,7 +43,9 @@ export default function Portfolio() {
             以风格为名，按时间收藏，或为一段特别的经历留下一册；让不同阶段的目光各自成篇，也让摄影的成长在多样的光影里清晰可见。
           </p>
         </div>
-        <button className="btn-primary" type="button" onClick={() => setShowCreate(true)}>新建作品集</button>
+        <HandDrawnPressButton type="button" onClick={() => setShowCreate(true)}>
+          新建作品集
+        </HandDrawnPressButton>
       </header>
 
       {showCreate && (
@@ -73,7 +76,9 @@ export default function Portfolio() {
         <div className="card mt-10 text-center">
           <h2 className="font-display text-2xl font-semibold">先创建一个空作品集</h2>
           <p className="mt-3 text-sm text-muted">只需要取一个名字，之后可以直接上传照片，或保存 AI 分析过的原图。</p>
-          <button className="btn-primary mt-6" type="button" onClick={() => setShowCreate(true)}>创建第一个作品集</button>
+          <HandDrawnPressButton className="mt-6" type="button" onClick={() => setShowCreate(true)}>
+            创建第一个作品集
+          </HandDrawnPressButton>
         </div>
       ) : (
         <div className="ins-grid mt-10">

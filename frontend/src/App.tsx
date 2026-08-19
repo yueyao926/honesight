@@ -1,4 +1,5 @@
 import { Route, Routes } from "react-router-dom";
+import { HandDrawnPressFilters } from "./components/HandDrawnPressButton";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AiStudio from "./pages/AiStudio";
@@ -22,7 +23,9 @@ import Practice from "./pages/Practice";
 
 export default function App() {
   return (
-    <Routes>
+    <>
+      <HandDrawnPressFilters />
+      <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />
         <Route path="/register" element={<Register />} />
@@ -47,5 +50,6 @@ export default function App() {
         <Route path="/community/search" element={<Search />} />
       </Route>
     </Routes>
+    </>
   );
 }

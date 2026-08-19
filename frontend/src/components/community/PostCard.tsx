@@ -2,6 +2,8 @@
 import { Link } from "react-router-dom";
 import { getAssetUrl } from "../../api/client";
 import { likePost, unlikePost, type CommunityPost } from "../../api/community";
+import CommentActionLink from "../CommentActionButton";
+import HeartLikeButton from "../HeartLikeButton";
 import PolaroidFrame from "./PolaroidFrame";
 import { pickFrameForPost } from "./communityFrameAssets";
 
@@ -43,9 +45,7 @@ export default function PostCard({ post, index, onChange }: PostCardProps) {
     post.images.length > 1 ? `${post.images.length} 张` : null,
   ].filter(Boolean);
 
-  async function toggleLike(event: React.MouseEvent) {
-    event.preventDefault();
-    event.stopPropagation();
+  async function toggleLike() {
     const previous = post;
     onChange({
       ...post,
@@ -121,20 +121,11 @@ export default function PostCard({ post, index, onChange }: PostCardProps) {
         )}
 
         <div className="community-wall-actions">
-          <button
-            type="button"
-            aria-label={post.is_liked ? "取消点赞" : "点赞"}
-            className={`community-wall-action${post.is_liked ? " community-wall-action--active" : ""}`}
-            onClick={toggleLike}
-          >
-            <span aria-hidden="true">♡</span> {post.like_count}
-          </button>
-          <Link to={`/community/post/${post.id}`} className="community-wall-action">
-            <span className="community-wall-action-bubble" aria-hidden="true">
-              ○
-            </span>{" "}
-            {post.comment_count}
-          </Link>
+          <div className="community-wall-action community-wall-action--like">
+            <HeartLikeButton checked={post.is_liked} onToggle={toggleLike} size="sm" />
+            <span className="community-wall-action-count">{post.like_count}</span>
+          </div>
+          <CommentActionLink to={`/community/post/${post.id}`} count={post.comment_count} size="sm" />
         </div>
       </div>
     </article>

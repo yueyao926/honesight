@@ -12,10 +12,25 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  html {
+    font-family: "JasonHandwriting", "Amatic SC", cursive;
+  }
+
+  body,
+  button,
+  input,
+  textarea,
+  select,
+  label {
+    font-family: inherit;
+  }
+}
+
 body {
   margin: 0;
   min-width: 320px;
-  font-family: "Noto Sans SC", system-ui, sans-serif;
+  font-family: inherit;
   background:
     radial-gradient(ellipse at 0% 0%, rgba(138, 143, 136, 0.14), transparent 50%),
     radial-gradient(ellipse at 100% 20%, rgba(113, 90, 74, 0.08), transparent 42%),
@@ -193,6 +208,82 @@ body,
     @apply pointer-events-none absolute bottom-[-1px] left-1/2 block h-7 w-[calc(100%+3rem)] min-w-[6.25rem] max-w-none -translate-x-1/2 object-contain object-bottom;
   }
 
+  .profile-page .profile-header {
+    @apply mb-0;
+  }
+
+  .profile-page .profile-avatar {
+    @apply relative mx-auto h-28 w-28 shrink-0 overflow-hidden rounded-full border border-sand/80 bg-blush md:mx-0;
+  }
+
+  .profile-page button.profile-avatar {
+    @apply cursor-pointer border-0 p-0 transition hover:opacity-90;
+  }
+
+  .profile-page .profile-avatar-initial {
+    @apply flex h-full w-full items-center justify-center text-4xl text-brand-deep;
+    font-family: inherit;
+  }
+
+  .profile-page .profile-avatar-hint {
+    @apply absolute inset-x-0 bottom-0 bg-black/45 py-1 text-xs text-white;
+  }
+
+  .profile-page .profile-stats {
+    @apply mt-8 grid grid-cols-3 gap-3 border-t border-sand pt-6 text-center;
+  }
+
+  .profile-page .profile-stat {
+    @apply flex flex-col items-center gap-1 border-0 bg-transparent p-2;
+    font-family: inherit;
+  }
+
+  .profile-page .profile-stat strong {
+    @apply text-2xl leading-none text-ink;
+    font-family: inherit;
+    font-weight: normal;
+  }
+
+  .profile-page .profile-stat span {
+    @apply text-xs text-muted;
+  }
+
+  .profile-page .profile-stat--clickable {
+    @apply cursor-pointer rounded-2xl transition hover:bg-cream/80;
+  }
+
+  .profile-page .profile-tabs {
+    @apply my-8 flex gap-1 overflow-x-auto border-b border-sand pb-px;
+  }
+
+  .profile-page .profile-tab {
+    @apply shrink-0 border-0 border-b-2 border-transparent bg-transparent px-4 py-3 text-sm text-muted transition;
+    font-family: inherit;
+    font-weight: normal;
+    margin-bottom: -1px;
+  }
+
+  .profile-page .profile-tab:hover {
+    @apply text-ink;
+  }
+
+  .profile-page .profile-tab--active {
+    @apply border-ink text-ink;
+  }
+
+  .profile-page .profile-toast {
+    @apply fixed right-5 top-24 z-[70] rounded-2xl bg-ink px-5 py-3 text-sm text-white shadow-card;
+    font-family: inherit;
+  }
+
+  .profile-page .profile-edit-modal {
+    @apply card max-h-[92vh] w-full max-w-2xl overflow-y-auto bg-cream;
+  }
+
+  .profile-page .profile-hero-skeleton {
+    @apply card h-56 animate-pulse bg-sand/40;
+  }
+
   .community-empty {
     @apply -mt-6 flex flex-col items-center px-6 pb-12 pt-2 sm:-mt-8 sm:pb-16 sm:pt-4;
   }
@@ -341,8 +432,12 @@ body,
     @apply text-base leading-none;
   }
 
-  .community-wall-action-bubble {
-    @apply inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border-[0.12rem] border-current text-[9px] leading-none;
+  .community-wall-action--like {
+    @apply gap-0.5;
+  }
+
+  .community-wall-action-count {
+    @apply text-xs font-medium leading-none;
   }
 
   .community-wall-action--active {
@@ -355,10 +450,6 @@ body,
 
   .community-wall-footer {
     @apply mt-3 flex flex-col items-center gap-3 border-t border-ink/20 pt-8 text-center sm:flex-row sm:justify-center;
-  }
-
-  .community-wall-footer-icon {
-    @apply h-9 w-9 object-contain opacity-90;
   }
 
   .community-wall-footer-link {
@@ -521,6 +612,19 @@ body,
   .photo-frame {
     @apply overflow-hidden rounded-3xl border-4 border-white;
     box-shadow: 0 8px 32px rgba(39, 37, 34, 0.07);
+  }
+
+  /* Homepage keeps its original typography; see .home-page */
+  .home-page {
+    font-family: "Noto Sans SC", system-ui, sans-serif;
+  }
+
+  .home-page .font-display {
+    font-family: "Cormorant Garamond", "Noto Serif SC", Georgia, serif;
+  }
+
+  .home-page .font-sans {
+    font-family: "Noto Sans SC", system-ui, sans-serif;
   }
 
   .home-logo-type {
@@ -1053,6 +1157,164 @@ body,
     font-family: inherit;
     font-weight: normal;
     letter-spacing: inherit;
+  }
+
+  .search-bar-form {
+    display: flex;
+    align-items: flex-end;
+    gap: 1.25rem;
+    width: 100%;
+  }
+
+  .search-input-container {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    padding-top: 1.25rem;
+  }
+
+  .search-input-field {
+    font-size: 1.25rem;
+    width: 100%;
+    border: none;
+    border-bottom: 2px solid #ccc;
+    padding: 5px 0;
+    background-color: transparent;
+    outline: none;
+    font-family: inherit;
+    font-weight: normal;
+    color: #272522;
+  }
+
+  .search-input-label {
+    position: absolute;
+    top: 1.25rem;
+    left: 0;
+    color: #ccc;
+    transition: all 0.3s ease;
+    pointer-events: none;
+    font-family: inherit;
+    font-weight: normal;
+  }
+
+  .search-input-field:focus ~ .search-input-label,
+  .search-input-field:valid ~ .search-input-label {
+    top: 0;
+    font-size: 1rem;
+    color: #272522;
+  }
+
+  .search-input-underline {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    width: 100%;
+    background-color: #272522;
+    transform: scaleX(0);
+    transition: all 0.3s ease;
+    transform-origin: left center;
+  }
+
+  .search-input-field:focus ~ .search-input-underline,
+  .search-input-field:valid ~ .search-input-underline {
+    transform: scaleX(1);
+  }
+
+  .search-bar-form .search-submit-btn {
+    flex-shrink: 0;
+  }
+
+  .search-submit-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: none;
+    padding: 0.25rem;
+    cursor: pointer;
+    color: #ccc;
+    transition: color 0.3s ease, transform 0.2s ease, opacity 0.2s ease;
+  }
+
+  .search-bar-form:focus-within .search-submit-btn,
+  .search-bar-form:has(.search-input-field:valid) .search-submit-btn {
+    color: #272522;
+  }
+
+  .search-submit-btn__icon {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  @media (min-width: 640px) {
+    .search-submit-btn__icon {
+      width: 2.15rem;
+      height: 2.15rem;
+    }
+  }
+
+  .search-submit-btn:hover {
+    opacity: 0.75;
+  }
+
+  .search-submit-btn:active {
+    transform: scale(0.92);
+  }
+
+  .cta {
+    border: none;
+    background: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    padding-bottom: 8px;
+    padding-left: 2px;
+    letter-spacing: 4px;
+    font-size: 14px;
+    text-transform: uppercase;
+    position: relative;
+    color: #272522;
+    flex-shrink: 0;
+    align-self: center;
+  }
+
+  .cta::before {
+    content: "\21DD";
+    font-size: 22px;
+    position: absolute;
+    top: -10px;
+    right: -8px;
+    transform: translateX(100%);
+  }
+
+  .cta::after {
+    content: "";
+    position: absolute;
+    width: 100%;
+    transform: scaleX(0);
+    height: 2px;
+    bottom: 0;
+    left: 0;
+    background-color: #272522;
+    transform-origin: bottom right;
+    transition: transform 0.25s ease-out;
+  }
+
+  .cta:hover::after {
+    transform: scaleX(1);
+    transform-origin: bottom left;
+  }
+
+  .cta:active {
+    transform: scale(0.9);
+  }
+
+  .handwriting-page .cta {
+    font-family: inherit;
+    font-weight: normal;
+    text-transform: none;
+    letter-spacing: 0.08em;
+    font-size: 0.95rem;
   }
 
   .home-drawn-btn--pill {

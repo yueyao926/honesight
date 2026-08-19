@@ -1,4 +1,4 @@
-import DailyInspirationSection from "../components/DailyInspirationSection";
+﻿import DailyInspirationSection from "../components/DailyInspirationSection";
 import HomeFeatureIcons from "../components/home/HomeFeatureIcons";
 import HomeFilmLanyard from "../components/home/HomeFilmLanyard";
 import HomeLogoMark from "../components/home/HomeLogoMark";
@@ -16,7 +16,7 @@ function SketchHero() {
 
 export function LandingHome({ isAuthenticated }: { isAuthenticated: boolean }) {
   return (
-    <main>
+    <main className="home-page">
       <HomeFilmLanyard />
       <SketchHero />
       <HomePracticeCard isAuthenticated={isAuthenticated} />

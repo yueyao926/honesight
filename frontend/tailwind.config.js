@@ -43,11 +43,12 @@ export default {
         },
       },
       fontFamily: {
-        display: ['"Cormorant Garamond"', '"Noto Serif SC"', "Georgia", "serif"],
-        sans: ['"Noto Sans SC"', "system-ui", "sans-serif"],
-        logo: ['"Amatic SC"', '"JasonHandwriting"', "cursive"],
+        display: ['"JasonHandwriting"', '"Amatic SC"', "cursive"],
+        sans: ['"JasonHandwriting"', '"Amatic SC"', "cursive"],
+        serif: ['"JasonHandwriting"', '"Amatic SC"', "cursive"],
+        logo: ['"JasonHandwriting"', '"Amatic SC"', "cursive"],
         handwrite: ['"JasonHandwriting"', '"Amatic SC"', "cursive"],
-        hand: ['"Caveat"', "cursive"],
+        hand: ['"JasonHandwriting"', '"Amatic SC"', "cursive"],
       },
       boxShadow: {
         soft: "0 20px 60px rgba(113, 90, 74, 0.12)",
