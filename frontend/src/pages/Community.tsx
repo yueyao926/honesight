@@ -6,6 +6,16 @@ import PostCard from "../components/community/PostCard";
 import CommunityPublishButton from "../components/community/CommunityPublishButton";
 import UnreadMessageBadge from "../components/messages/UnreadMessageBadge";
 import {useAuth} from "../contexts/AuthContext";
+import feedTabLineSvg from "../SVG/line-3.svg?url";
+import filmRollSvg from "../SVG/胶卷.svg?url";
+import cameraSvg from "../SVG/相机.svg?url";
+
+const FEED_TABS = [
+  ["recommended", "推荐"],
+  ["following", "关注"],
+  ["latest", "最新"],
+  ["hot", "热门"],
+] as const;
 
 export default function Community(){
   const {isAuthenticated}=useAuth();
@@ -28,8 +38,80 @@ export default function Community(){
         <CommunityPublishButton />
       </div>
     </header>
-    <nav className="my-8 flex gap-2 overflow-auto border-b border-sand pb-3">{[['recommended','推荐'],['following','关注'],['latest','最新'],['hot','热门']].map(([v,l])=><button key={v} className={kind===v?'rounded-full bg-brand px-5 py-2 text-sm text-white':'btn-ghost'} onClick={()=>setKind(v)}>{l}</button>)}</nav>
+    <nav className="community-feed-tabs" aria-label="社区内容分类">
+      {FEED_TABS.map(([value, label]) => {
+        const isActive = kind === value;
+        return (
+          <button
+            key={value}
+            type="button"
+            className={`community-feed-tab${isActive ? " community-feed-tab--active" : ""}`}
+            onClick={() => setKind(value)}
+            aria-current={isActive ? "page" : undefined}
+          >
+            <span className="community-feed-tab-label">{label}</span>
+            {isActive && (
+              <img
+                src={feedTabLineSvg}
+                alt=""
+                aria-hidden="true"
+                draggable={false}
+                className="community-feed-tab-line"
+              />
+            )}
+          </button>
+        );
+      })}
+    </nav>
     {error&&<p className="mb-5 rounded-2xl bg-red-50 p-4 text-sm text-ink">{error}</p>}
-    {loading&&!posts.length?<div className="columns-2 gap-4 lg:columns-3">{[1,2,3,4,5,6].map(n=><div key={n} className="mb-4 h-72 animate-pulse break-inside-avoid rounded-3xl bg-sand/60"/>)}</div>:posts.length?<><div className="columns-2 gap-4 lg:columns-3">{posts.map(p=><PostCard key={p.id} post={p} onChange={next=>setPosts(x=>x.map(a=>a.id===next.id?next:a))}/>)}</div>{cursor?<button className="btn-secondary mx-auto mt-6 block" disabled={loading} onClick={load}>{loading?'加载中…':'加载更多'}</button>:<p className="py-8 text-center text-sm text-muted">已经看到这里了</p>}</>:<div className="card text-center"><h2 className="font-display text-2xl">还没有摄影帖</h2><p className="mt-2 text-muted">成为第一个分享作品的人吧。</p></div>}
+    {loading && !posts.length ? (
+      <div className="community-wall" aria-hidden="true">
+        {[1, 2, 3, 4, 5, 6].map((n) => (
+          <div key={n} className="community-wall-post community-wall-post--skeleton">
+            <div className="community-wall-photo-link">
+              <div className="community-wall-polaroid community-wall-polaroid--skeleton" />
+            </div>
+            <div className="community-wall-notes">
+              <div className="community-wall-skeleton-line community-wall-skeleton-line--short" />
+              <div className="community-wall-skeleton-line community-wall-skeleton-line--title" />
+              <div className="community-wall-skeleton-line" />
+              <div className="community-wall-skeleton-line community-wall-skeleton-line--meta" />
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : posts.length ? (
+      <>
+        <div className="community-wall">
+          {posts.map((p, index) => (
+            <PostCard
+              key={p.id}
+              index={index}
+              post={p}
+              onChange={(next) => setPosts((x) => x.map((a) => (a.id === next.id ? next : a)))}
+            />
+          ))}
+        </div>
+        {cursor ? (
+          <button className="btn-secondary mx-auto mt-8 block" disabled={loading} onClick={load}>
+            {loading ? "加载中…" : "加载更多"}
+          </button>
+        ) : (
+          <p className="community-wall-end">已经看到这里了</p>
+        )}
+        <div className="community-wall-footer">
+          <img src={cameraSvg} alt="" aria-hidden="true" draggable={false} className="community-wall-footer-icon" />
+          <button type="button" className="community-wall-footer-link" onClick={() => setKind("hot")}>
+            没有灵感？去看看大家的作品吧！ →
+          </button>
+        </div>
+      </>
+    ) : (
+      <div className="community-empty text-center">
+        <img src={filmRollSvg} alt="" aria-hidden="true" draggable={false} className="community-empty-film" />
+        <p className="community-empty-title">这里还安静得像一卷没冲洗的胶片。</p>
+        <p className="community-empty-subtitle">成为第一个贴照片的人吧。</p>
+      </div>
+    )}
   </main>
 }

@@ -1,4 +1,4 @@
-﻿import { useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { getAssetUrl } from "../api/client";
 import { uploadImage } from "../api/upload";
 import type { ImageUploadPurpose, ImageUploadStage } from "../utils/imageUpload";

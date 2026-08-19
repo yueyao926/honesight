@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import practiceCardBorderSvg from "../../SVG/Vector (3).svg?url";
 import practicePeepSvg from "../../SVG/练习.svg?url";
 import cameraBodySvg from "../../SVG/camera_body_only.svg?url";
@@ -38,9 +37,7 @@ export default function HomePracticeCard({ isAuthenticated }: HomePracticeCardPr
                   </>
                 ) : (
                   <>
-                    <Link to="/register" className="btn-primary min-w-[7.5rem] justify-center px-5">
-                      开始注册
-                    </Link>
+                    <HomeDrawnButton to="/register">开始注册</HomeDrawnButton>
                     <HomeDrawnButton to="/login">登录</HomeDrawnButton>
                     <HomeDrawnButton href="#daily-inspiration">今日灵感</HomeDrawnButton>
                   </>
