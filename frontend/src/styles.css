@@ -71,8 +71,16 @@ body,
   .carousel-dot-active .carousel-dot-icon { @apply h-4 w-14 sm:h-[1.125rem] sm:w-16; }
   .daily-inspiration-card--stage { @apply relative; }
   .inspiration-skeleton { @apply h-[460px] animate-pulse rounded-3xl bg-sand/70; }
-  .inspiration-dialog-backdrop { @apply fixed inset-0 z-50 flex items-end justify-center bg-ink/75 p-0 backdrop-blur-sm sm:items-center sm:p-3 md:p-8; }
-  .inspiration-dialog { @apply relative grid max-h-[96vh] w-full max-w-6xl overflow-hidden rounded-t-3xl bg-cream shadow-2xl sm:rounded-3xl md:grid-cols-[1.45fr_0.75fr]; }
+  .inspiration-dialog-backdrop { @apply fixed inset-0 z-50 flex items-end justify-center bg-ink/80 p-0 sm:items-center sm:p-3 md:p-8; }
+  .inspiration-dialog { @apply relative grid max-h-[96vh] w-full max-w-6xl overflow-hidden rounded-t-3xl bg-cream shadow-2xl sm:rounded-3xl md:grid-cols-[1.45fr_0.75fr] md:grid-rows-[minmax(0,1fr)]; font-family: "JasonHandwriting", "Amatic SC", cursive; font-weight: normal; letter-spacing: 0; line-height: 1.12; color: #272522; }
+  .inspiration-dialog-media { @apply min-h-0 bg-ink; }
+  .inspiration-dialog-aside { @apply min-h-0 max-h-[56vh] overflow-y-auto overscroll-y-contain p-6 sm:max-h-[58vh] sm:p-7 md:max-h-[96vh] md:p-9; -webkit-overflow-scrolling: touch; }
+  .inspiration-dialog .section-eyebrow { font-family: inherit; font-style: normal; font-weight: normal; @apply text-base text-muted sm:text-lg; }
+  .inspiration-dialog .inspiration-dialog-title { font-family: inherit; font-weight: normal; @apply mt-2 text-xl leading-snug text-ink sm:text-2xl; }
+  .inspiration-dialog .inspiration-dialog-quote { font-family: inherit; font-style: normal; font-weight: normal; @apply mt-5 text-xl leading-relaxed text-ink sm:text-2xl; }
+  .inspiration-dialog .inspiration-dialog-analysis-title { font-family: inherit; font-weight: normal; letter-spacing: inherit; text-transform: none; @apply text-base text-ink sm:text-lg; }
+  .inspiration-dialog .inspiration-dialog-analysis-text { font-family: inherit; font-weight: normal; @apply mt-2 text-base leading-relaxed text-muted sm:text-lg; }
+  .inspiration-dialog .inspiration-dialog-attribution { font-family: inherit; font-weight: normal; @apply text-xs leading-6 text-muted; }
   .dialog-close { @apply absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-ink/60 text-2xl text-white; }
   .community-folder { @apply flex items-center justify-between gap-5 rounded-3xl border border-white/70 bg-blush/55 p-7 md:p-9; box-shadow: 0 8px 32px rgba(39, 37, 34, 0.07); }
 }
@@ -186,6 +194,66 @@ body,
 
   .community-gooey-button--fill:hover .community-gooey-button__blobs span {
     transform: scale(1.4) translateY(0) translateZ(0);
+  }
+
+  .community-header-intro {
+    @apply flex flex-col;
+  }
+
+  .handwriting-page .community-header-intro .community-header-eyebrow {
+    @apply m-0 block text-base leading-none sm:text-lg;
+  }
+
+  .handwriting-page .community-header-intro .community-header-title {
+    @apply m-0 leading-[1.02];
+    margin-top: 0.75rem;
+  }
+
+  .handwriting-page .community-header-intro .community-header-subtitle {
+    @apply m-0 leading-snug;
+    margin-top: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .handwriting-page .community-header-intro .community-header-title {
+      margin-top: 1rem;
+    }
+
+    .handwriting-page .community-header-intro .community-header-subtitle {
+      margin-top: 1.25rem;
+    }
+  }
+
+  .community-title-line {
+    @apply relative inline-block;
+  }
+
+  .community-title-text {
+    @apply inline-block;
+  }
+
+  .community-title-arrow {
+    @apply pointer-events-none absolute h-[4.5rem] w-auto max-w-none object-contain sm:h-20 md:h-24 lg:h-28;
+    left: calc(100% + 0.15rem);
+    bottom: -0.75rem;
+  }
+
+  @media (min-width: 640px) {
+    .community-title-arrow {
+      bottom: -1rem;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .community-title-arrow {
+      bottom: -1.35rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .community-title-arrow {
+      bottom: -1.65rem;
+    }
   }
 
   .community-feed-tabs {
@@ -736,6 +804,18 @@ body,
     height: auto;
   }
 
+  .home-practice-card-tape {
+    @apply pointer-events-none absolute z-30;
+    top: clamp(0.15rem, 0.65vw, 0.55rem);
+    left: clamp(1.75rem, 8.5vw, 4.5rem);
+    width: clamp(4.75rem, 13vw, 7.25rem);
+    height: auto;
+    transform: rotate(-16deg);
+    transform-origin: center center;
+    -webkit-user-drag: none;
+    user-select: none;
+  }
+
   .home-practice-card-inner {
     @apply relative z-10;
     font-family: "JasonHandwriting", "Amatic SC", cursive;
@@ -955,11 +1035,16 @@ body,
   }
 
   .daily-inspiration-card-frame--stage .daily-inspiration-stage-content {
-    @apply grid h-full w-full overflow-hidden;
+    @apply relative h-full w-full;
+  }
+
+  .daily-inspiration-stage-panel {
+    @apply relative z-10 grid h-full w-full overflow-hidden bg-cream;
+    border-radius: clamp(1rem, 2.2vw, 1.55rem);
   }
 
   @media (min-width: 768px) {
-    .daily-inspiration-card-frame--stage .daily-inspiration-stage-content {
+    .daily-inspiration-stage-panel {
       grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.85fr);
       align-items: stretch;
     }
@@ -977,8 +1062,43 @@ body,
 
     .daily-inspiration-card-frame--stage .daily-inspiration-stage-content {
       @apply h-auto;
+    }
+
+    .daily-inspiration-stage-panel {
+      @apply relative inset-auto h-auto;
       grid-template-rows: auto auto;
     }
+  }
+
+  .daily-inspiration-favorite-btn {
+    @apply inline-flex items-center gap-1.5 border-0 bg-transparent p-0 text-xs text-ink transition hover:opacity-75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40;
+    font-family: inherit;
+    font-size: inherit;
+    letter-spacing: inherit;
+    line-height: 1.1;
+    cursor: pointer;
+  }
+
+  .daily-inspiration-favorite-btn.is-active {
+    @apply opacity-75;
+  }
+
+  .daily-inspiration-favorite-btn--large {
+    @apply gap-2.5 text-lg sm:text-xl;
+  }
+
+  .daily-inspiration-favorite-btn--large .daily-inspiration-favorite-icon {
+    width: clamp(1.65rem, 2.85vw, 2.2rem);
+  }
+
+  .daily-inspiration-favorite-icon {
+    width: clamp(1.25rem, 2.1vw, 1.6rem);
+    height: auto;
+    flex-shrink: 0;
+  }
+
+  .daily-inspiration-meta p + p {
+    margin-top: 0.15rem;
   }
 
   .daily-inspiration-card-frame--stage .daily-inspiration-card-border {
@@ -1142,9 +1262,6 @@ body,
     letter-spacing: inherit;
   }
 
-  .handwriting-page .text-sm,
-  .handwriting-page .text-base,
-  .handwriting-page .text-xs,
   .handwriting-page p,
   .handwriting-page li,
   .handwriting-page span,

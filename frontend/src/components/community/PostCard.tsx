@@ -7,8 +7,22 @@ import HeartLikeButton from "../HeartLikeButton";
 import PolaroidFrame from "./PolaroidFrame";
 import { pickFrameForPost } from "./communityFrameAssets";
 
-/** Stable clockwise corrections (deg): one ~0.9, others 0.1~0.7. */
-const CORRECTIONS = [0.15, 10.9, 0.35, 0.65, 0.2, 0.75] as const;
+/** Per-column base tilt (deg); column 2 keeps the row-1 frame-2 direction. */
+const COLUMN_CORRECTIONS = [0.15, 10.9, 0.35] as const;
+/** Small row-to-row variation so angles are not identical across rows. */
+const ROW_JITTER = [0, 1.6, -1.3, 2.1, -1.8, 2.5] as const;
+const WALL_COLUMNS = 3;
+
+function columnIndex(index: number) {
+  return ((index % WALL_COLUMNS) + WALL_COLUMNS) % WALL_COLUMNS;
+}
+
+function wallTilt(index: number) {
+  const col = columnIndex(index);
+  const row = Math.floor(index / WALL_COLUMNS);
+  const jitter = ROW_JITTER[row % ROW_JITTER.length];
+  return COLUMN_CORRECTIONS[col] + jitter;
+}
 
 function excerpt(text: string, max = 64) {
   const plain = text.replace(/\s+/g, " ").trim();
@@ -33,8 +47,9 @@ type PostCardProps = {
 
 export default function PostCard({ post, index, onChange }: PostCardProps) {
   const frame = pickFrameForPost(post.id);
-  const correction = CORRECTIONS[index % CORRECTIONS.length];
-  const hoverFloatOnly = index % CORRECTIONS.length === 1;
+  const col = columnIndex(index);
+  const correction = wallTilt(index);
+  const hoverFloatOnly = col === 1;
   const tags = post.tags.slice(0, 3);
   const coverAlt = post.images[0]?.alt_text || post.title;
   const body = post.content.trim();

@@ -7,6 +7,7 @@ import CommunityPublishButton from "../components/community/CommunityPublishButt
 import UnreadMessageBadge from "../components/messages/UnreadMessageBadge";
 import {useAuth} from "../contexts/AuthContext";
 import feedTabLineSvg from "../SVG/line-3.svg?url";
+import arrow19Svg from "../SVG/arrow-19.svg?url";
 import filmRollSvg from "../SVG/胶卷.svg?url";
 
 const FEED_TABS = [
@@ -29,7 +30,16 @@ export default function Community(){
   useEffect(()=>{if(isAuthenticated)getUnreadCount().then(r=>setUnread(r.unread_count)).catch(()=>{})},[isAuthenticated]);
   return <main className="handwriting-page container-page">
     <header className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-      <div><p className="section-eyebrow">HoneSight Community</p><h1 className="page-title mt-2">看见作品，也看见成长</h1><p className="mt-3 text-muted">分享摄影作品、参数与后期思路，获得真实反馈。</p></div>
+      <div className="community-header-intro">
+        <span className="section-eyebrow community-header-eyebrow">HoneSight Community</span>
+        <h1 className="page-title community-header-title">
+          <span className="community-title-line">
+            <span className="community-title-text">看见作品，也看见成长</span>
+            <img src={arrow19Svg} alt="" aria-hidden="true" draggable={false} className="community-title-arrow" />
+          </span>
+        </h1>
+        <p className="community-header-subtitle text-muted">分享摄影作品、参数与后期思路，获得真实反馈。</p>
+      </div>
       <div className="flex flex-wrap gap-2">
         <Link className="hand-drawn-outline-button" to="/community/search">搜索</Link>
         {isAuthenticated&&<Link className="hand-drawn-outline-button" to="/community/messages">消息<UnreadMessageBadge count={unread}/></Link>}

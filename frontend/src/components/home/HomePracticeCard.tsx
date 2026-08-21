@@ -1,4 +1,5 @@
 import practiceCardBorderSvg from "../../SVG/Vector (3).svg?url";
+import practiceTapeSvg from "../../SVG/胶带2.png";
 import practicePeepSvg from "../../SVG/练习.svg?url";
 import cameraBodySvg from "../../SVG/camera_body_only.svg?url";
 import cameraStarsSvg from "../../SVG/camera_stars_only.svg?url";
@@ -60,6 +61,13 @@ export default function HomePracticeCard({ isAuthenticated }: HomePracticeCardPr
             aria-hidden="true"
             draggable={false}
             className="home-practice-card-border"
+          />
+          <img
+            src={practiceTapeSvg}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            className="home-practice-card-tape"
           />        </div>
       </div>
     </section>

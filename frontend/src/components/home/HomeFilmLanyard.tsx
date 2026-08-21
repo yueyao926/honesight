@@ -1,4 +1,4 @@
-import hangtagImg from "../../assets/kraft-hangtag-labeled.png";
+import hangtagImg from "../../SVG/标签.png";
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./HomeHangtag.css";
 
