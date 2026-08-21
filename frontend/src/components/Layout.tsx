@@ -20,6 +20,14 @@ export default function Layout() {
   const { isAuthenticated, logout, user } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const isCommunitySurface = location.pathname.startsWith("/community");
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("community-surface", isCommunitySurface);
+    return () => {
+      document.documentElement.classList.remove("community-surface");
+    };
+  }, [isCommunitySurface]);
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -127,7 +135,7 @@ export default function Layout() {
         </div>
       </header>
       <Outlet />
-      <footer className="border-t border-sand/50 px-4 py-7 text-center text-sm text-muted">
+      <footer className={`px-4 py-7 text-center text-sm text-muted${isCommunitySurface ? " community-footer" : " border-t border-sand/50"}`}>
         <a
           className="transition hover:text-ink hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose/50"
           href="https://github.com/yueyao926/HoneSight/issues/new"

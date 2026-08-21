@@ -1,22 +1,32 @@
 .heart-container {
   --heart-color: rgb(255, 91, 137);
-  --heart-size: 50px;
+  --heart-size: 36px;
+  --heart-padding: 14px;
   position: relative;
   width: var(--heart-size);
   height: var(--heart-size);
   flex-shrink: 0;
+  overflow: visible;
+  z-index: 1;
+}
+
+.heart-container--liking {
+  z-index: 3;
 }
 
 .heart-container--sm {
   --heart-size: 22px;
+  --heart-padding: 8px;
 }
 
 .heart-container--xs {
   --heart-size: 24px;
+  --heart-padding: 9px;
 }
 
 .heart-container .heart-checkbox {
   position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   opacity: 0;
@@ -26,20 +36,30 @@
 }
 
 .heart-container .svg-container {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(var(--heart-size) + var(--heart-padding) * 2);
+  height: calc(var(--heart-size) + var(--heart-padding) * 2);
+  transform: translate(-50%, -50%);
+  overflow: visible;
+}
+
+.heart-container .svg-outline,
+.heart-container .svg-filled,
+.heart-container .svg-celebrate {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  transform-origin: center center;
 }
 
 .heart-container .svg-outline,
 .heart-container .svg-filled {
-  position: absolute;
-  width: 60%;
-  height: 60%;
+  width: calc(var(--heart-size) * 0.62);
+  height: calc(var(--heart-size) * 0.62);
   fill: var(--heart-color);
-  transform-origin: center center;
 }
 
 .heart-container .svg-filled {
@@ -55,61 +75,60 @@
 }
 
 .heart-container--liking .svg-filled {
-  animation: keyframes-svg-filled 0.65s ease;
+  animation: keyframes-svg-filled 0.7s ease;
 }
 
 .heart-container .svg-celebrate {
-  position: absolute;
-  width: 100%;
-  height: 100%;
+  width: var(--heart-size);
+  height: var(--heart-size);
   display: none;
   stroke: var(--heart-color);
   fill: var(--heart-color);
   stroke-width: 2px;
   pointer-events: none;
-  transform-origin: center center;
 }
 
 .heart-container--liking .svg-celebrate {
   display: block;
-  animation: keyframes-svg-celebrate 0.55s ease forwards;
+  animation: keyframes-svg-celebrate 0.65s ease forwards;
 }
 
 @keyframes keyframes-svg-filled {
   0% {
-    transform: scale(0);
+    transform: translate(-50%, -50%) scale(0.2);
     opacity: 0.4;
   }
 
   35% {
-    transform: scale(1.3);
+    transform: translate(-50%, -50%) scale(1.28);
     opacity: 1;
-    filter: brightness(1.3);
+    filter: brightness(1.35) drop-shadow(0 0 6px rgba(255, 91, 137, 0.65));
   }
 
   60% {
-    transform: scale(0.92);
+    transform: translate(-50%, -50%) scale(0.94);
+    filter: brightness(1.15) drop-shadow(0 0 3px rgba(255, 91, 137, 0.35));
   }
 
   100% {
-    transform: scale(1);
-    filter: brightness(1);
+    transform: translate(-50%, -50%) scale(1);
+    filter: none;
   }
 }
 
 @keyframes keyframes-svg-celebrate {
   0% {
-    transform: scale(0.2);
+    transform: translate(-50%, -50%) scale(0.35);
     opacity: 0;
   }
 
-  40% {
+  30% {
     opacity: 1;
-    filter: brightness(1.35);
+    filter: brightness(1.3);
   }
 
   100% {
-    transform: scale(1.35);
+    transform: translate(-50%, -50%) scale(1.45);
     opacity: 0;
   }
 }
@@ -117,7 +136,9 @@
 .heart-like-row {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.125rem;
+  overflow: visible;
+  position: relative;
 }
 
 .heart-like-count {

@@ -1,9 +1,12 @@
 ﻿import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { searchAll, suggestions, type SearchResult } from "../api/search";
-import PostCard from "../components/community/PostCard";
+import CommunityFeedCard from "../components/community/CommunityFeedCard";
+import MasonryGrid from "../components/community/MasonryGrid";
 import UserSearchResultCard from "../components/search/UserSearchResultCard";
 import SearchMagnifierIcon from "../components/search/SearchMagnifierIcon";
+import Vector9TabButton from "../components/search/Vector9TabButton";
+import CommunityBackLink from "../components/community/CommunityBackLink";
 
 const TABS = [
   ["all", "综合"],
@@ -64,6 +67,7 @@ export default function Search() {
 
   return (
     <main className="handwriting-page container-page">
+      <CommunityBackLink />
       <header className="w-full">
         <p className="section-eyebrow">Discover</p>
         <h1 className="page-title mt-2">搜索摄影灵感</h1>
@@ -114,19 +118,18 @@ export default function Search() {
         </div>
       </header>
 
-      <nav className="my-7 flex gap-2 overflow-auto border-b border-sand pb-3">
+      <nav className="search-tabs">
         {TABS.map(([v, l]) => (
-          <button
+          <Vector9TabButton
             key={v}
-            type="button"
-            className={tab === v ? "rounded-full bg-brand px-5 py-2 text-sm text-white" : "btn-ghost"}
+            active={tab === v}
             onClick={() => {
               setTab(v);
               if (q) setParams({ q, type: v });
             }}
           >
             {l}
-          </button>
+          </Vector9TabButton>
         ))}
       </nav>
 
@@ -180,19 +183,19 @@ export default function Search() {
           </section>
           <section>
             <h2 className="font-display text-2xl">相关作品</h2>
-            <div className="mt-4 columns-2 gap-4 lg:columns-3">
+            <MasonryGrid className="mt-4">
               {result?.posts.map((p, index) => (
-                <PostCard key={p.id} index={index} post={p} onChange={() => {}} />
+                <CommunityFeedCard key={p.id} index={index} post={p} onChange={() => {}} />
               ))}
-            </div>
+            </MasonryGrid>
           </section>
         </div>
       ) : posts?.length ? (
-        <div className="columns-2 gap-4 lg:columns-3">
+        <MasonryGrid>
           {posts.map((p, index) => (
-            <PostCard key={p.id} index={index} post={p} onChange={() => {}} />
+            <CommunityFeedCard key={p.id} index={index} post={p} onChange={() => {}} />
           ))}
-        </div>
+        </MasonryGrid>
       ) : (
         <div className="card text-center text-muted">
           暂时没有找到相关内容，可以尝试更换关键词或减少筛选条件。

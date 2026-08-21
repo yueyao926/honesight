@@ -27,7 +27,7 @@ export default function HeartLikeButton({
   useEffect(() => {
     if (checked && !prevChecked.current) {
       setLiking(true);
-      const timer = window.setTimeout(() => setLiking(false), 700);
+      const timer = window.setTimeout(() => setLiking(false), 750);
       prevChecked.current = checked;
       return () => window.clearTimeout(timer);
     }
