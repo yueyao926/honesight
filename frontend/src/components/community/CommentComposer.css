@@ -1,0 +1,112 @@
+.comment-composer {
+  margin-top: 1rem;
+}
+
+.comment-message-box {
+  width: 100%;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid #272522;
+  transition: border-color 0.2s ease;
+}
+
+.comment-message-box:focus-within {
+  border-color: #000;
+}
+
+.comment-message-box__input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: transparent;
+  background-color: transparent;
+  outline: none;
+  border: none;
+  padding: 0 10px 0 2px;
+  color: #272522;
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  box-shadow: none;
+  -webkit-box-shadow: none;
+}
+
+.comment-message-box__input:focus,
+.comment-message-box__input:not(:placeholder-shown) {
+  background: transparent;
+  background-color: transparent;
+  box-shadow: none;
+  -webkit-box-shadow: none;
+}
+
+.comment-message-box__input:-webkit-autofill,
+.comment-message-box__input:-webkit-autofill:hover,
+.comment-message-box__input:-webkit-autofill:focus,
+.comment-message-box__input:-webkit-autofill:active {
+  -webkit-text-fill-color: #272522;
+  caret-color: #272522;
+  box-shadow: 0 0 0 1000px transparent inset;
+  -webkit-box-shadow: 0 0 0 1000px transparent inset;
+  transition: background-color 99999s ease-out 0s;
+}
+
+.comment-message-box__input::placeholder {
+  color: rgba(39, 37, 34, 0.55);
+}
+
+.comment-message-box__input:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.comment-message-box__send {
+  width: fit-content;
+  height: 100%;
+  background-color: transparent;
+  outline: none;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #272522;
+  transition: color 0.2s ease, opacity 0.2s ease;
+  flex-shrink: 0;
+}
+
+.comment-message-box__send:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.comment-message-box__send svg {
+  height: 18px;
+  width: auto;
+  transition: transform 0.2s ease;
+}
+
+.comment-message-box__send svg path {
+  transition: stroke 0.2s ease, fill 0.2s ease;
+}
+
+.comment-message-box__input:focus ~ .comment-message-box__send svg path,
+.comment-message-box__input:not(:placeholder-shown) ~ .comment-message-box__send svg path {
+  stroke: #000;
+}
+
+.comment-message-box__send svg path[fill="none"] {
+  fill: none;
+}
+
+.comment-message-box__send:hover:not(:disabled) svg path {
+  stroke: #000;
+}
+
+.comment-message-box__send:active:not(:disabled) svg {
+  transform: scale(0.94);
+}

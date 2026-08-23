@@ -17,7 +17,7 @@ export default function ProfileWorkGrid({ works, own, isAuthenticated, setWorks 
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
       {works.map((work) => (
-        <article key={work.id} className="group overflow-hidden rounded-3xl bg-white/75 shadow-card">
+        <article key={work.id} className="group overflow-hidden rounded-lg bg-white/75 shadow-card">
           <button
             type="button"
             className="block aspect-square w-full overflow-hidden border-0 bg-neutral-100 p-0"

@@ -175,6 +175,27 @@ def unlike_comment(comment_id:int,user:User=Depends(get_current_user),db:Session
     if row: db.delete(row);comment.like_count=max(0,comment.like_count-1);db.commit()
     return {"liked":False,"like_count":comment.like_count}
 
+@router.delete("/comments/{comment_id}",status_code=204)
+def delete_comment(comment_id:int,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
+    comment=db.scalar(select(Comment).where(Comment.id==comment_id).with_for_update())
+    if not comment or comment.deleted_at: raise HTTPException(404,"评论不存在")
+    if comment.author_id!=user.id: raise HTTPException(403,"只能删除自己的评论")
+    post=db.get(CommunityPost,comment.post_id)
+    if not post: raise HTTPException(404,"帖子不存在")
+    now=datetime.now(timezone.utc)
+    comment.deleted_at=now
+    post.comment_count=max(0,post.comment_count-1)
+    if comment.parent_id:
+        parent=db.get(Comment,comment.parent_id)
+        if parent and not parent.deleted_at: parent.reply_count=max(0,parent.reply_count-1)
+    else:
+        replies=db.scalars(select(Comment).where(Comment.parent_id==comment_id,Comment.deleted_at.is_(None))).all()
+        for reply in replies:
+            reply.deleted_at=now
+            post.comment_count=max(0,post.comment_count-1)
+        comment.reply_count=0
+    db.commit()
+
 @router.get("/me/favorite-collections")
 def collections(user:User=Depends(get_current_user),db:Session=Depends(get_db)):
     default_collection(db,user.id); db.commit(); return db.scalars(select(FavoriteCollection).where(FavoriteCollection.user_id==user.id).order_by(FavoriteCollection.is_default.desc(),FavoriteCollection.created_at)).all()

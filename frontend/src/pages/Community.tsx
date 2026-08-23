@@ -40,7 +40,6 @@ export default function Community(){
             cursor={cursor}
             onLoadMore={load}
             onPostChange={(next) => setPosts((items) => items.map((item) => (item.id === next.id ? next : item)))}
-            onGoHot={() => setKind("hot")}
           />
         ) : (
           <div className="community-empty text-center">

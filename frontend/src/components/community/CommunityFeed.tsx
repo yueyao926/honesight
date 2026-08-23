@@ -8,7 +8,6 @@ type CommunityFeedProps = {
   cursor?: number | null;
   onLoadMore: () => void;
   onPostChange: (post: CommunityPost) => void;
-  onGoHot?: () => void;
 };
 
 export default function CommunityFeed({
@@ -17,7 +16,6 @@ export default function CommunityFeed({
   cursor,
   onLoadMore,
   onPostChange,
-  onGoHot,
 }: CommunityFeedProps) {
   if (loading && !posts.length) {
     return <MasonryGridSkeleton />;
@@ -46,13 +44,6 @@ export default function CommunityFeed({
         </button>
       ) : (
         <p className="community-wall-end">已经看到这里了</p>
-      )}
-      {onGoHot && (
-        <div className="community-wall-footer">
-          <button type="button" className="community-wall-footer-link" onClick={onGoHot}>
-            没有灵感？去看看大家的作品吧！ →
-          </button>
-        </div>
       )}
     </>
   );

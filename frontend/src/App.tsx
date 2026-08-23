@@ -1,4 +1,5 @@
 import { Route, Routes } from "react-router-dom";
+import BackgroundMusic from "./components/BackgroundMusic";
 import { HandDrawnPressFilters } from "./components/HandDrawnPressButton";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -25,6 +26,7 @@ export default function App() {
   return (
     <>
       <HandDrawnPressFilters />
+      <BackgroundMusic />
       <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />

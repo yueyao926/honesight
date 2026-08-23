@@ -1,5 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import vector9Svg from "../../SVG/Vector (9).svg?url";
+import "./Vector9TabButton.css";
 
 type Vector9TabButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   active?: boolean;
@@ -13,14 +13,17 @@ export default function Vector9TabButton({
   type = "button",
   ...props
 }: Vector9TabButtonProps) {
+  const classes = [
+    "search-outline-tab",
+    active ? "search-outline-tab--active" : "",
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <button
-      type={type}
-      className={`vector9-tab-btn${active ? " vector9-tab-btn--active" : ""}${className ? ` ${className}` : ""}`}
-      {...props}
-    >
-      <img src={vector9Svg} alt="" draggable={false} className="vector9-tab-btn__frame" aria-hidden="true" />
-      <span className="vector9-tab-btn__label">{children}</span>
+    <button type={type} className={classes} aria-pressed={active} {...props}>
+      {children}
     </button>
   );
 }

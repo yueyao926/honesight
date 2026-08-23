@@ -50,7 +50,7 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-50 border-b border-white/50 bg-cream/80 backdrop-blur-md">
+      <header className="app-header sticky top-0 z-50 border-b border-white/50 bg-cream/80 backdrop-blur-md">
         <nav className="container-page relative flex items-center justify-center !py-4 md:!py-5" aria-label="主导航">
           <div className="hidden items-center justify-center gap-1 md:flex lg:gap-2">
             <Link to="/" className="home-logo-type mr-2 text-[1.75rem] leading-none text-ink lg:mr-4 lg:text-[2rem]">

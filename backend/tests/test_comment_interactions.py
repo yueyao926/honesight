@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 import app.models  # noqa: F401
-from app.api.community import add_comment, like_comment, unlike_comment
+from app.api.community import add_comment, delete_comment, like_comment, unlike_comment
 from app.database import Base
 from app.models.community import Comment, CommentLike, CommunityPost
 from app.models.user import User
@@ -33,3 +33,20 @@ def test_replies_are_limited_to_two_levels(db):
     with pytest.raises(HTTPException) as error:add_comment(post.id,CommentPayload(content="nested",parent_id=reply["id"]),reader,session)
     assert error.value.status_code==400
     parent=session.get(Comment,root["id"]);assert parent.reply_count==1
+
+def test_author_can_delete_own_comment_and_updates_counts(db):
+    session,author,reader,post=db
+    session.refresh(post)
+    root=add_comment(post.id,CommentPayload(content="root"),reader,session)
+    reply=add_comment(post.id,CommentPayload(content="reply",parent_id=root["id"]),author,session)
+    session.refresh(post)
+    assert post.comment_count==2
+    delete_comment(reply["id"],author,session)
+    session.refresh(post)
+    parent=session.get(Comment,root["id"])
+    assert parent.reply_count==0
+    assert post.comment_count==1
+    delete_comment(root["id"],reader,session)
+    session.refresh(post)
+    assert post.comment_count==0
+    assert session.scalar(select(Comment).where(Comment.id==reply["id"],Comment.deleted_at.is_(None))) is None

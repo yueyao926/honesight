@@ -1,0 +1,57 @@
+.portfolio-star-button {
+  position: relative;
+  cursor: pointer;
+  padding: 0.7em 1.45em;
+  border: 0;
+  border-radius: 0.5em;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: bolder;
+  transition: transform 150ms, box-shadow 150ms;
+  box-shadow: 0 0 #999;
+  background-color: #fbfaf6;
+  color: #333;
+  flex-shrink: 0;
+}
+
+.portfolio-star-button:hover:not(:disabled) {
+  transform: translate(0.3em, -0.3em);
+  box-shadow: -0.3em 0.3em #999;
+}
+
+.portfolio-star-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.portfolio-star-button__stars {
+  position: absolute;
+  opacity: 0;
+  top: -0.3em;
+  right: -0.3em;
+  height: 100%;
+  transition: transform 300ms, opacity 150ms;
+  pointer-events: none;
+}
+
+.portfolio-star-button__stars path {
+  fill: #999;
+}
+
+.portfolio-star-button:hover:not(:disabled) > .portfolio-star-button__stars {
+  opacity: 1;
+  transform: translate(0.2em, -0.2em);
+}
+
+.portfolio-star-button:active:not(:disabled) > .portfolio-star-button__stars path {
+  fill: #ccc;
+}
+
+.portfolio-star-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(113, 90, 74, 0.35);
+}
+
+.portfolio-star-button:hover:not(:disabled):focus-visible {
+  box-shadow: -0.3em 0.3em #999, 0 0 0 3px rgba(113, 90, 74, 0.35);
+}

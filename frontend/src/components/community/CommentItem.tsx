@@ -8,13 +8,15 @@ type CommentItemProps = {
   replies: CommunityComment[];
   onReply: (comment: CommunityComment, content: string) => Promise<void>;
   onChanged: (comment: CommunityComment) => void;
+  onDelete: (commentId: number) => Promise<void>;
 };
 
-export default function CommentItem({ comment, replies, onReply, onChanged }: CommentItemProps) {
+export default function CommentItem({ comment, replies, onReply, onChanged, onDelete }: CommentItemProps) {
   const [expanded, setExpanded] = useState(false);
   const [replying, setReplying] = useState(false);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   async function toggleLike() {
     const previous = comment;
@@ -59,6 +61,16 @@ export default function CommentItem({ comment, replies, onReply, onChanged }: Co
     }
   }
 
+  async function handleDelete(target: CommunityComment) {
+    if (!confirm("确定删除这条评论吗？")) return;
+    setDeletingId(target.id);
+    try {
+      await onDelete(target.id);
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <article className="rounded-2xl bg-white/55 p-4">
       <div className="flex gap-3">
@@ -92,6 +104,15 @@ export default function CommentItem({ comment, replies, onReply, onChanged }: Co
             <button type="button" onClick={() => setReplying((value) => !value)}>
               回复
             </button>
+            {comment.is_owner && (
+              <button
+                type="button"
+                disabled={deletingId === comment.id}
+                onClick={() => handleDelete(comment)}
+              >
+                删除
+              </button>
+            )}
           </div>
           {replying && (
             <div className="mt-3 flex gap-2">
@@ -123,28 +144,51 @@ export default function CommentItem({ comment, replies, onReply, onChanged }: Co
           {expanded && (
             <div className="mt-3 space-y-3 border-l border-sand pl-4">
               {replies.map((reply) => (
-                <div key={reply.id} className="text-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <strong>{reply.author.username}</strong>
-                    <HeartLikeButton
-                      checked={reply.is_liked}
-                      onToggle={() => toggleReplyLike(reply)}
-                      size="xs"
-                      count={reply.like_count}
-                      showCount
+                <div key={reply.id} className="flex gap-3 text-sm">
+                  {reply.author.avatar_url ? (
+                    <img
+                      className="h-8 w-8 shrink-0 rounded-full object-cover"
+                      src={getAssetUrl(reply.author.avatar_url)}
+                      alt=""
                     />
+                  ) : (
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blush text-xs">
+                      {reply.author.username[0]}
+                    </span>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-3">
+                      <strong>{reply.author.username}</strong>
+                      <HeartLikeButton
+                        checked={reply.is_liked}
+                        onToggle={() => toggleReplyLike(reply)}
+                        size="xs"
+                        count={reply.like_count}
+                        showCount
+                      />
+                    </div>
+                    <p className="mt-1 whitespace-pre-wrap break-words leading-6">{reply.content}</p>
+                    <div className="mt-1 flex items-center gap-3 text-xs text-muted">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReplying(true);
+                          setText(`@${reply.author.username} `);
+                        }}
+                      >
+                        回复
+                      </button>
+                      {reply.is_owner && (
+                        <button
+                          type="button"
+                          disabled={deletingId === reply.id}
+                          onClick={() => handleDelete(reply)}
+                        >
+                          删除
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <p className="mt-1 leading-6">{reply.content}</p>
-                  <button
-                    type="button"
-                    className="mt-1 text-xs text-muted"
-                    onClick={() => {
-                      setReplying(true);
-                      setText(`@${reply.author.username} `);
-                    }}
-                  >
-                    回复
-                  </button>
                 </div>
               ))}
             </div>

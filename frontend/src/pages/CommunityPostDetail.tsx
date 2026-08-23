@@ -1,5 +1,5 @@
-﻿import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+﻿import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   deletePost,
   favoritePost,
@@ -11,20 +11,58 @@ import {
   type CommunityComment,
   type CommunityPost,
 } from "../api/community";
+import { followUser, unfollowUser } from "../api/profile";
 import { getAssetUrl } from "../api/client";
 import CommentSection from "../components/community/CommentSection";
 import CommunityCameraNotes from "../components/community/CommunityCameraNotes";
+import CommunityPostDetailActions from "../components/community/CommunityPostDetailActions";
 import CommunityBackLink from "../components/community/CommunityBackLink";
-import HeartLikeButton from "../components/HeartLikeButton";
+import OutlineLiftButton from "../components/ui/OutlineLiftButton";
+import { useAuth } from "../contexts/AuthContext";
 import arrow20Svg from "../SVG/arrow-20.svg?url";
+
+function FireFlameIcon() {
+  return (
+    <svg className="outline-lift-button__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M8 18C8 20.4148 9.79086 21 12 21C15.7587 21 17 18.5 14.5 13.5C11 18 10.5 11 11 9C9.5 12 8 14.8177 8 18Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 21C17.0495 21 20 18.0956 20 13.125C20 8.15444 12 3 12 3C12 3 4 8.15444 4 13.125C4 18.0956 6.95054 21 12 21Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 export default function CommunityPostDetail() {
   const { id } = useParams();
   const nav = useNavigate();
+  const location = useLocation();
+  const { isAuthenticated } = useAuth();
   const [post, setPost] = useState<CommunityPost>();
   const [comments, setComments] = useState<CommunityComment[]>([]);
   const [error, setError] = useState("");
   const [activeImage, setActiveImage] = useState(0);
+  const [showScrollHint, setShowScrollHint] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
+  const asideRef = useRef<HTMLElement>(null);
+
+  const updateScrollHint = useCallback(() => {
+    const aside = asideRef.current;
+    if (!aside) return;
+
+    const overflow = aside.scrollHeight - aside.clientHeight > 32;
+    const nearBottom = aside.scrollTop + aside.clientHeight >= aside.scrollHeight - 32;
+    setShowScrollHint(overflow && !nearBottom);
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -56,6 +94,24 @@ export default function CommunityPostDetail() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [post]);
 
+  useEffect(() => {
+    updateScrollHint();
+  }, [post, comments, updateScrollHint]);
+
+  useEffect(() => {
+    const aside = asideRef.current;
+    if (!aside) return;
+
+    aside.addEventListener("scroll", updateScrollHint, { passive: true });
+    const observer = new ResizeObserver(updateScrollHint);
+    observer.observe(aside);
+
+    return () => {
+      aside.removeEventListener("scroll", updateScrollHint);
+      observer.disconnect();
+    };
+  }, [post, updateScrollHint]);
+
   if (error && !post) {
     return (
       <main className="handwriting-page container-page">
@@ -82,6 +138,24 @@ export default function CommunityPostDetail() {
   async function toggleFavorite() {
     const r = await (post!.is_favorited ? unfavoritePost(post!.id) : favoritePost(post!.id));
     setPost({ ...post!, is_favorited: r.favorited, favorite_count: r.favorite_count });
+  }
+
+  async function toggleFollow() {
+    if (!isAuthenticated) {
+      nav("/login", { state: { from: location } });
+      return;
+    }
+    if (!post || post.is_owner || followBusy) return;
+    setFollowBusy(true);
+    try {
+      if (post.is_following_author) await unfollowUser(post.author.id);
+      else await followUser(post.author.id);
+      setPost({ ...post, is_following_author: !post.is_following_author });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "关注失败");
+    } finally {
+      setFollowBusy(false);
+    }
   }
 
   const imageCount = post.images.length;
@@ -154,26 +228,46 @@ export default function CommunityPostDetail() {
           </div>
         </section>
 
-        <aside className="community-post-detail__aside">
+        <aside ref={asideRef} className="community-post-detail__aside">
           <div className="community-post-detail__aside-inner">
-            <div className="flex items-center justify-between">
-              <Link to={`/users/${post.author.id}`} className="flex items-center gap-3">
-                {post.author.avatar_url ? (
-                  <img
-                    className="h-11 w-11 rounded-full object-cover"
-                    src={getAssetUrl(post.author.avatar_url)}
-                    alt=""
-                  />
-                ) : (
-                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-blush">
-                    {post.author.username[0]}
-                  </span>
-                )}
-                <div>
-                  <strong>{post.author.username}</strong>
-                  <p className="text-xs text-muted">{post.author.signature}</p>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <Link to={`/users/${post.author.id}`} className="shrink-0">
+                  {post.author.avatar_url ? (
+                    <img
+                      className="h-11 w-11 rounded-full object-cover"
+                      src={getAssetUrl(post.author.avatar_url)}
+                      alt=""
+                    />
+                  ) : (
+                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-blush">
+                      {post.author.username[0]}
+                    </span>
+                  )}
+                </Link>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <Link to={`/users/${post.author.id}`} className="min-w-0 truncate">
+                      <strong>{post.author.username}</strong>
+                    </Link>
+                    {!post.is_owner && (
+                      <OutlineLiftButton
+                        size="sm"
+                        className="shrink-0"
+                        variant="ghost"
+                        disabled={followBusy}
+                        onClick={() => void toggleFollow()}
+                      >
+                        <FireFlameIcon />
+                        {post.is_following_author ? "已关注" : "关注"}
+                      </OutlineLiftButton>
+                    )}
+                  </div>
+                  {post.author.signature && (
+                    <p className="truncate text-xs text-muted">{post.author.signature}</p>
+                  )}
                 </div>
-              </Link>
+              </div>
               {post.is_owner && (
                 <div className="flex gap-2">
                   <Link className="btn-ghost" to={`/community/post/${post.id}/edit`}>
@@ -211,40 +305,25 @@ export default function CommunityPostDetail() {
 
             <CommunityCameraNotes post={post} />
 
-            <div className="community-post-detail__actions mt-7 flex flex-wrap items-center gap-3 border-y border-sand py-5">
-              <HeartLikeButton
-                checked={post.is_liked}
-                onToggle={toggleLike}
-                count={post.like_count}
-                showCount
-              />
-              <button
-                className={post.is_favorited ? "btn-primary" : "btn-secondary"}
-                onClick={toggleFavorite}
-              >
-                收藏 {post.favorite_count}
-              </button>
-              <button
-                className="btn-secondary"
-                onClick={() =>
-                  navigator.share
-                    ? navigator.share({ title: post.title, url: location.href })
-                    : navigator.clipboard.writeText(location.href)
-                }
-              >
-                分享
-              </button>
-            </div>
+            <CommunityPostDetailActions
+              post={post}
+              onToggleLike={toggleLike}
+              onToggleFavorite={toggleFavorite}
+              onShare={() =>
+                navigator.share
+                  ? navigator.share({ title: post.title, url: location.href })
+                  : navigator.clipboard.writeText(location.href)
+              }
+            />
 
             <CommentSection
               postId={post.id}
               allowComments={post.allow_comments}
               comments={comments}
               setComments={setComments}
-              onCreated={() =>
-                setPost((current) =>
-                  current ? { ...current, comment_count: current.comment_count + 1 } : current,
-                )
+              showScrollHint={showScrollHint}
+              onCommentsChange={(count) =>
+                setPost((current) => (current ? { ...current, comment_count: count } : current))
               }
             />
           </div>

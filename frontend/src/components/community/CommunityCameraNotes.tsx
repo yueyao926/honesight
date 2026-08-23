@@ -1,4 +1,5 @@
 import type { CommunityPost } from "../../api/community";
+import "./CommunityCameraNotes.css";
 
 type CommunityCameraNotesProps = {
   post: Pick<
@@ -68,19 +69,36 @@ export function hasCameraNotes(post: CommunityCameraNotesProps["post"]) {
   );
 }
 
+function NoteRow({ items }: { items: string[] }) {
+  if (!items.length) return null;
+
+  return (
+    <div className="community-camera-notes__row">
+      {items.map((item, index) => (
+        <span className="community-camera-notes__item" key={`${item}-${index}`}>
+          {item}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export default function CommunityCameraNotes({ post }: CommunityCameraNotesProps) {
   if (!hasCameraNotes(post)) return null;
 
-  const exifLines: string[] = [];
-  if (post.device_name) exifLines.push(post.device_name.toUpperCase());
-  if (post.lens_name) exifLines.push(post.lens_name);
-  if (post.focal_length) exifLines.push(formatFocalLength(post.focal_length));
-  if (post.aperture) exifLines.push(formatAperture(post.aperture));
-  if (post.shutter_speed) exifLines.push(formatShutter(post.shutter_speed));
-  if (post.iso) exifLines.push(`ISO ${post.iso}`);
+  const gearItems = [
+    post.lens_name || null,
+    post.focal_length ? formatFocalLength(post.focal_length) : null,
+  ].filter(Boolean) as string[];
+
+  const exposureItems = [
+    post.aperture ? formatAperture(post.aperture) : null,
+    post.shutter_speed ? formatShutter(post.shutter_speed) : null,
+    post.iso ? `ISO ${post.iso}` : null,
+  ].filter(Boolean) as string[];
 
   const when = post.published_at || post.created_at;
-  const contextLines = [
+  const contextItems = [
     when ? formatShotTime(when) : null,
     when ? formatShotDate(when) : null,
     post.location_name || null,
@@ -90,15 +108,16 @@ export default function CommunityCameraNotes({ post }: CommunityCameraNotesProps
     <>
       <p className="label mt-5">CAMERA</p>
       <div className="community-camera-notes">
-        {exifLines.map((line, index) => (
-          <p key={`exif-${index}-${line}`}>{line}</p>
-        ))}
-        {exifLines.length > 0 && contextLines.length > 0 && (
-          <div className="community-camera-notes__gap" aria-hidden="true" />
+        {post.device_name && (
+          <p className="community-camera-notes__device">{post.device_name.toUpperCase()}</p>
         )}
-        {contextLines.map((line, index) => (
-          <p key={`ctx-${index}-${line}`}>{line}</p>
-        ))}
+        <NoteRow items={gearItems} />
+        <NoteRow items={exposureItems} />
+        {contextItems.length > 0 && (
+          <p className="community-camera-notes__row community-camera-notes__row--context community-camera-notes__item">
+            {contextItems.join(" · ")}
+          </p>
+        )}
       </div>
     </>
   );

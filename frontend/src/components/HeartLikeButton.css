@@ -1,27 +1,22 @@
 .heart-container {
   --heart-color: rgb(255, 91, 137);
   --heart-size: 36px;
-  --heart-padding: 14px;
+  --heart-padding: 6px;
   position: relative;
   width: var(--heart-size);
   height: var(--heart-size);
   flex-shrink: 0;
   overflow: visible;
-  z-index: 1;
-}
-
-.heart-container--liking {
-  z-index: 3;
 }
 
 .heart-container--sm {
   --heart-size: 22px;
-  --heart-padding: 8px;
+  --heart-padding: 4px;
 }
 
 .heart-container--xs {
   --heart-size: 24px;
-  --heart-padding: 9px;
+  --heart-padding: 4px;
 }
 
 .heart-container .heart-checkbox {
@@ -46,20 +41,24 @@
 }
 
 .heart-container .svg-outline,
-.heart-container .svg-filled,
-.heart-container .svg-celebrate {
+.heart-container .svg-filled {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   transform-origin: center center;
+  width: calc(var(--heart-size) * 0.88);
+  height: calc(var(--heart-size) * 0.88);
 }
 
-.heart-container .svg-outline,
-.heart-container .svg-filled {
-  width: calc(var(--heart-size) * 0.62);
-  height: calc(var(--heart-size) * 0.62);
+.heart-container .svg-outline path {
+  fill: rgba(255, 91, 137, 0.42);
+  stroke: none;
+}
+
+.heart-container .svg-filled path {
   fill: var(--heart-color);
+  stroke: none;
 }
 
 .heart-container .svg-filled {
@@ -75,61 +74,24 @@
 }
 
 .heart-container--liking .svg-filled {
-  animation: keyframes-svg-filled 0.7s ease;
+  animation: keyframes-heart-bounce 0.55s ease;
 }
 
-.heart-container .svg-celebrate {
-  width: var(--heart-size);
-  height: var(--heart-size);
-  display: none;
-  stroke: var(--heart-color);
-  fill: var(--heart-color);
-  stroke-width: 2px;
-  pointer-events: none;
-}
-
-.heart-container--liking .svg-celebrate {
-  display: block;
-  animation: keyframes-svg-celebrate 0.65s ease forwards;
-}
-
-@keyframes keyframes-svg-filled {
+@keyframes keyframes-heart-bounce {
   0% {
-    transform: translate(-50%, -50%) scale(0.2);
-    opacity: 0.4;
+    transform: translate(-50%, -50%) scale(1);
   }
 
   35% {
-    transform: translate(-50%, -50%) scale(1.28);
-    opacity: 1;
-    filter: brightness(1.35) drop-shadow(0 0 6px rgba(255, 91, 137, 0.65));
+    transform: translate(-50%, -50%) scale(1.2);
   }
 
   60% {
     transform: translate(-50%, -50%) scale(0.94);
-    filter: brightness(1.15) drop-shadow(0 0 3px rgba(255, 91, 137, 0.35));
   }
 
   100% {
     transform: translate(-50%, -50%) scale(1);
-    filter: none;
-  }
-}
-
-@keyframes keyframes-svg-celebrate {
-  0% {
-    transform: translate(-50%, -50%) scale(0.35);
-    opacity: 0;
-  }
-
-  30% {
-    opacity: 1;
-    filter: brightness(1.3);
-  }
-
-  100% {
-    transform: translate(-50%, -50%) scale(1.45);
-    opacity: 0;
   }
 }
 

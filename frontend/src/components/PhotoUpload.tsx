@@ -8,9 +8,20 @@ type Props = {
   onChange: (url: string | null) => void;
   label?: string;
   purpose?: ImageUploadPurpose;
+  outlineOnly?: boolean;
+  compactPreview?: boolean;
+  previewMaxHeight?: number;
 };
 
-export default function PhotoUpload({ value, onChange, label = "上传照片", purpose = "standard" }: Props) {
+export default function PhotoUpload({
+  value,
+  onChange,
+  label = "上传照片",
+  purpose = "standard",
+  outlineOnly = false,
+  compactPreview = false,
+  previewMaxHeight,
+}: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [stage, setStage] = useState<ImageUploadStage | null>(null);
   const [error, setError] = useState("");
@@ -36,12 +47,21 @@ export default function PhotoUpload({ value, onChange, label = "上传照片", p
       ? "服务器正在确认图片…"
       : "正在上传…";
 
+  const panelPreviewStyle = compactPreview && previewMaxHeight
+    ? { maxHeight: `${previewMaxHeight}px` }
+    : undefined;
+
   return (
     <div className="space-y-4">
       {value ? (
-        <div className="group relative inline-block">
+        <div className="group relative inline-block max-w-full">
           <img
-            className="max-h-80 w-full rounded-3xl object-cover shadow-card ring-4 ring-white"
+            className={
+              compactPreview
+                ? "w-auto max-w-md rounded-3xl object-contain"
+                : "max-h-80 w-full rounded-3xl object-cover shadow-card ring-4 ring-white"
+            }
+            style={panelPreviewStyle}
             src={getAssetUrl(value)}
             alt="待分析照片"
           />
@@ -56,7 +76,11 @@ export default function PhotoUpload({ value, onChange, label = "上传照片", p
       ) : (
         <button
           type="button"
-          className="group flex min-h-56 w-full flex-col items-center justify-center rounded-3xl border-2 border-dashed border-sand bg-white/50 shadow-card transition hover:border-ink hover:bg-blush/30"
+          className={
+            outlineOnly
+              ? "group flex min-h-56 w-full flex-col items-center justify-center rounded-3xl border-2 border-dashed border-sand bg-transparent transition hover:border-ink"
+              : "group flex min-h-56 w-full flex-col items-center justify-center rounded-3xl border-2 border-dashed border-sand bg-white/50 shadow-card transition hover:border-ink hover:bg-blush/30"
+          }
           onClick={() => inputRef.current?.click()}
           disabled={Boolean(stage)}
         >

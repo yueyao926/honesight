@@ -1,0 +1,35 @@
+.pill-shift-button {
+  width: fit-content;
+  background-color: #f3f2ec;
+  color: #000;
+  border-radius: 10em;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0.65em 1.15em;
+  cursor: pointer;
+  transition: all 0.3s ease-in-out;
+  border: 1px solid #000;
+  box-shadow: 0 0 0 0 #000;
+  font-family: inherit;
+  line-height: 1.2;
+}
+
+.pill-shift-button:hover:not(:disabled) {
+  transform: translateY(-3px) translateX(-2px);
+  box-shadow: 2px 4px 0 0 #000;
+}
+
+.pill-shift-button:active:not(:disabled) {
+  transform: translateY(2px) translateX(1px);
+  box-shadow: 0 0 0 0 #000;
+}
+
+.pill-shift-button:focus-visible {
+  outline: 2px solid rgba(0, 0, 0, 0.35);
+  outline-offset: 2px;
+}
+
+.pill-shift-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}

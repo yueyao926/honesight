@@ -4,6 +4,7 @@ import { searchAll, suggestions, type SearchResult } from "../api/search";
 import CommunityFeedCard from "../components/community/CommunityFeedCard";
 import MasonryGrid from "../components/community/MasonryGrid";
 import UserSearchResultCard from "../components/search/UserSearchResultCard";
+import SearchLetterLoader from "../components/search/SearchLetterLoader";
 import SearchMagnifierIcon from "../components/search/SearchMagnifierIcon";
 import Vector9TabButton from "../components/search/Vector9TabButton";
 import CommunityBackLink from "../components/community/CommunityBackLink";
@@ -64,6 +65,11 @@ export default function Search() {
   }
 
   const posts = tab === "images" ? result?.images : result?.posts;
+  const tagNames = new Set(result?.tags.map((t) => t.name) ?? []);
+  const taggedPosts =
+    result?.tag_posts ??
+    result?.posts.filter((post) => post.tags.some((tag) => tagNames.has(tag.name))) ??
+    [];
 
   return (
     <main className="handwriting-page container-page">
@@ -87,6 +93,9 @@ export default function Search() {
                 value={input}
                 maxLength={120}
                 required
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
                 onChange={(e) => setInput(e.target.value)}
               />
               <label htmlFor="search-input" className="search-input-label">
@@ -140,11 +149,7 @@ export default function Search() {
       )}
 
       {loading ? (
-        <div className="grid gap-4 md:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((x) => (
-            <div key={x} className="h-60 animate-pulse rounded-3xl bg-sand" />
-          ))}
-        </div>
+        <SearchLetterLoader />
       ) : error ? (
         <div className="card text-ink">{error}</div>
       ) : !q ? (
@@ -156,20 +161,38 @@ export default function Search() {
           ))}
         </div>
       ) : tab === "tags" ? (
-        <div className="flex flex-wrap gap-3">
-          {result?.tags.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              className="btn-secondary"
-              onClick={() => {
-                setInput(t.name);
-                submit(t.name);
-              }}
-            >
-              #{t.name} · {t.usage_count}
-            </button>
-          ))}
+        <div className="space-y-8">
+          {result?.tags.length ? (
+            <div className="flex flex-wrap gap-3">
+              {result.tags.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => {
+                    setInput(t.name);
+                    submit(t.name);
+                  }}
+                >
+                  #{t.name} · {t.usage_count} 篇
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {taggedPosts.length ? (
+            <section>
+              <h2 className="font-display text-2xl">相关作品</h2>
+              <MasonryGrid className="mt-4">
+                {taggedPosts.map((p, index) => (
+                  <CommunityFeedCard key={p.id} index={index} post={p} onChange={() => {}} />
+                ))}
+              </MasonryGrid>
+            </section>
+          ) : (
+            <div className="card text-center text-muted">
+              {result?.tags.length ? "这些标签下暂时没有可展示的作品。" : "暂时没有找到相关内容，可以尝试更换关键词或减少筛选条件。"}
+            </div>
+          )}
         </div>
       ) : tab === "all" ? (
         <div className="space-y-10">

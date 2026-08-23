@@ -5,7 +5,7 @@ import { getAssetUrl } from "../api/client";
 import { useAuth } from "../contexts/AuthContext";
 import type { Inspiration } from "../types";
 import inspirationCardBorderSvg from "../SVG/Vector.svg?url";
-import favoriteBookmarkPng from "../SVG/收藏.png";
+import favoriteTagSvg from "../SVG/收藏标签.svg?url";
 import inspirationPeepSvg from "../SVG/灵感90.svg?url";
 import lightbulbGlowSvg from "../SVG/lightbulb_glow.svg?url";
 import lightbulbLineartSvg from "../SVG/lightbulb_lineart.svg?url";
@@ -36,7 +36,7 @@ function InspirationFavoriteButton({
       aria-label={active ? "取消收藏" : "收藏作品"}
       aria-pressed={active}
     >
-      <img src={favoriteBookmarkPng} alt="" draggable={false} className="daily-inspiration-favorite-icon" />
+      <img src={favoriteTagSvg} alt="" draggable={false} className="daily-inspiration-favorite-icon" />
       <span>{active ? activeLabel : label}</span>
     </button>
   );

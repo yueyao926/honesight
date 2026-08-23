@@ -9,3 +9,4 @@ interface ImportMeta {
 }
 
 declare module "*.png";
+declare module "*.mp3";
