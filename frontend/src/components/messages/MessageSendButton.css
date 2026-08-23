@@ -1,0 +1,101 @@
+.message-composer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.message-composer .message-composer-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+}
+
+.message-attach-button {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  padding: 0;
+  border: 1px solid #d2d2ca;
+  border-radius: 999px;
+  background: transparent;
+  color: #1a1a1a;
+  cursor: pointer;
+  box-shadow: none;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.message-attach-button:hover,
+.message-attach-button:focus,
+.message-attach-button:focus-visible,
+.message-attach-button:focus-within {
+  border-color: #1a1a1a;
+  box-shadow: none;
+  outline: none;
+}
+
+.message-send-button {
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: normal;
+  background: #1a1a1a;
+  color: white;
+  padding: 0.7em 1em;
+  padding-left: 0.9em;
+  display: flex;
+  align-items: center;
+  border: none;
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.2s;
+  cursor: pointer;
+  box-shadow: none;
+  flex-shrink: 0;
+}
+
+.message-send-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.message-send-button__label {
+  display: block;
+  margin-left: 0.3em;
+  transition: all 0.3s ease-in-out;
+}
+
+.message-send-button svg {
+  display: block;
+  transform-origin: center center;
+  transition: transform 0.3s ease-in-out;
+}
+
+.message-send-button:hover:not(:disabled) .message-send-button__plane {
+  animation: message-send-fly 0.6s ease-in-out infinite alternate;
+}
+
+.message-send-button:hover:not(:disabled) svg {
+  transform: translateX(1.2em) rotate(45deg) scale(1.1);
+}
+
+.message-send-button:hover:not(:disabled) .message-send-button__label {
+  transform: translateX(5em);
+}
+
+.message-send-button:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+@keyframes message-send-fly {
+  from {
+    transform: translateY(0.1em);
+  }
+
+  to {
+    transform: translateY(-0.1em);
+  }
+}

@@ -1,0 +1,116 @@
+.community-following-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  padding-top: 0.5rem;
+}
+
+.community-following-person {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.community-following-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.community-following-avatar {
+  width: 3rem;
+  height: 3rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  object-fit: cover;
+}
+
+.community-following-avatar--fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3d9d0;
+  color: #272522;
+}
+
+.community-following-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: normal;
+}
+
+.community-following-meta {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 0.15rem;
+  font-size: 0.9rem;
+  color: #6f6a63;
+}
+
+.community-following-works {
+  display: flex;
+  gap: 0.65rem;
+  overflow-x: auto;
+  padding-bottom: 0.15rem;
+}
+
+.community-following-work {
+  display: block;
+  width: 7.25rem;
+  height: 7.25rem;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 0.55rem;
+  background: rgba(39, 37, 34, 0.06);
+}
+
+.community-following-work img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.community-following-more {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: auto;
+  min-width: 2.4rem;
+  height: 7.25rem;
+  flex-shrink: 0;
+  padding-bottom: 0.1rem;
+  color: #272522;
+  text-decoration: none;
+  font-family: "JasonHandwriting", "Amatic SC", cursive;
+  font-size: 1.9rem;
+  font-weight: normal;
+  letter-spacing: 0.08em;
+  line-height: 1;
+}
+
+.community-following-work-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0.6rem;
+  text-align: center;
+  font-size: 0.85rem;
+  line-height: 1.25;
+  color: #272522;
+}
+
+.community-following-empty-works,
+.community-following-status {
+  margin: 0;
+  color: #6f6a63;
+  font-size: 0.95rem;
+}

@@ -1011,6 +1011,23 @@ body,
 
   .community-editor-card .input {
     @apply bg-white transition-colors;
+    border-color: #d2d2ca;
+    box-shadow: none;
+    outline: none;
+    --tw-ring-shadow: 0 0 #0000;
+    --tw-ring-offset-shadow: 0 0 #0000;
+    --tw-ring-color: transparent;
+  }
+
+  .community-editor-card .input:hover,
+  .community-editor-card .input:focus,
+  .community-editor-card .input:focus-visible {
+    border-color: #1a1a1a;
+    box-shadow: none;
+    outline: none;
+    --tw-ring-shadow: 0 0 #0000;
+    --tw-ring-offset-shadow: 0 0 #0000;
+    --tw-ring-color: transparent;
   }
 
   .community-editor-card details {
@@ -1082,6 +1099,23 @@ body,
       grid-template-columns: repeat(auto-fill, minmax(12rem, 14.5rem));
       gap: 1.125rem;
     }
+  }
+
+  .portfolio-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.75rem;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .portfolio-empty-art {
+    display: block;
+    width: 11rem;
+    height: 11rem;
+    flex-shrink: 0;
+    object-fit: contain;
   }
 
   .portfolio-collection-grid {
@@ -1367,6 +1401,35 @@ body,
 
   .input {
     @apply w-full rounded-2xl border border-sand bg-white/90 px-4 py-3.5 text-sm outline-none transition placeholder:text-muted/60 focus:border-brand focus:ring-4 focus:ring-rose/30;
+  }
+
+  .input.conversation-search-input,
+  .input.ink-focus-frame,
+  .btn-secondary.ink-focus-frame {
+    border-color: #d2d2ca;
+    box-shadow: none;
+    outline: none;
+    --tw-ring-shadow: 0 0 #0000;
+    --tw-ring-offset-shadow: 0 0 #0000;
+    --tw-ring-color: transparent;
+  }
+
+  .input.conversation-search-input:hover,
+  .input.conversation-search-input:focus,
+  .input.conversation-search-input:focus-visible,
+  .input.ink-focus-frame:hover,
+  .input.ink-focus-frame:focus,
+  .input.ink-focus-frame:focus-visible,
+  .btn-secondary.ink-focus-frame:hover,
+  .btn-secondary.ink-focus-frame:focus,
+  .btn-secondary.ink-focus-frame:focus-visible,
+  .btn-secondary.ink-focus-frame:focus-within {
+    border-color: #1a1a1a;
+    box-shadow: none;
+    outline: none;
+    --tw-ring-shadow: 0 0 #0000;
+    --tw-ring-offset-shadow: 0 0 #0000;
+    --tw-ring-color: transparent;
   }
 
   .input.portfolio-manage-rename-input,
@@ -2025,6 +2088,49 @@ body,
     font-family: inherit;
     font-weight: normal;
     @apply text-3xl leading-tight text-ink sm:text-4xl md:text-5xl;
+  }
+
+  .messages-page-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+  }
+
+  .messages-title-mark {
+    display: block;
+    height: 1.45em;
+    width: auto;
+  }
+
+  .notifications-page-header {
+    display: flex;
+    align-items: flex-end;
+    gap: 1rem;
+  }
+
+  .notifications-together-art {
+    display: block;
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 6.5rem;
+    width: auto;
+    object-fit: contain;
+    object-position: left bottom;
+    pointer-events: none;
+  }
+
+  .notification-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.7rem;
+  }
+
+  .notification-item-mark {
+    display: block;
+    flex-shrink: 0;
+    width: 1.7rem;
+    height: 1.7rem;
+    margin-top: 0.12em;
   }
 
   .handwriting-page .section-eyebrow {

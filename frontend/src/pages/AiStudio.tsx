@@ -19,6 +19,7 @@ import {
 } from "../components/analysis/AnalysisPanels";
 import PhotoUpload from "../components/PhotoUpload";
 import StyleReferenceUpload from "../components/StyleReferenceUpload";
+import SquigglyText from "../components/ui/SquigglyText";
 import type { PhotoAnalysis, PhotoTag, PortfolioCollection } from "../types";
 
 const targetStyles = [
@@ -506,7 +507,11 @@ export default function AiStudio() {
       <header className="animate-fade-up max-w-3xl">
         <p className="section-eyebrow">AI Studio</p>
         <h1 className="page-title mt-2">让照片更接近你想要的样子</h1>
-        <p className="mt-3 text-muted">上传一张照片，获得针对性的拍摄与调色建议。</p>
+        <p className="mt-3 text-muted">
+          <SquigglyText as="span" stepDuration={70} scale={[2, 3.5]} baseFrequency={0.018}>
+            上传一张照片，获得针对性的拍摄与调色建议。
+          </SquigglyText>
+        </p>
       </header>
 
       <div className="studio-flow">

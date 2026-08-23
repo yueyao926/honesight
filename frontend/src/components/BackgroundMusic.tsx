@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import bgmUrl from "../BGM/bgm.mp3";
+import bgmUrl from "../BGM/bgm.ogg";
 
 const VOLUME = 0.32;
 

@@ -6,7 +6,9 @@ export type CommunityPost={id:number;author:{id:number;username:string;avatar_ur
 export type PostInput=Omit<Partial<CommunityPost>,"id"|"author"|"tags"|"images">&{title:string;content:string;post_type:string;visibility:string;status:string;images:Omit<CommunityImage,"id">[];tags:string[];copyright_confirmed:boolean};
 export type CommunityComment={id:number;content:string;parent_id?:number|null;reply_to_user_id?:number|null;like_count:number;reply_count:number;created_at:string;is_liked:boolean;is_owner:boolean;author:{id:number;username:string;avatar_url?:string|null}};
 
+export type FollowingPerson={author:{id:number;username:string;avatar_url?:string|null;signature?:string|null};work_count:number;posts:CommunityPost[]};
 export const getFeed=(kind="recommended",cursor?:number)=>apiRequest<{items:CommunityPost[];next_cursor?:number|null}>(`/community/feed/${kind}${cursor?`?cursor=${cursor}`:""}`);
+export const getFollowingPeople=()=>apiRequest<{items:FollowingPerson[]}>("/community/following-people");
 export const getPost=(id:number)=>apiRequest<CommunityPost>(`/community/posts/${id}`);
 export const createPost=(data:PostInput)=>apiRequest<CommunityPost>("/community/posts",{method:"POST",body:JSON.stringify(data)});
 export const updatePost=(id:number,data:PostInput)=>apiRequest<CommunityPost>(`/community/posts/${id}`,{method:"PATCH",body:JSON.stringify(data)});

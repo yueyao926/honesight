@@ -1,0 +1,72 @@
+.message-bubble {
+  max-width: 78%;
+  border-radius: 1.5rem;
+  padding: 0.75rem 1rem;
+}
+
+.message-bubble--peer {
+  background: #ffffff;
+  color: #1a1a1a;
+}
+
+.message-bubble--own {
+  background: #1a1a1a;
+  color: #ffffff;
+}
+
+.message-bubble--image {
+  background: transparent;
+  padding: 0;
+  color: #1a1a1a;
+}
+
+.message-bubble__image-btn {
+  display: block;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.message-bubble__image {
+  display: block;
+  width: 8.5rem;
+  height: 8.5rem;
+  object-fit: cover;
+  border-radius: 0.85rem;
+}
+
+.message-image-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(26, 26, 26, 0.88);
+  cursor: pointer;
+}
+
+.message-image-lightbox img {
+  max-width: 94vw;
+  max-height: 92vh;
+  object-fit: contain;
+  border-radius: 0.75rem;
+  cursor: default;
+}
+
+.message-bubble--image .message-bubble__image {
+  margin-bottom: 0;
+}
+
+.message-bubble:not(.message-bubble--image) .message-bubble__image {
+  margin-bottom: 0.5rem;
+}
+
+.message-bubble__time {
+  margin-top: 0.25rem;
+  text-align: right;
+  font-size: 10px;
+  opacity: 0.6;
+}

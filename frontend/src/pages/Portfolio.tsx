@@ -6,6 +6,8 @@ import PortfolioCollectionCard from "../components/portfolio/PortfolioCollection
 import PortfolioCollectionLoader from "../components/portfolio/PortfolioCollectionLoader";
 import PortfolioTitleStars from "../components/portfolio/PortfolioTitleStars";
 import OutlineLiftButton from "../components/ui/OutlineLiftButton";
+import SquigglyText from "../components/ui/SquigglyText";
+import photoSvg from "../SVG/photo.svg?url";
 import type { PortfolioCollection } from "../types";
 
 export default function Portfolio() {
@@ -46,7 +48,9 @@ export default function Portfolio() {
             <PortfolioTitleStars />
           </h1>
           <p className="mt-3 max-w-2xl text-muted leading-7">
-            以风格为名，按时间收藏，或为一段特别的经历留下一册；让不同阶段的目光各自成篇，也让摄影的成长在多样的光影里清晰可见。
+            <SquigglyText as="span" stepDuration={70} scale={[2, 3.5]} baseFrequency={0.018}>
+              以风格为名，按时间收藏，或为一段特别的经历留下一册；让不同阶段的目光各自成篇，也让摄影的成长在多样的光影里清晰可见。
+            </SquigglyText>
           </p>
         </div>
         <HandDrawnPressButton type="button" onClick={() => setShowCreate(true)}>
@@ -83,12 +87,12 @@ export default function Portfolio() {
       {error && <p className="mt-5 text-sm text-ink">{error}</p>}
 
       {collections.length === 0 ? (
-        <div className="card mt-10 text-center">
-          <h2 className="font-display text-2xl font-semibold">先创建一个空作品集</h2>
-          <p className="mt-3 text-sm text-muted">只需要取一个名字，之后可以直接上传照片，或保存 AI 分析过的原图。</p>
-          <HandDrawnPressButton className="mt-6" type="button" onClick={() => setShowCreate(true)}>
-            创建第一个作品集
-          </HandDrawnPressButton>
+        <div className="portfolio-empty mt-10">
+          <img className="portfolio-empty-art" src={photoSvg} alt="" />
+          <div>
+            <h2 className="font-display text-2xl font-semibold">先创建一个空作品集</h2>
+            <p className="mt-3 text-sm text-muted">只需要取一个名字，之后可以直接上传照片，或保存 AI 分析过的原图。</p>
+          </div>
         </div>
       ) : (
         <div className="portfolio-collection-grid mt-10">
