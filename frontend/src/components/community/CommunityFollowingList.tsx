@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getFollowingPeople, type FollowingPerson } from "../../api/community";
 import { getAssetUrl } from "../../api/client";
+import SearchLetterLoader from "../search/SearchLetterLoader";
 import "./CommunityFollowingList.css";
 
 function workCover(person: FollowingPerson, postId: number) {
@@ -34,7 +35,7 @@ export default function CommunityFollowingList() {
   }, []);
 
   if (loading) {
-    return <p className="community-following-status">正在载入关注的人…</p>;
+    return <SearchLetterLoader label="加载中" />;
   }
 
   if (error) {

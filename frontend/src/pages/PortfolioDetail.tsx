@@ -1,4 +1,4 @@
-﻿import { FormEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { getAssetUrl } from "../api/client";
 import {
@@ -19,6 +19,7 @@ import portrait4Svg from "../SVG/人像4.svg?url";
 import portrait5Svg from "../SVG/人像5.svg?url";
 import portraitAvatarSvg from "../SVG/人像头像.svg?url";
 import vectorBorderSvg from "../SVG/Vector.svg?url";
+import youMatterALotSvg from "../SVG/you_matter_a_lot.svg?url";
 import cameraPersonPng from "../SVG/拍照的人.png";
 
 const PORTFOLIO_PORTRAIT_SVGS = [
@@ -280,10 +281,24 @@ export default function PortfolioDetail() {
       {error && <p className="mt-5 text-sm text-ink">{error}</p>}
 
       {collection.photos.length === 0 ? (
-        <div className="card mt-10 text-center">
-          <h2 className="font-display text-2xl font-semibold">这个作品集还是空的</h2>
-          <p className="mt-3 text-sm text-muted">打开管理功能上传作品，或从 AI 工作室保存原图和 AI 精修版本。</p>
-          {!managing && <button className="btn-primary mt-6" type="button" onClick={() => setManaging(true)}>添加照片</button>}
+        <div className="portfolio-detail-empty mt-10">
+          <div className="portfolio-detail-empty__copy">
+            <h2 className="font-display text-2xl font-semibold">这个作品集还是空的</h2>
+            <p className="mt-3 text-sm text-muted">打开管理功能上传作品，或从 AI 工作室保存原图和 AI 精修版本。</p>
+            {!managing && (
+              <button className="portfolio-add-photo-btn mt-6" type="button" onClick={() => setManaging(true)}>
+                <img src={vectorBorderSvg} alt="" aria-hidden="true" className="portfolio-add-photo-btn__frame" />
+                <span>添加照片</span>
+              </button>
+            )}
+          </div>
+          <img
+            className="portfolio-detail-empty__art"
+            src={youMatterALotSvg}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+          />
         </div>
       ) : (
         <div className="portfolio-detail-grid mt-10">

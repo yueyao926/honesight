@@ -11,3 +11,7 @@ interface ImportMeta {
 declare module "*.png";
 declare module "*.mp3";
 declare module "*.ogg";
+declare module "*.svg?raw" {
+  const src: string;
+  export default src;
+}

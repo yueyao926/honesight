@@ -9,6 +9,7 @@ class ProfileUpdate(BaseModel):
     location: str | None = Field(default=None, max_length=120)
     photography_level: str | None = Field(default=None, max_length=40)
     equipment: str | None = Field(default=None, max_length=500)
+    personality_tags: list[str] | None = None
 
     @field_validator("username")
     @classmethod
@@ -16,6 +17,21 @@ class ProfileUpdate(BaseModel):
         if value is not None and not value.strip():
             raise ValueError("用户名不能为空")
         return value.strip() if value else value
+
+    @field_validator("personality_tags")
+    @classmethod
+    def clean_personality_tags(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        tags: list[str] = []
+        for item in value:
+            name = str(item).replace("#", "").strip()
+            if not name or name in tags:
+                continue
+            tags.append(name[:16])
+            if len(tags) >= 6:
+                break
+        return tags
 
 
 class PrivacyPayload(BaseModel):
@@ -37,6 +53,7 @@ class ProfileRead(BaseModel):
     equipment: str | None = None
     created_at: datetime
     work_count: int
+    collection_count: int = 0
     following_count: int
     follower_count: int
     is_following: bool = False
@@ -44,3 +61,5 @@ class ProfileRead(BaseModel):
     email: str | None = None
     email_verified: bool | None = None
     favorite_count: int | None = None
+    photography_categories: list[str] = []
+    personality_tags: list[str] = []

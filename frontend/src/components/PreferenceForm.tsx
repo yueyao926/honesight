@@ -27,9 +27,7 @@ function OptionGroup<T extends string | number>({
           <button
             key={option}
             type="button"
-            className={`min-h-12 rounded-2xl border px-3 text-sm transition ${
-              selected ? "border-brand bg-brand text-white" : "border-sand bg-white/65 text-ink hover:border-brand/60"
-            }`}
+            className={`preference-option${selected ? " preference-option--selected" : ""}`}
             aria-pressed={selected}
             onClick={() => onChange(option)}
           >
@@ -85,7 +83,7 @@ export default function PreferenceForm({
   }
 
   return (
-    <form className="space-y-7" onSubmit={handleSubmit}>
+    <form className="preference-form space-y-7" onSubmit={handleSubmit}>
       <fieldset>
         <legend className="mb-3 text-sm font-medium">你现在更接近哪种状态？</legend>
         <OptionGroup value={level} options={LEVELS} onChange={setLevel} />
@@ -108,17 +106,20 @@ export default function PreferenceForm({
         />
       </fieldset>
       {initial && (
-        <fieldset className="rounded-3xl border border-sand bg-white/45 p-5">
+        <fieldset className="preference-reminder">
           <div className="flex items-center justify-between gap-4">
-            <div><legend className="text-sm font-medium">每周提醒</legend><p className="mt-1 text-xs text-muted">最多两次，完成后停止。</p></div>
+            <div>
+              <legend className="text-sm font-medium">每周提醒</legend>
+              <p className="mt-1 text-xs text-muted">最多两次，完成后停止。</p>
+            </div>
             <button
               type="button"
               role="switch"
               aria-checked={reminderEnabled}
-              className={`relative h-7 w-12 rounded-full transition ${reminderEnabled ? "bg-brand" : "bg-sand"}`}
+              className={`preference-switch${reminderEnabled ? " preference-switch--on" : ""}`}
               onClick={() => setReminderEnabled((value) => !value)}
             >
-              <span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${reminderEnabled ? "left-6" : "left-1"}`} />
+              <span className="preference-switch__knob" />
             </button>
           </div>
           {reminderEnabled && (
@@ -127,15 +128,17 @@ export default function PreferenceForm({
                 <button
                   key={day}
                   type="button"
-                  className={`rounded-full px-3 py-2 text-xs ${practiceDay === index + 1 ? "bg-brand text-white" : "bg-sand/60 text-muted"}`}
+                  className={`preference-day${practiceDay === index + 1 ? " preference-day--selected" : ""}`}
                   onClick={() => setPracticeDay(index + 1)}
-                >{day}</button>
+                >
+                  {day}
+                </button>
               ))}
             </div>
           )}
         </fieldset>
       )}
-      <button className="btn-primary w-full sm:w-auto" type="submit" disabled={submitting}>
+      <button className="preference-save" type="submit" disabled={submitting}>
         {submitting ? "正在保存…" : submitText}
       </button>
     </form>

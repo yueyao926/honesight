@@ -1,4 +1,4 @@
-﻿import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { createPortfolio, listPortfolio } from "../api/portfolio";
 import HandDrawnPressButton from "../components/HandDrawnPressButton";
@@ -68,6 +68,9 @@ export default function Portfolio() {
             onChange={(event) => setName(event.target.value)}
             placeholder="例如：城市散步"
             maxLength={120}
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
             autoFocus
             required
           />

@@ -1,6 +1,7 @@
 type ProfileTabNavProps<T extends string> = {
   tabs: T[];
   tabNames: Record<T, string>;
+  tabCounts?: Partial<Record<T, number>>;
   active: T;
   onChange: (tab: T) => void;
 };
@@ -8,6 +9,7 @@ type ProfileTabNavProps<T extends string> = {
 export default function ProfileTabNav<T extends string>({
   tabs,
   tabNames,
+  tabCounts,
   active,
   onChange,
 }: ProfileTabNavProps<T>) {
@@ -15,6 +17,7 @@ export default function ProfileTabNav<T extends string>({
     <nav className="profile-tabs" aria-label="个人主页分类">
       {tabs.map((value) => {
         const isActive = active === value;
+        const count = tabCounts?.[value];
         return (
           <button
             key={value}
@@ -24,6 +27,7 @@ export default function ProfileTabNav<T extends string>({
             aria-current={isActive ? "page" : undefined}
           >
             {tabNames[value]}
+            {count != null && <span className="profile-tab-count">{count}</span>}
           </button>
         );
       })}

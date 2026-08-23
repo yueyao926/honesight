@@ -516,10 +516,10 @@ export default function AiStudio() {
 
       <div className="studio-flow">
         <StepSection number={1} title={steps[0]} state={step > 1 ? "done" : "active"} sectionRef={stepOneRef}>
-          <div className="card studio-step-card">
+          <div className="studio-step-card">
             <h2 className="font-display text-2xl font-semibold">选择照片</h2>
             <div className="mt-5">
-              <PhotoUpload value={photoUrl} onChange={handlePhotoChange} purpose="analysis" />
+              <PhotoUpload value={photoUrl} onChange={handlePhotoChange} purpose="analysis" outlineOnly />
               <p className="mt-3 text-xs text-muted">未保存的照片将在72小时后自动清理；需要长期保留可存入作品集。</p>
             </div>
           </div>
@@ -532,7 +532,7 @@ export default function AiStudio() {
           sectionRef={stepTwoRef}
         >
           {photoUrl ? (
-            <div className="card studio-step-card animate-fade-up">
+            <div className="studio-step-card animate-fade-up">
               <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <h2 className="font-display text-2xl font-semibold">你想把它调整成什么样？</h2>

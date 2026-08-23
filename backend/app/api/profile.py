@@ -9,9 +9,11 @@ from starlette.concurrency import run_in_threadpool
 from app.api.deps import get_current_user, get_optional_user
 from app.core.config import get_settings
 from app.database import get_db
-from app.models.portfolio import PortfolioFavorite, PortfolioItem
+from app.models.portfolio import PortfolioCollection, PortfolioFavorite, PortfolioItem
+from app.models.preference import Preference
 from app.models.profile import UserFollow, UserPrivacySetting
 from app.models.community import Notification, UserBlock
+from app.models.inspiration import InspirationFavorite
 from app.models.user import User
 from app.schemas.portfolio import PortfolioPhotoRead, PortfolioPhotoUpdate
 from app.schemas.profile import PrivacyPayload, ProfileRead, ProfileUpdate
@@ -41,19 +43,28 @@ def _profile(user: User, viewer: User | None, db: Session) -> dict:
     work_filter = [PortfolioItem.user_id == user.id]
     if not is_self:
         work_filter.append(PortfolioItem.visibility == "public")
+    preference = db.scalar(select(Preference).where(Preference.user_id == user.id))
     result = {
         "id": user.id, "username": user.username, "avatar_url": user.avatar_url,
         "signature": user.signature, "bio": user.bio, "location": user.location,
         "photography_level": user.photography_level, "equipment": user.equipment,
         "created_at": user.created_at, "is_self": is_self,
+        "personality_tags": list(user.personality_tags or [])[:6],
         "work_count": db.scalar(select(func.count()).select_from(PortfolioItem).where(*work_filter)) or 0,
+        "collection_count": db.scalar(select(func.count()).select_from(PortfolioCollection).where(PortfolioCollection.user_id == user.id)) or 0,
         "following_count": db.scalar(select(func.count()).select_from(UserFollow).where(UserFollow.follower_id == user.id)) or 0,
         "follower_count": db.scalar(select(func.count()).select_from(UserFollow).where(UserFollow.following_id == user.id)) or 0,
         "is_following": bool(viewer and db.scalar(select(UserFollow.id).where(UserFollow.follower_id == viewer.id, UserFollow.following_id == user.id))),
+        "photography_categories": list(preference.photography_categories or [])[:6] if preference else [],
     }
     if is_self:
-        result.update(email=user.email, email_verified=user.email_verified,
-                      favorite_count=db.scalar(select(func.count()).select_from(PortfolioFavorite).where(PortfolioFavorite.user_id == user.id)) or 0)
+        work_favorites = db.scalar(select(func.count()).select_from(PortfolioFavorite).where(PortfolioFavorite.user_id == user.id)) or 0
+        inspiration_favorites = db.scalar(select(func.count()).select_from(InspirationFavorite).where(InspirationFavorite.user_id == user.id)) or 0
+        result.update(
+            email=user.email,
+            email_verified=user.email_verified,
+            favorite_count=work_favorites + inspiration_favorites,
+        )
     return result
 
 

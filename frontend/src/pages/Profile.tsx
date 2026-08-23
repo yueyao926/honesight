@@ -10,26 +10,28 @@ import {
   getFollowers,
   getFollowing,
   getMyProfile,
-  getPrivacy,
   getPublicProfile,
   getWorks,
   resetAvatar,
   unfollowUser,
-  updatePrivacy,
   updateProfile,
   uploadAvatar,
 } from "../api/profile";
 import AvatarUploader from "../components/AvatarUploader";
 import PreferenceForm from "../components/PreferenceForm";
-import ProfileHero from "../components/profile/ProfileHero";
+import ProfileFavoriteFolderCard from "../components/profile/ProfileFavoriteFolderCard";
+import ProfileHero, { parsePersonalityTags } from "../components/profile/ProfileHero";
 import ProfileTabNav from "../components/profile/ProfileTabNav";
 import ProfileWorkGrid from "../components/profile/ProfileWorkGrid";
 import { useAuth } from "../contexts/AuthContext";
-import type { Inspiration, PortfolioPhoto, Preference, PrivacySettings, Profile as ProfileType } from "../types";
+import arrow28Svg from "../SVG/arrow-28.svg?url";
+import computerSvg from "../SVG/电脑.svg?url";
+import hangerSvg from "../SVG/衣架.svg?url";
+import type { Inspiration, PortfolioPhoto, Preference, Profile as ProfileType } from "../types";
 
-type Tab = "works" | "favorites" | "following" | "followers" | "preferences" | "account";
+type Tab = "works" | "favorites" | "following" | "followers" | "preferences";
 
-const privateTabs: Tab[] = ["favorites", "preferences", "account"];
+const privateTabs: Tab[] = ["favorites", "preferences"];
 
 const tabNames: Record<Tab, string> = {
   works: "作品集",
@@ -37,19 +39,10 @@ const tabNames: Record<Tab, string> = {
   following: "关注",
   followers: "粉丝",
   preferences: "个人偏好",
-  account: "账户设置",
-};
-
-const privacyLabels: Record<keyof PrivacySettings, string> = {
-  show_following: "公开关注列表",
-  show_followers: "公开粉丝列表",
-  allow_work_favorites: "允许收藏公开作品",
-  discoverable_by_username: "允许通过用户名搜索",
-  allow_follow_notifications: "接收新关注通知",
 };
 
 export default function Profile() {
-  const { user, isAuthenticated, logout, refreshMe } = useAuth();
+  const { isAuthenticated, refreshMe } = useAuth();
   const { userId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -59,7 +52,6 @@ export default function Profile() {
   const [works, setWorks] = useState<PortfolioPhoto[]>([]);
   const [people, setPeople] = useState<ProfileType[]>([]);
   const [preference, setPreference] = useState<Preference | null>(null);
-  const [privacy, setPrivacy] = useState<PrivacySettings | null>(null);
   const [inspirationFavorites, setInspirationFavorites] = useState<Inspiration[]>([]);
   const [favoriteFolder, setFavoriteFolder] = useState<"root" | "inspirations" | "works">("root");
   const [tab, setTab] = useState<Tab>("works");
@@ -104,7 +96,6 @@ export default function Profile() {
         if (tab === "following") setPeople(await getFollowing(profile.id));
         if (tab === "followers") setPeople(await getFollowers(profile.id));
         if (tab === "preferences" && own) setPreference(await getMyPreferences().catch(() => null));
-        if (tab === "account" && own) setPrivacy(await getPrivacy());
       } catch (e) {
         setError(e instanceof Error ? e.message : "加载失败");
       }
@@ -176,6 +167,7 @@ export default function Profile() {
       location: String(form.get("location")),
       photography_level: String(form.get("photography_level")),
       equipment: String(form.get("equipment")),
+      personality_tags: parsePersonalityTags(String(form.get("personality_tags") || "")),
     });
     setProfile(updated);
     await refreshMe();
@@ -195,23 +187,37 @@ export default function Profile() {
         onEdit={() => setEditing(true)}
         onFollow={toggleFollow}
         onMessage={startMessage}
-        onStatClick={setTab}
+        onSaveTags={async (tags) => {
+          const updated = await updateProfile({ personality_tags: tags });
+          setProfile(updated);
+        }}
       />
 
-      <ProfileTabNav tabs={tabs} tabNames={tabNames} active={tab} onChange={setTab} />
+      <ProfileTabNav
+        tabs={tabs}
+        tabNames={tabNames}
+        tabCounts={{
+          works: profile.collection_count ?? 0,
+          favorites: profile.favorite_count ?? 0,
+          following: profile.following_count,
+          followers: profile.follower_count,
+        }}
+        active={tab}
+        onChange={setTab}
+      />
 
       {tab === "works" && (
         <section className="profile-tab-panel">
           {works.length ? (
             <ProfileWorkGrid works={works} own={own} isAuthenticated={isAuthenticated} setWorks={setWorks} />
           ) : (
-            <div className="card text-center">
+            <div className="profile-empty">
               <h2 className="text-xl">这里还没有内容</h2>
               <p className="mt-2 text-sm text-muted">
                 {own ? "去作品集上传第一张照片吧。" : "暂时没有可展示的作品。"}
               </p>
               {own && (
-                <Link className="hand-drawn-outline-button mt-5 inline-block" to="/portfolio">
+                <Link className="cta mt-5 inline-block" to="/portfolio">
                   上传作品
                 </Link>
               )}
@@ -224,28 +230,31 @@ export default function Profile() {
         <section className="profile-tab-panel">
           {favoriteFolder === "root" && (
             <div className="grid gap-5 md:grid-cols-2">
-              <button type="button" className="community-folder text-left" onClick={() => setFavoriteFolder("inspirations")}>
-                <div>
-                  <p className="section-eyebrow">Collection</p>
-                  <h2 className="mt-2 text-2xl sm:text-3xl">首页灵感收藏夹</h2>
-                  <p className="mt-2 text-sm text-muted">你在首页个性化推荐中收藏的摄影作品。</p>
-                </div>
-                <strong className="text-3xl text-brand-deep sm:text-4xl">{inspirationFavorites.length}</strong>
-              </button>
-              <button type="button" className="community-folder text-left" onClick={() => setFavoriteFolder("works")}>
-                <div>
-                  <p className="section-eyebrow">Collection</p>
-                  <h2 className="mt-2 text-2xl sm:text-3xl">作品收藏</h2>
-                  <p className="mt-2 text-sm text-muted">你收藏的 LensCoach 用户公开作品。</p>
-                </div>
-                <strong className="text-3xl text-brand-deep sm:text-4xl">{works.length}</strong>
-              </button>
+              <ProfileFavoriteFolderCard
+                title="首页灵感收藏夹"
+                description="你在首页个性化推荐中收藏的摄影作品。"
+                count={inspirationFavorites.length}
+                onClick={() => setFavoriteFolder("inspirations")}
+              />
+              <ProfileFavoriteFolderCard
+                title="作品收藏"
+                description="你收藏的 LensCoach 用户公开作品。"
+                count={works.length}
+                onClick={() => setFavoriteFolder("works")}
+              />
             </div>
           )}
 
           {favoriteFolder !== "root" && (
-            <button type="button" className="hand-drawn-outline-button mb-5" onClick={() => setFavoriteFolder("root")}>
-              ← 返回我的收藏
+            <button type="button" className="community-back-link mb-5" onClick={() => setFavoriteFolder("root")}>
+              <img
+                src={arrow28Svg}
+                alt=""
+                aria-hidden="true"
+                draggable={false}
+                className="community-back-link__icon"
+              />
+              <span className="community-back-link__label">返回我的收藏</span>
             </button>
           )}
 
@@ -282,14 +291,32 @@ export default function Profile() {
                 ))}
               </div>
             ) : (
-              <div className="card text-center text-muted">首页灵感收藏夹还是空的</div>
+              <div className="profile-empty">
+                <img
+                  src={computerSvg}
+                  alt=""
+                  aria-hidden="true"
+                  draggable={false}
+                  className="profile-empty-illustration"
+                />
+                <p className="text-muted">首页灵感收藏夹还是空的</p>
+              </div>
             ))}
 
           {favoriteFolder === "works" &&
             (works.length ? (
               <ProfileWorkGrid works={works} own={false} isAuthenticated={isAuthenticated} setWorks={setWorks} />
             ) : (
-              <div className="card text-center text-muted">还没有收藏用户作品</div>
+              <div className="profile-empty">
+                <img
+                  src={hangerSvg}
+                  alt=""
+                  aria-hidden="true"
+                  draggable={false}
+                  className="profile-empty-illustration profile-empty-illustration--hanger"
+                />
+                <p className="text-muted">还没有收藏用户作品</p>
+              </div>
             ))}
         </section>
       )}
@@ -313,13 +340,13 @@ export default function Profile() {
               </Link>
             ))
           ) : (
-            <div className="card text-center text-muted">暂无{tabNames[tab]}</div>
+            <p className="profile-empty text-muted">暂无{tabNames[tab]}</p>
           )}
         </section>
       )}
 
       {tab === "preferences" && own && (
-        <section className="card profile-tab-panel">
+        <section className="profile-tab-panel profile-preferences">
           <h2 className="text-xl">个人偏好</h2>
           <p className="mt-2 text-sm text-muted">仅你可见，用于优化首页推荐。</p>
           <div className="mt-7">
@@ -331,60 +358,6 @@ export default function Profile() {
                 flash("偏好已保存");
               }}
             />
-          </div>
-        </section>
-      )}
-
-      {tab === "account" && own && (
-        <section className="profile-tab-panel grid gap-5 md:grid-cols-2">
-          <div className="card">
-            <h2 className="text-xl">绑定邮箱</h2>
-            <p className="mt-5">{profile.email?.replace(/^(.{2}).*(@.*)$/, "$1***$2")}</p>
-            <p className="mt-2 text-sm text-muted">
-              {profile.email_verified ? "✓ 已验证" : "尚未验证 · 重新验证暂未开放"}
-            </p>
-          </div>
-
-          <div className="card">
-            <h2 className="text-xl">隐私设置</h2>
-            {privacy && (
-              <div className="mt-5 space-y-4">
-                {Object.entries(privacy).map(([key, value]) => (
-                  <label className="flex items-center justify-between gap-5 text-sm" key={key}>
-                    <span>{privacyLabels[key as keyof PrivacySettings]}</span>
-                    <input
-                      type="checkbox"
-                      checked={value}
-                      onChange={async (event) => {
-                        const next = { ...privacy, [key]: event.target.checked };
-                        setPrivacy(await updatePrivacy(next));
-                        flash("隐私设置已保存");
-                      }}
-                    />
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="card md:col-span-2">
-            <button
-              type="button"
-              className="hand-drawn-outline-button"
-              onClick={async () => {
-                await logout();
-                navigate("/");
-              }}
-            >
-              退出登录
-            </button>
-            <button
-              type="button"
-              className="hand-drawn-outline-button ml-3 cursor-not-allowed opacity-40"
-              disabled
-            >
-              删除账户（暂未开放）
-            </button>
           </div>
         </section>
       )}
@@ -429,6 +402,17 @@ export default function Profile() {
               <label className="md:col-span-2">
                 <span className="label">常用设备</span>
                 <input className="input" name="equipment" defaultValue={profile.equipment || ""} />
+              </label>
+              <label className="md:col-span-2">
+                <span className="label">个性标签</span>
+                <input
+                  className="input"
+                  name="personality_tags"
+                  defaultValue={(profile.personality_tags || []).join(" ")}
+                  placeholder="用空格分开，例如：街拍 夜色 生活观察"
+                  maxLength={80}
+                  autoComplete="off"
+                />
               </label>
             </div>
 

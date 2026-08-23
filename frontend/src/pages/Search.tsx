@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { searchAll, suggestions, type SearchResult } from "../api/search";
 import CommunityFeedCard from "../components/community/CommunityFeedCard";
@@ -153,7 +153,7 @@ export default function Search() {
       ) : error ? (
         <div className="card text-ink">{error}</div>
       ) : !q ? (
-        <div className="card text-center text-muted">输入自然语言、用户名、地点或器材开始搜索。</div>
+        <p className="text-center text-muted">输入自然语言、用户名、地点或器材开始搜索。</p>
       ) : tab === "users" ? (
         <div className="grid gap-3 md:grid-cols-2">
           {result?.users.map((u) => (

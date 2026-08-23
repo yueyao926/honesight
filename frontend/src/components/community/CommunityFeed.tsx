@@ -1,6 +1,7 @@
 import type { CommunityPost } from "../../api/community";
+import SearchLetterLoader from "../search/SearchLetterLoader";
 import CommunityFeedCard from "./CommunityFeedCard";
-import MasonryGrid, { MasonryGridSkeleton } from "./MasonryGrid";
+import MasonryGrid from "./MasonryGrid";
 
 type CommunityFeedProps = {
   posts: CommunityPost[];
@@ -18,7 +19,7 @@ export default function CommunityFeed({
   onPostChange,
 }: CommunityFeedProps) {
   if (loading && !posts.length) {
-    return <MasonryGridSkeleton />;
+    return <SearchLetterLoader label="加载中" />;
   }
 
   if (!posts.length) {
@@ -39,9 +40,13 @@ export default function CommunityFeed({
         )}
       />
       {cursor ? (
-        <button className="btn-secondary mx-auto mt-8 block" disabled={loading} onClick={onLoadMore}>
-          {loading ? "加载中…" : "加载更多"}
-        </button>
+        loading ? (
+          <SearchLetterLoader label="加载中" />
+        ) : (
+          <button className="btn-secondary mx-auto mt-8 block" onClick={onLoadMore}>
+            加载更多
+          </button>
+        )
       ) : (
         <p className="community-wall-end">已经看到这里了</p>
       )}
