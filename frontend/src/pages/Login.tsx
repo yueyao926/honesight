@@ -11,6 +11,8 @@ export default function Login() {
   const [submitting, setSubmitting] = useState(false);
 
   const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname;
+  const blockedReturnPaths = new Set(["/settings", "/login", "/register"]);
+  const redirectTo = from && !blockedReturnPaths.has(from) ? from : "/dashboard";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -19,8 +21,7 @@ export default function Login() {
     const form = new FormData(event.currentTarget);
     try {
       await login(String(form.get("email")), String(form.get("password")));
-      // 回跳到登录前想去的页面，没有则进控制台
-      navigate(from || "/dashboard", { replace: true });
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "登录失败，请检查邮箱和密码");
     } finally {
