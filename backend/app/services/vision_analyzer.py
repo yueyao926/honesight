@@ -376,10 +376,11 @@ def call_analysis_details_model(
     editing_params = parsed.get("editing_params")
     platform_suggestion = parsed.get("platform_suggestion")
     result = {
-        "editing_params": editing_params if isinstance(editing_params, dict) else {},
-        "platform_suggestions": {
-            target_platform: platform_suggestion if isinstance(platform_suggestion, dict) else {}
-        },
+        "editing_params": _normalize_editing_params(editing_params if isinstance(editing_params, dict) else {}),
+        "platform_suggestions": _normalize_platform_suggestions(
+            platform_suggestion,
+            target_platform,
+        ),
         "model_used": str(payload["model"]),
         "elapsed_ms": _elapsed_ms(started_at),
     }

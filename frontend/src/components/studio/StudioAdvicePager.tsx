@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import arrow24Svg from "../../SVG/arrow-24.svg?url";
+import ErrorBoundary from "../ErrorBoundary";
 
 export type StudioAdvicePage = {
   id: string;
@@ -41,6 +42,13 @@ export default function StudioAdvicePager({ pages, resetKey = "", className = ""
 
   const safeIndex = Math.min(index, pages.length - 1);
   const page = pages[safeIndex];
+  if (!page) {
+    return (
+      <div className={`studio-advice-pager ${className}`.trim()}>
+        <p className="text-sm text-muted">内容加载失败，请返回上一页或刷新后重试。</p>
+      </div>
+    );
+  }
   const canPrev = safeIndex > 0;
   const canNext = safeIndex < pages.length - 1;
 
@@ -58,7 +66,9 @@ export default function StudioAdvicePager({ pages, resetKey = "", className = ""
         </button>
 
         <div className="studio-advice-pager__page" key={page.id}>
-          {page.content}
+          <ErrorBoundary key={page.id}>
+            {page.content}
+          </ErrorBoundary>
         </div>
 
         <button

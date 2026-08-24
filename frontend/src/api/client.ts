@@ -2,6 +2,7 @@ import type { User } from "../types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 const SESSION_REQUEST_HEADER = "LensCoach";
+const SESSION_STORAGE_KEY = "lenscoach_session";
 
 export type AuthSession = {
   access_token: string;
@@ -10,11 +11,56 @@ export type AuthSession = {
   user: User;
 };
 
+type StoredAuthSession = AuthSession & { saved_at: number };
+
 type AuthSessionListener = (session: AuthSession | null) => void;
 
 let currentSession: AuthSession | null = null;
 let refreshPromise: Promise<AuthSession> | null = null;
 const authSessionListeners = new Set<AuthSessionListener>();
+
+function persistAuthSession(session: AuthSession | null) {
+  try {
+    if (!session) {
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      return;
+    }
+    const payload: StoredAuthSession = { ...session, saved_at: Date.now() };
+    sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    // sessionStorage may be unavailable in private mode
+  }
+}
+
+function loadStoredAuthSession(): AuthSession | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<StoredAuthSession>;
+    if (!parsed.access_token || !parsed.user) return null;
+    const maxAgeMs = Math.max(60, parsed.expires_in || 900) * 1000;
+    const savedAt = parsed.saved_at || 0;
+    if (!savedAt || Date.now() - savedAt > maxAgeMs) {
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      return null;
+    }
+    return {
+      access_token: parsed.access_token,
+      token_type: parsed.token_type || "bearer",
+      expires_in: parsed.expires_in || 900,
+      user: parsed.user as User,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function hydrateAuthSessionFromStorage(): AuthSession | null {
+  const stored = loadStoredAuthSession();
+  if (!stored) return null;
+  currentSession = stored;
+  return stored;
+}
 
 export function getApiBaseUrl() {
   return API_BASE_URL;
@@ -26,6 +72,7 @@ export function getAccessToken() {
 
 export function setAuthSession(session: AuthSession | null) {
   currentSession = session;
+  persistAuthSession(session);
   authSessionListeners.forEach((listener) => listener(session));
 }
 
@@ -130,10 +177,16 @@ export function refreshAuthSession(): Promise<AuthSession> {
   )
     .then(async (response) => {
       if (!response.ok) {
-        if (response.status === 401) setAuthSession(null);
-        throw response.status === 401
-          ? new Error("登录已过期，请重新登录")
-          : await responseError(response);
+        if (response.status === 401) {
+          const fallback = loadStoredAuthSession();
+          if (fallback) {
+            setAuthSession(fallback);
+            return fallback;
+          }
+          setAuthSession(null);
+          throw new Error("登录已过期，请重新登录");
+        }
+        throw await responseError(response);
       }
       const session = await response.json() as AuthSession;
       setAuthSession(session);

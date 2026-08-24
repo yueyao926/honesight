@@ -22,6 +22,22 @@ const quickQuestions = [
   "帮我生成一段小红书文案。",
 ];
 
+function asDisplayText(value: unknown, fallback = ""): string {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return fallback;
+  }
+}
+
+function asStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => asDisplayText(item)).filter(Boolean);
+}
+
 function buildPublishingAdvice(analysis: PhotoAnalysis, targetPlatform: string) {
   const entries = Object.entries(analysis.platform_suggestions || {});
   const aliases: Record<string, string[]> = {
@@ -32,7 +48,10 @@ function buildPublishingAdvice(analysis: PhotoAnalysis, targetPlatform: string) 
     || (entries.length === 1 ? entries[0] : undefined);
   if (!selected) return "";
   const [platform, suggestions] = selected;
-  const advice = [...new Set(Object.values(suggestions).map((value) => String(value).trim()).filter(Boolean))]
+  if (!suggestions || typeof suggestions !== "object" || Array.isArray(suggestions)) {
+    return asDisplayText(suggestions) ? `${platform}发布建议：${asDisplayText(suggestions)}。` : "";
+  }
+  const advice = [...new Set(Object.values(suggestions).map((value) => asDisplayText(value)).filter(Boolean))]
     .map((value) => value.replace(/[。；;]+$/, ""))
     .join("；");
   return advice ? `${platform}发布建议：${advice}。` : "";
@@ -66,10 +85,10 @@ export function BenchmarkOverview({ analysis, targetPlatform }: { analysis: Phot
       <div className="mt-4 grid gap-4 md:grid-cols-4">
         <Metric label="综合评分" value={analysis.overall_score} />
         <Metric label="风格匹配度" value={analysis.target_style_match_score} />
-        <Metric label="照片类型" value={analysis.photo_type} small />
-        <Metric label="识别风格" value={analysis.detected_style} small />
+        <Metric label="照片类型" value={asDisplayText(analysis.photo_type)} small />
+        <Metric label="识别风格" value={asDisplayText(analysis.detected_style)} small />
       </div>
-      <p className="mt-5 text-sm leading-7 text-muted">{analysis.summary}</p>
+      <p className="mt-5 text-sm leading-7 text-muted">{asDisplayText(analysis.summary)}</p>
       {publishingAdvice && (
         <p className="mt-3 text-sm leading-7 text-muted">{publishingAdvice}</p>
       )}
@@ -120,11 +139,11 @@ export function DimensionCards({ analysis }: { analysis: PhotoAnalysis }) {
                 <StudioProgressBar value={score} className="mt-4" />
               </summary>
               <div className="studio-dimension-detail mt-5">
-                <p className="text-sm leading-7 text-muted">{detail?.reason}</p>
+                <p className="text-sm leading-7 text-muted">{asDisplayText(detail?.reason)}</p>
                 <p className="mt-4 text-xs font-medium uppercase tracking-wider text-muted">问题</p>
-                {detail?.problems?.length ? (
+                {asStringList(detail?.problems).length ? (
                   <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted">
-                    {detail.problems.map((item: string) => <li key={item}>{item}</li>)}
+                    {asStringList(detail?.problems).map((item) => <li key={item}>{item}</li>)}
                   </ul>
                 ) : (
                   <p className="mt-2 text-sm text-muted">暂未发现明显问题。</p>
@@ -169,16 +188,62 @@ export function AdvicePanel({ analysis }: { analysis: PhotoAnalysis }) {
   );
 }
 
-function Advice({ title, text }: { title: string; text: string }) {
+function Advice({ title, text }: { title: string; text: unknown }) {
   return (
     <div>
       <h3 className="text-sm font-medium text-ink">{title}</h3>
-      <p className="mt-2 text-sm leading-7 text-muted">{text}</p>
+      <p className="mt-2 text-sm leading-7 text-muted">{asDisplayText(text)}</p>
     </div>
   );
 }
 
+function normalizeParamRecord(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter(([, entry]) => entry !== null && entry !== undefined && entry !== "")
+      .map(([key, entry]) => [
+        key,
+        typeof entry === "string" ? entry : typeof entry === "number" ? String(entry) : JSON.stringify(entry),
+      ]),
+  );
+}
+
+function coerceEditingParams(value: PhotoAnalysis["editing_params"] | unknown): Record<string, unknown> {
+  if (!value) return {};
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return {};
+    }
+    return {};
+  }
+  if (typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return {};
+}
+
+function collectEditingParamSections(editingParams: PhotoAnalysis["editing_params"] | unknown) {
+  const source = coerceEditingParams(editingParams);
+  const lightroom = normalizeParamRecord(source.lightroom);
+  const mobileApps = normalizeParamRecord(source.mobile_apps);
+  const general = normalizeParamRecord(
+    Object.fromEntries(
+      Object.entries(source).filter(([key]) => key !== "lightroom" && key !== "mobile_apps"),
+    ),
+  );
+  return { lightroom, mobileApps, general };
+}
+
 export function ParamsPanel({ analysis }: { analysis: PhotoAnalysis }) {
+  const { lightroom, mobileApps, general } = collectEditingParamSections(analysis.editing_params);
+  const hasAnyParams = Object.keys(lightroom).length > 0 || Object.keys(mobileApps).length > 0 || Object.keys(general).length > 0;
+
   return (
     <section className="studio-result-section">
       <div className="studio-section-heading">
@@ -186,20 +251,99 @@ export function ParamsPanel({ analysis }: { analysis: PhotoAnalysis }) {
         <p className="section-eyebrow">修图参数</p>
       </div>
       <h2 className="mt-1 font-display text-2xl font-semibold">Lightroom & 手机 App</h2>
-      <div className="mt-5 grid gap-5 md:grid-cols-2">
-        <ParamTable title="Lightroom" params={analysis.editing_params.lightroom || {}} />
-        <ParamTable title="手机修图 App" params={analysis.editing_params.mobile_apps || {}} />
+      {!hasAnyParams ? (
+        <p className="mt-4 text-sm leading-7 text-muted">参数还在整理中，或本次结果没有返回可展示的修图数值。</p>
+      ) : (
+        <div className="mt-5 grid gap-5 md:grid-cols-2">
+          {Object.keys(lightroom).length > 0 && <ParamTable title="Lightroom" params={lightroom} />}
+          {Object.keys(mobileApps).length > 0 && <ParamTable title="手机修图 App" params={mobileApps} />}
+          {Object.keys(general).length > 0 && (
+            <div className="md:col-span-2">
+              <ParamTable title="通用参数" params={general} />
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+type EditingDetailsPanelProps = {
+  analysis: PhotoAnalysis;
+  targetPlatform: string;
+  detailsLoading: boolean;
+  detailsError: string;
+  onLoadDetails: () => void;
+};
+
+export function EditingDetailsPanel({
+  analysis,
+  targetPlatform,
+  detailsLoading,
+  detailsError,
+  onLoadDetails,
+}: EditingDetailsPanelProps) {
+  const publishingAdvice = buildPublishingAdvice(analysis, targetPlatform);
+  const { lightroom, mobileApps, general } = collectEditingParamSections(analysis.editing_params);
+  const hasAnyParams = Object.keys(lightroom).length > 0 || Object.keys(mobileApps).length > 0 || Object.keys(general).length > 0;
+  const hasDetails = hasAnyParams || Boolean(publishingAdvice);
+
+  return (
+    <section className="studio-result-section">
+      <div className="studio-section-heading">
+        <img src={notebookSvg} alt="" aria-hidden="true" className="studio-section-mark" draggable={false} />
+        <p className="section-eyebrow">修图参数与发布建议</p>
       </div>
+      <h2 className="mt-1 font-display text-2xl font-semibold">后期调整 & 平台发布</h2>
+
+      {detailsLoading && (
+        <p className="mt-4 text-sm leading-7 text-muted">正在后台生成修图参数与发布建议，请稍候…</p>
+      )}
+
+      {!detailsLoading && !hasDetails && (
+        <>
+          <p className="mt-4 text-sm leading-7 text-muted">
+            四维核心结果已完成；这部分在后台生成，不会阻塞你查看曝光、对焦、构图与色彩建议。
+          </p>
+          <button className="btn-secondary mt-5" type="button" onClick={onLoadDetails}>
+            生成详细参数
+          </button>
+        </>
+      )}
+
+      {!detailsLoading && hasAnyParams && (
+        <div className="mt-5 grid gap-5 md:grid-cols-2">
+          {Object.keys(lightroom).length > 0 && <ParamTable title="Lightroom" params={lightroom} />}
+          {Object.keys(mobileApps).length > 0 && <ParamTable title="手机修图 App" params={mobileApps} />}
+          {Object.keys(general).length > 0 && (
+            <div className="md:col-span-2">
+              <ParamTable title="通用参数" params={general} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {!detailsLoading && publishingAdvice && (
+        <div className="studio-insight-panel mt-5">
+          <p className="text-xs font-medium text-ink">发布建议</p>
+          <p className="mt-2 text-sm leading-7 text-muted">{publishingAdvice}</p>
+        </div>
+      )}
+
+      {detailsError && <p className="mt-3 text-sm text-red-500">{detailsError}</p>}
     </section>
   );
 }
 
 function ParamTable({ title, params }: { title: string; params: Record<string, string> }) {
+  const entries = Object.entries(params);
+  if (entries.length === 0) return null;
+
   return (
     <div className="rounded-2xl bg-blush/30 p-4">
       <h3 className="font-medium text-ink">{title}</h3>
       <div className="mt-3 grid gap-2">
-        {Object.entries(params).map(([key, value]) => (
+        {entries.map(([key, value]) => (
           <div key={key} className="flex justify-between rounded-xl bg-blush/35 px-3 py-2 text-sm">
             <span className="text-muted">{key}</span>
             <span className="font-medium text-ink">{value}</span>

@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { getMe, login as loginApi, logout as logoutApi } from "../api/auth";
 import {
   clearLegacyStoredAuth,
+  hydrateAuthSessionFromStorage,
   refreshAuthSession,
   setAuthSession,
   subscribeToAuthSession,
@@ -31,6 +32,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let active = true;
     clearLegacyStoredAuth();
+    const stored = hydrateAuthSessionFromStorage();
+    if (stored) {
+      setAuthSession(stored);
+      setIsLoading(false);
+    }
     refreshAuthSession()
       .catch(() => null)
       .finally(() => {

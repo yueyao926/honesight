@@ -15,7 +15,7 @@ import {
   AdvicePanel,
   BenchmarkOverview,
   DimensionCards,
-  ParamsPanel,
+  EditingDetailsPanel,
 } from "../components/analysis/AnalysisPanels";
 import PhotoUpload from "../components/PhotoUpload";
 import StyleReferenceUpload from "../components/StyleReferenceUpload";
@@ -572,29 +572,18 @@ export default function AiStudio() {
       id: "advice",
       content: <AdvicePanel analysis={analysis} />,
     });
-    if (Object.keys(analysis.editing_params || {}).length > 0) {
-      advicePages.push({
-        id: "params",
-        content: <ParamsPanel analysis={analysis} />,
-      });
-    } else {
-      advicePages.push({
-        id: "params-pending",
-        content: (
-          <>
-            <p className="section-eyebrow">异步补全</p>
-            <h2 className="mt-1 font-display text-2xl font-semibold">修图参数与发布建议</h2>
-            <p className="mt-4 text-sm leading-7 text-muted">
-              四维核心结果已完成；这部分在后台生成，不会阻塞你查看曝光、对焦、构图与色彩建议。
-            </p>
-            <button className="btn-secondary mt-5" type="button" onClick={handleLoadDetails} disabled={detailsLoading}>
-              {detailsLoading ? "正在生成参数…" : "重新生成详细参数"}
-            </button>
-            {detailsError && <p className="mt-3 text-sm text-red-500">{detailsError}</p>}
-          </>
-        ),
-      });
-    }
+    advicePages.push({
+      id: "details",
+      content: (
+        <EditingDetailsPanel
+          analysis={analysis}
+          targetPlatform={targetPlatform}
+          detailsLoading={detailsLoading}
+          detailsError={detailsError}
+          onLoadDetails={handleLoadDetails}
+        />
+      ),
+    });
   }
 
   if (generatedImages.length > 0) {

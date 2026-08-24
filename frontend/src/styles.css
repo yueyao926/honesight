@@ -2596,7 +2596,13 @@ body,
 
   .studio-advice-pager__page {
     min-height: clamp(14rem, 42vh, 24rem);
-    animation: studio-advice-page-in 0.32s ease-out;
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .studio-advice-pager__page {
+      animation: studio-advice-page-in 0.24s ease-out;
+    }
   }
 
   .studio-advice-pager__arrow {
@@ -2645,12 +2651,10 @@ body,
 
   @keyframes studio-advice-page-in {
     from {
-      opacity: 0;
-      transform: translateX(10px);
+      transform: translateX(8px);
     }
 
     to {
-      opacity: 1;
       transform: translateX(0);
     }
   }
