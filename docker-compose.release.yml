@@ -20,7 +20,7 @@ services:
         max-file: "3"
 
   backend:
-    image: HoneSight-backend:${IMAGE_TAG}
+    image: honesight-backend:${IMAGE_TAG}
     build:
       context: ./backend
     restart: unless-stopped
@@ -94,7 +94,7 @@ services:
         max-file: "3"
 
   frontend:
-    image: HoneSight-frontend:${IMAGE_TAG}
+    image: honesight-frontend:${IMAGE_TAG}
     build:
       context: ./frontend
       args:

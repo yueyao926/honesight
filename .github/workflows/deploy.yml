@@ -15,8 +15,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  BACKEND_IMAGE: HoneSight-backend
-  FRONTEND_IMAGE: HoneSight-frontend
+  BACKEND_IMAGE: honesight-backend
+  FRONTEND_IMAGE: honesight-frontend
 
 jobs:
   ci:

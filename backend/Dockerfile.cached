@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=HoneSight-backend:dependency-cache
+ARG BASE_IMAGE=honesight-backend:dependency-cache
 FROM ${BASE_IMAGE}
 
 WORKDIR /app

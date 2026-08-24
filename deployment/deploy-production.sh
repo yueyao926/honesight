@@ -30,7 +30,7 @@ compose "$release_sha" config --quiet
 
 previous_backend="$(sudo -n docker inspect --format '{{.Image}}' HoneSight-backend-1 2>/dev/null || true)"
 previous_frontend="$(sudo -n docker inspect --format '{{.Image}}' HoneSight-frontend-1 2>/dev/null || true)"
-dependency_cache_tag="HoneSight-backend:dependency-cache"
+dependency_cache_tag="honesight-backend:dependency-cache"
 
 if [[ -n "$previous_backend" ]] && sudo -n docker run --rm \
   --volume "$release_dir/backend/requirements.txt:/tmp/requirements.txt:ro" \
@@ -42,7 +42,7 @@ if [[ -n "$previous_backend" ]] && sudo -n docker run --rm \
   sudo -n docker build \
     --build-arg "BASE_IMAGE=$dependency_cache_tag" \
     --file "$release_dir/backend/Dockerfile.cached" \
-    --tag "HoneSight-backend:$release_sha" \
+    --tag "honesight-backend:$release_sha" \
     "$release_dir/backend"
 else
   echo "Production dependencies do not satisfy this release; running a full backend build"
@@ -52,10 +52,10 @@ fi
 compose "$release_sha" build frontend
 
 if [[ -n "$previous_backend" ]]; then
-  sudo -n docker tag "$previous_backend" "HoneSight-backend:$rollback_tag"
+  sudo -n docker tag "$previous_backend" "honesight-backend:$rollback_tag"
 fi
 if [[ -n "$previous_frontend" ]]; then
-  sudo -n docker tag "$previous_frontend" "HoneSight-frontend:$rollback_tag"
+  sudo -n docker tag "$previous_frontend" "honesight-frontend:$rollback_tag"
 fi
 
 rollback() {

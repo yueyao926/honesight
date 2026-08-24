@@ -22,10 +22,10 @@ previous_backend="$(sudo -n docker inspect --format '{{.Image}}' HoneSight-backe
 previous_frontend="$(sudo -n docker inspect --format '{{.Image}}' HoneSight-frontend-1 2>/dev/null || true)"
 
 if [[ -n "$previous_backend" ]]; then
-  sudo -n docker tag "$previous_backend" "HoneSight-backend:$rollback_tag"
+  sudo -n docker tag "$previous_backend" "honesight-backend:$rollback_tag"
 fi
 if [[ -n "$previous_frontend" ]]; then
-  sudo -n docker tag "$previous_frontend" "HoneSight-frontend:$rollback_tag"
+  sudo -n docker tag "$previous_frontend" "honesight-frontend:$rollback_tag"
 fi
 
 gzip --decompress --stdout HoneSight-images.tar.gz | sudo -n docker load

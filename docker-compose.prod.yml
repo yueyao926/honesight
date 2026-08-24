@@ -20,7 +20,7 @@ services:
         max-file: "3"
 
   backend:
-    image: HoneSight-backend:${IMAGE_TAG:-latest}
+    image: honesight-backend:${IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-HoneSight}@db:5432/HoneSight
@@ -92,7 +92,7 @@ services:
         max-file: "3"
 
   frontend:
-    image: HoneSight-frontend:${IMAGE_TAG:-latest}
+    image: honesight-frontend:${IMAGE_TAG:-latest}
     restart: unless-stopped
     ports:
       - "${PORT:-80}:80"
