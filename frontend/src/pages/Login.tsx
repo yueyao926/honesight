@@ -37,14 +37,14 @@ export default function Login() {
         <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
           <div>
             <label className="label">邮箱</label>
-            <input className="input" name="email" type="email" required placeholder="you@example.com" />
+            <input className="input ink-focus-frame" name="email" type="email" required placeholder="you@example.com" />
           </div>
           <div>
             <label className="label">密码</label>
-            <input className="input" name="password" type="password" required placeholder="••••••••" />
+            <input className="input ink-focus-frame" name="password" type="password" required placeholder="••••••••" />
           </div>
           {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-ink">{error}</p>}
-          <button className="btn-primary w-full" type="submit" disabled={submitting}>
+          <button className="btn-primary btn-primary--ink w-full" type="submit" disabled={submitting}>
             {submitting ? "登录中..." : "登录"}
           </button>
         </form>

@@ -39,6 +39,11 @@
   user-select: none;
 }
 
+body.inspiration-dialog-open .home-hangtag-root {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 @media (max-width: 767px) {
   .home-hangtag-root {
     display: none;

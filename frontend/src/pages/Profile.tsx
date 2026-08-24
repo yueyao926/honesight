@@ -4,6 +4,7 @@ import { getAssetUrl } from "../api/client";
 import { getFavoriteInspirations, unfavoriteInspiration } from "../api/inspirations";
 import { getMyPreferences, updateMyPreferences } from "../api/preferences";
 import { createConversation } from "../api/messages";
+import { listPortfolio } from "../api/portfolio";
 import {
   followUser,
   getFavorites,
@@ -11,7 +12,7 @@ import {
   getFollowing,
   getMyProfile,
   getPublicProfile,
-  getWorks,
+  getUserCollections,
   resetAvatar,
   unfollowUser,
   updateProfile,
@@ -19,15 +20,17 @@ import {
 } from "../api/profile";
 import AvatarUploader from "../components/AvatarUploader";
 import PreferenceForm from "../components/PreferenceForm";
+import ProfileCollectionGrid from "../components/profile/ProfileCollectionGrid";
 import ProfileFavoriteFolderCard from "../components/profile/ProfileFavoriteFolderCard";
 import ProfileHero, { parsePersonalityTags } from "../components/profile/ProfileHero";
 import ProfileTabNav from "../components/profile/ProfileTabNav";
 import ProfileWorkGrid from "../components/profile/ProfileWorkGrid";
+import OutlineLiftButton from "../components/ui/OutlineLiftButton";
 import { useAuth } from "../contexts/AuthContext";
 import arrow28Svg from "../SVG/arrow-28.svg?url";
 import computerSvg from "../SVG/电脑.svg?url";
 import hangerSvg from "../SVG/衣架.svg?url";
-import type { Inspiration, PortfolioPhoto, Preference, Profile as ProfileType } from "../types";
+import type { Inspiration, PortfolioCollection, PortfolioPhoto, Preference, Profile as ProfileType } from "../types";
 
 type Tab = "works" | "favorites" | "following" | "followers" | "preferences";
 
@@ -49,6 +52,7 @@ export default function Profile() {
 
   const own = !userId;
   const [profile, setProfile] = useState<ProfileType | null>(null);
+  const [collections, setCollections] = useState<PortfolioCollection[]>([]);
   const [works, setWorks] = useState<PortfolioPhoto[]>([]);
   const [people, setPeople] = useState<ProfileType[]>([]);
   const [preference, setPreference] = useState<Preference | null>(null);
@@ -67,7 +71,7 @@ export default function Profile() {
     try {
       const value = own ? await getMyProfile() : await getPublicProfile(Number(userId));
       setProfile(value);
-      setWorks(await getWorks(value.id));
+      setCollections(own ? await listPortfolio() : await getUserCollections(value.id));
     } catch (e) {
       setError(e instanceof Error ? e.message : "加载失败");
     } finally {
@@ -208,17 +212,17 @@ export default function Profile() {
 
       {tab === "works" && (
         <section className="profile-tab-panel">
-          {works.length ? (
-            <ProfileWorkGrid works={works} own={own} isAuthenticated={isAuthenticated} setWorks={setWorks} />
+          {collections.length ? (
+            <ProfileCollectionGrid collections={collections} userId={profile.id} own={own} />
           ) : (
             <div className="profile-empty">
               <h2 className="text-xl">这里还没有内容</h2>
               <p className="mt-2 text-sm text-muted">
-                {own ? "去作品集上传第一张照片吧。" : "暂时没有可展示的作品。"}
+                {own ? "去作品集创建第一个作品集吧。" : "暂时没有可展示的作品集。"}
               </p>
               {own && (
                 <Link className="cta mt-5 inline-block" to="/portfolio">
-                  上传作品
+                  创建作品集
                 </Link>
               )}
             </div>
@@ -322,10 +326,10 @@ export default function Profile() {
       )}
 
       {(tab === "following" || tab === "followers") && (
-        <section className="profile-tab-panel space-y-3">
+        <section className="profile-tab-panel profile-people-list">
           {people.length ? (
             people.map((person) => (
-              <Link key={person.id} to={`/users/${person.id}`} className="card flex items-center gap-4 p-4">
+              <Link key={person.id} to={`/users/${person.id}`} className="profile-people-item">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blush">
                   {person.avatar_url ? (
                     <img src={getAssetUrl(person.avatar_url)} alt="" />
@@ -367,31 +371,31 @@ export default function Profile() {
           <form className="profile-edit-modal" onSubmit={saveProfile}>
             <div className="flex items-start justify-between gap-4">
               <h2 className="text-2xl">编辑资料</h2>
-              <button type="button" className="hand-drawn-outline-button" onClick={() => setEditing(false)}>
+              <OutlineLiftButton type="button" variant="solid" onClick={() => setEditing(false)}>
                 取消
-              </button>
+              </OutlineLiftButton>
             </div>
 
             <div className="mt-6 grid gap-5 md:grid-cols-2">
               <label>
                 <span className="label">用户名</span>
-                <input className="input" name="username" minLength={2} maxLength={80} required defaultValue={profile.username} />
+                <input className="input ink-focus-frame" name="username" minLength={2} maxLength={80} required defaultValue={profile.username} />
               </label>
               <label>
                 <span className="label">个性签名（80字）</span>
-                <input className="input" name="signature" maxLength={80} defaultValue={profile.signature || ""} />
+                <input className="input ink-focus-frame" name="signature" maxLength={80} defaultValue={profile.signature || ""} />
               </label>
               <label className="md:col-span-2">
                 <span className="label">个人简介（300字）</span>
-                <textarea className="input min-h-28" name="bio" maxLength={300} defaultValue={profile.bio || ""} />
+                <textarea className="input ink-focus-frame min-h-28" name="bio" maxLength={300} defaultValue={profile.bio || ""} />
               </label>
               <label>
                 <span className="label">地区</span>
-                <input className="input" name="location" defaultValue={profile.location || ""} />
+                <input className="input ink-focus-frame" name="location" defaultValue={profile.location || ""} />
               </label>
               <label>
                 <span className="label">摄影水平</span>
-                <select className="input" name="photography_level" defaultValue={profile.photography_level || ""}>
+                <select className="input ink-focus-frame" name="photography_level" defaultValue={profile.photography_level || ""}>
                   <option value="">未选择</option>
                   <option>初学者</option>
                   <option>入门</option>
@@ -401,12 +405,12 @@ export default function Profile() {
               </label>
               <label className="md:col-span-2">
                 <span className="label">常用设备</span>
-                <input className="input" name="equipment" defaultValue={profile.equipment || ""} />
+                <input className="input ink-focus-frame" name="equipment" defaultValue={profile.equipment || ""} />
               </label>
               <label className="md:col-span-2">
                 <span className="label">个性标签</span>
                 <input
-                  className="input"
+                  className="input ink-focus-frame"
                   name="personality_tags"
                   defaultValue={(profile.personality_tags || []).join(" ")}
                   placeholder="用空格分开，例如：街拍 夜色 生活观察"
@@ -416,9 +420,9 @@ export default function Profile() {
               </label>
             </div>
 
-            <button type="submit" className="hand-drawn-outline-button mt-7">
+            <OutlineLiftButton type="submit" variant="solid" className="mt-7">
               保存资料
-            </button>
+            </OutlineLiftButton>
           </form>
         </div>
       )}

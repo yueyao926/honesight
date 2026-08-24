@@ -62,7 +62,7 @@ export default function Layout() {
             {!isAuthenticated ? (
               <>
                 <NavLink to="/login" className={navClass}>登录</NavLink>
-                <Link to="/register" className="btn-primary ml-1 py-2 text-xs md:text-sm">注册</Link>
+                <Link to="/register" className="btn-primary btn-primary--ink ml-1 py-2 text-xs md:text-sm">注册</Link>
               </>
             ) : (
               <Link className="ml-1 flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-blush text-sm font-medium text-ink" to="/profile" aria-label="个人主页">
@@ -125,7 +125,7 @@ export default function Layout() {
             ) : (
               <div className="grid grid-cols-2 gap-3">
                 <Link to="/login" className="btn-secondary w-full">登录</Link>
-                <Link to="/register" className="btn-primary w-full">免费注册</Link>
+                <Link to="/register" className="btn-primary btn-primary--ink w-full">免费注册</Link>
                 <Link to="/community" className="col-span-2 rounded-2xl bg-white/65 px-4 py-3 text-center text-sm font-medium text-ink">
                   先逛逛摄影社区
                 </Link>

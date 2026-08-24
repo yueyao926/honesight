@@ -58,7 +58,7 @@ export default function StyleReferenceUpload({ value, onChange, maxFiles = 3 }: 
         {value.map((url, index) => (
           <div key={url} className="group relative">
             <img
-              className="h-28 w-28 rounded-2xl object-cover shadow-card ring-2 ring-white"
+              className="h-28 w-28 rounded-2xl object-cover"
               src={getAssetUrl(url)}
               alt={`风格参考 ${index + 1}`}
             />
@@ -74,7 +74,7 @@ export default function StyleReferenceUpload({ value, onChange, maxFiles = 3 }: 
         {value.length < maxFiles && (
           <button
             type="button"
-            className="flex h-28 w-28 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-sand bg-white/50 text-xs text-muted transition hover:border-brand hover:text-ink"
+            className="flex h-28 w-28 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-sand bg-transparent text-xs text-ink transition hover:border-ink focus-visible:border-ink focus-visible:outline-none"
             onClick={() => inputRef.current?.click()}
             disabled={Boolean(stage)}
           >
@@ -93,7 +93,7 @@ export default function StyleReferenceUpload({ value, onChange, maxFiles = 3 }: 
         className="hidden"
         onChange={(event) => handleFiles(event.target.files)}
       />
-      <p className="text-xs text-muted">最多 {maxFiles} 张，单张最大 10MB</p>
+      <p className="text-xs text-ink/70">最多 {maxFiles} 张，单张最大 10MB</p>
       {error && <p className="text-xs text-ink">{error}</p>}
     </div>
   );

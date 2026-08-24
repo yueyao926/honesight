@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getMyProfile, getPrivacy, updatePrivacy } from "../api/profile";
+import OutlineLiftButton from "../components/ui/OutlineLiftButton";
 import { useAuth } from "../contexts/AuthContext";
 import type { PrivacySettings, Profile } from "../types";
 import arrow28Svg from "../SVG/arrow-28.svg?url";
@@ -91,17 +92,17 @@ export default function Settings() {
       </section>
 
       <section className="settings-actions">
-        <button
+        <OutlineLiftButton
           type="button"
-          className="hand-drawn-outline-button"
+          variant="solid"
           onClick={async () => {
             await logout();
             navigate("/");
           }}
         >
           退出登录
-        </button>
-        <button type="button" className="hand-drawn-outline-button cursor-not-allowed opacity-40" disabled>
+        </OutlineLiftButton>
+        <button type="button" className="btn-secondary portfolio-manage-cancel-btn" disabled>
           删除账户（暂未开放）
         </button>
       </section>

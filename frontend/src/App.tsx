@@ -20,7 +20,11 @@ import Messages from "./pages/Messages";
 import ConversationView from "./pages/ConversationView";
 import Search from "./pages/Search";
 import Profile from "./pages/Profile";
+import ProfileCollectionDetail from "./pages/ProfileCollectionDetail";
 import Practice from "./pages/Practice";
+import PracticeAdd from "./pages/PracticeAdd";
+import PracticeReplace from "./pages/PracticeReplace";
+import PracticeSession from "./pages/PracticeSession";
 
 export default function App() {
   return (
@@ -33,11 +37,15 @@ export default function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/practice/add" element={<ProtectedRoute><PracticeAdd /></ProtectedRoute>} />
+        <Route path="/practice/:sessionId/replace" element={<ProtectedRoute><PracticeReplace /></ProtectedRoute>} />
+        <Route path="/practice/:sessionId" element={<ProtectedRoute><PracticeSession /></ProtectedRoute>} />
         <Route path="/practice" element={<ProtectedRoute><Practice /></ProtectedRoute>} />
         <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/users/:userId" element={<Profile />} />
+        <Route path="/users/:userId/collections/:collectionId" element={<ProfileCollectionDetail />} />
         <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
         <Route path="/portfolio/:id" element={<ProtectedRoute><PortfolioDetail /></ProtectedRoute>} />
         <Route path="/ai" element={<ProtectedRoute><AiStudio /></ProtectedRoute>} />

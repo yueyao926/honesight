@@ -4,12 +4,13 @@ import type { PortfolioCollection } from "../../types";
 
 type PortfolioCollectionCardProps = {
   collection: PortfolioCollection;
+  to?: string;
 };
 
-export default function PortfolioCollectionCard({ collection }: PortfolioCollectionCardProps) {
+export default function PortfolioCollectionCard({ collection, to }: PortfolioCollectionCardProps) {
   return (
     <Link
-      to={`/portfolio/${collection.id}`}
+      to={to ?? `/portfolio/${collection.id}`}
       className="portfolio-collection-card community-card photo-card"
     >
       <div className="community-card-image portfolio-collection-card__image">

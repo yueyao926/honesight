@@ -143,6 +143,7 @@ export default function DailyInspirationSection({ embedded = false }: { embedded
     const previous = document.activeElement as HTMLElement | null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    document.body.classList.add("inspiration-dialog-open");
     window.requestAnimationFrame(() => closeRef.current?.focus());
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") setDetail(null);
@@ -151,6 +152,7 @@ export default function DailyInspirationSection({ embedded = false }: { embedded
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = previousOverflow;
+      document.body.classList.remove("inspiration-dialog-open");
       previous?.focus();
     };
   }, [detail]);

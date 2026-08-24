@@ -15,7 +15,7 @@ from app.models.profile import UserFollow, UserPrivacySetting
 from app.models.community import Notification, UserBlock
 from app.models.inspiration import InspirationFavorite
 from app.models.user import User
-from app.schemas.portfolio import PortfolioPhotoRead, PortfolioPhotoUpdate
+from app.schemas.portfolio import PortfolioCollectionDetail, PortfolioCollectionRead, PortfolioPhotoRead, PortfolioPhotoUpdate
 from app.schemas.profile import PrivacyPayload, ProfileRead, ProfileUpdate
 from app.services.image_storage import (
     AVATAR_MAX_BYTES,
@@ -51,7 +51,16 @@ def _profile(user: User, viewer: User | None, db: Session) -> dict:
         "created_at": user.created_at, "is_self": is_self,
         "personality_tags": list(user.personality_tags or [])[:6],
         "work_count": db.scalar(select(func.count()).select_from(PortfolioItem).where(*work_filter)) or 0,
-        "collection_count": db.scalar(select(func.count()).select_from(PortfolioCollection).where(PortfolioCollection.user_id == user.id)) or 0,
+        "collection_count": (
+            db.scalar(select(func.count()).select_from(PortfolioCollection).where(PortfolioCollection.user_id == user.id)) or 0
+            if is_self
+            else db.scalar(
+                select(func.count(func.distinct(PortfolioCollection.id)))
+                .select_from(PortfolioCollection)
+                .join(PortfolioItem, PortfolioItem.collection_id == PortfolioCollection.id)
+                .where(PortfolioCollection.user_id == user.id, PortfolioItem.visibility == "public")
+            ) or 0
+        ),
         "following_count": db.scalar(select(func.count()).select_from(UserFollow).where(UserFollow.follower_id == user.id)) or 0,
         "follower_count": db.scalar(select(func.count()).select_from(UserFollow).where(UserFollow.following_id == user.id)) or 0,
         "is_following": bool(viewer and db.scalar(select(UserFollow.id).where(UserFollow.follower_id == viewer.id, UserFollow.following_id == user.id))),
@@ -79,6 +88,39 @@ def _work_dict(work: PortfolioItem, viewer: User | None) -> dict:
         "is_favorited": bool(viewer and any(f.user_id == viewer.id for f in work.favorites)),
         "tags": work.tags, "created_at": work.created_at, "updated_at": work.updated_at,
     }
+
+
+def _visible_photos(collection: PortfolioCollection, viewer: User | None) -> list[PortfolioItem]:
+    photos = list(collection.photos)
+    if viewer and viewer.id == collection.user_id:
+        return photos
+    return [photo for photo in photos if photo.visibility == "public"]
+
+
+def _collection_dict(collection: PortfolioCollection, viewer: User | None, *, include_photos: bool = False) -> dict | None:
+    photos = _visible_photos(collection, viewer)
+    is_self = bool(viewer and viewer.id == collection.user_id)
+    if not is_self and not photos:
+        return None
+    result = {
+        "id": collection.id,
+        "user_id": collection.user_id,
+        "name": collection.name,
+        "cover_image_url": (photos[0].thumbnail_url or photos[0].image_url) if photos else None,
+        "photo_count": len(photos),
+        "created_at": collection.created_at,
+        "updated_at": collection.updated_at,
+    }
+    if include_photos:
+        result["photos"] = [_work_dict(photo, viewer) for photo in photos]
+    return result
+
+
+def _collection_query():
+    return select(PortfolioCollection).options(
+        selectinload(PortfolioCollection.photos).selectinload(PortfolioItem.tags),
+        selectinload(PortfolioCollection.photos).selectinload(PortfolioItem.favorites),
+    )
 
 
 @router.get("/me/profile", response_model=ProfileRead)
@@ -158,6 +200,48 @@ def public_works(user_id: int, page: int = Query(1, ge=1), page_size: int = Quer
     if not viewer or viewer.id != user_id: query = query.where(PortfolioItem.visibility == "public")
     works = db.scalars(query.order_by(PortfolioItem.created_at.desc()).offset((page - 1) * page_size).limit(page_size)).all()
     return [_work_dict(work, viewer) for work in works]
+
+
+@router.get("/users/{user_id}/collections", response_model=list[PortfolioCollectionRead])
+def public_collections(
+    user_id: int,
+    viewer: User | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    _active_user(user_id, db)
+    collections = db.scalars(
+        _collection_query()
+        .where(PortfolioCollection.user_id == user_id)
+        .order_by(PortfolioCollection.updated_at.desc(), PortfolioCollection.created_at.desc())
+    ).all()
+    result: list[dict] = []
+    for collection in collections:
+        item = _collection_dict(collection, viewer)
+        if item:
+            result.append(item)
+    return result
+
+
+@router.get("/users/{user_id}/collections/{collection_id}", response_model=PortfolioCollectionDetail)
+def public_collection_detail(
+    user_id: int,
+    collection_id: int,
+    viewer: User | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    _active_user(user_id, db)
+    collection = db.scalar(
+        _collection_query().where(
+            PortfolioCollection.id == collection_id,
+            PortfolioCollection.user_id == user_id,
+        )
+    )
+    if not collection:
+        raise HTTPException(status_code=404, detail="作品集不存在")
+    detail = _collection_dict(collection, viewer, include_photos=True)
+    if not detail:
+        raise HTTPException(status_code=404, detail="作品集不存在")
+    return detail
 
 
 @router.patch("/works/{work_id}", response_model=PortfolioPhotoRead)

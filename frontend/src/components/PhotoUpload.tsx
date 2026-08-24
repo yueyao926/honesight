@@ -11,6 +11,7 @@ type Props = {
   outlineOnly?: boolean;
   compactPreview?: boolean;
   previewMaxHeight?: number;
+  gridCell?: boolean;
 };
 
 export default function PhotoUpload({
@@ -21,6 +22,7 @@ export default function PhotoUpload({
   outlineOnly = false,
   compactPreview = false,
   previewMaxHeight,
+  gridCell = false,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [stage, setStage] = useState<ImageUploadStage | null>(null);
@@ -47,20 +49,36 @@ export default function PhotoUpload({
       ? "服务器正在确认图片…"
       : "正在上传…";
 
+  const useOutline = outlineOnly || purpose === "practice";
+
   const panelPreviewStyle = compactPreview && previewMaxHeight
     ? { maxHeight: `${previewMaxHeight}px` }
     : undefined;
 
+  const previewClassName = gridCell
+    ? "h-full w-full object-contain"
+    : compactPreview
+      ? "w-auto max-w-md rounded-3xl object-contain"
+      : useOutline
+        ? "max-h-80 w-full rounded-3xl object-contain"
+        : "max-h-80 w-full rounded-3xl object-cover shadow-card ring-4 ring-white";
+
+  const previewWrapperClassName = gridCell
+    ? "group relative aspect-[4/3] w-full overflow-hidden rounded-3xl border border-ink/10 bg-sand/25"
+    : "group relative inline-block max-w-full";
+
+  const uploadButtonClassName = gridCell
+    ? "group flex aspect-[4/3] w-full min-h-0 flex-col items-center justify-center rounded-3xl border-2 border-dashed border-sand bg-transparent transition hover:border-ink"
+    : useOutline
+      ? "group flex min-h-56 w-full flex-col items-center justify-center rounded-3xl border-2 border-dashed border-sand bg-transparent transition hover:border-ink"
+      : "group flex min-h-56 w-full flex-col items-center justify-center rounded-3xl border-2 border-dashed border-sand bg-white/50 shadow-card transition hover:border-ink hover:bg-blush/30";
+
   return (
-    <div className="space-y-4">
+    <div className={gridCell ? "w-full min-w-0 space-y-2" : "space-y-4"}>
       {value ? (
-        <div className="group relative inline-block max-w-full">
+        <div className={previewWrapperClassName}>
           <img
-            className={
-              compactPreview
-                ? "w-auto max-w-md rounded-3xl object-contain"
-                : "max-h-80 w-full rounded-3xl object-cover shadow-card ring-4 ring-white"
-            }
+            className={previewClassName}
             style={panelPreviewStyle}
             src={getAssetUrl(value)}
             alt="待分析照片"
@@ -76,17 +94,13 @@ export default function PhotoUpload({
       ) : (
         <button
           type="button"
-          className={
-            outlineOnly
-              ? "group flex min-h-56 w-full flex-col items-center justify-center rounded-3xl border-2 border-dashed border-sand bg-transparent transition hover:border-ink"
-              : "group flex min-h-56 w-full flex-col items-center justify-center rounded-3xl border-2 border-dashed border-sand bg-white/50 shadow-card transition hover:border-ink hover:bg-blush/30"
-          }
+          className={uploadButtonClassName}
           onClick={() => inputRef.current?.click()}
           disabled={Boolean(stage)}
         >
           <span className="font-display text-4xl font-light text-ink transition group-hover:text-ink">+</span>
-          <span className="mt-2 text-sm text-muted transition group-hover:text-ink">{stage ? statusText : label}</span>
-          <span className="mt-1 text-xs text-muted transition group-hover:text-ink">JPG / PNG / WebP，单张最大 10MB</span>
+          <span className={`mt-2 text-sm transition group-hover:text-ink ${useOutline ? "text-ink" : "text-muted"}`}>{stage ? statusText : label}</span>
+          <span className={`mt-1 text-xs transition group-hover:text-ink ${useOutline ? "text-ink/70" : "text-muted"}`}>JPG / PNG / WebP，单张最大 10MB</span>
         </button>
       )}
       <input

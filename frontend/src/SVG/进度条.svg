@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 140" width="1000" height="140">
+  <defs>
+    <!-- Editable visible inner area -->
+    <clipPath id="progress-inner-clip">
+      <rect x="31" y="34" width="938" height="67" rx="14" ry="14"/>
+    </clipPath>
+  </defs>
+
+  <!-- Outer outline, matched to the reference bar -->
+  <rect
+    id="progress-outline"
+    x="18" y="21"
+    width="964"
+    height="99"
+    rx="23"
+    ry="23"
+    fill="none"
+    stroke="#111111"
+    stroke-width="13"
+    stroke-linejoin="round"
+  />
+
+  <!-- Editable progress fill: change width to update progress -->
+  <!-- Current width ≈ 641, matching the reference image -->
+  <g id="progress-fill-group" clip-path="url(#progress-inner-clip)">
+    <rect
+      id="progress-fill"
+      x="31"
+      y="34"
+      width="641"
+      height="67"
+      fill="#111111"
+    />
+  </g>
+</svg>

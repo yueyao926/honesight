@@ -8,34 +8,49 @@ const DEVICES = ["手机", "相机", "都会使用"];
 const TIMES = [10, 20, 40];
 const DAYS = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
 
-function OptionGroup<T extends string | number>({
+const SECTIONS = [
+  { question: "你现在的摄影水平更接近？", options: LEVELS },
+  { question: "你常拍什么？", options: CATEGORIES },
+  { question: "你使用什么设备？", options: DEVICES },
+] as const;
+
+function PreferenceRadioSection<T extends string | number>({
+  question,
   value,
   options,
   onChange,
   format = (item) => String(item),
 }: {
+  question: string;
   value: T;
-  options: T[];
+  options: readonly T[];
   onChange: (value: T) => void;
   format?: (item: T) => string;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-      {options.map((option) => {
-        const selected = value === option;
-        return (
-          <button
-            key={option}
-            type="button"
-            className={`preference-option${selected ? " preference-option--selected" : ""}`}
-            aria-pressed={selected}
-            onClick={() => onChange(option)}
-          >
-            {format(option)}
-          </button>
-        );
-      })}
-    </div>
+    <fieldset className="preference-section">
+      <legend className="preference-section__header">
+        <span className="preference-section__question">{question}</span>
+      </legend>
+      <ul className="preference-radio-list">
+        {options.map((option) => {
+          const selected = value === option;
+          return (
+            <li key={String(option)}>
+              <button
+                type="button"
+                className={`preference-radio-option${selected ? " is-selected" : ""}`}
+                aria-pressed={selected}
+                onClick={() => onChange(option)}
+              >
+                <span className="preference-radio-option__mark" aria-hidden="true">{selected ? "●" : "○"}</span>
+                <span>{format(option)}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </fieldset>
   );
 }
 
@@ -82,36 +97,39 @@ export default function PreferenceForm({
     }
   }
 
+  const sectionValues = [level, category, device] as const;
+  const sectionSetters = [setLevel, setCategory, setDevice] as const;
+
   return (
-    <form className="preference-form space-y-7" onSubmit={handleSubmit}>
-      <fieldset>
-        <legend className="mb-3 text-sm font-medium">你现在更接近哪种状态？</legend>
-        <OptionGroup value={level} options={LEVELS} onChange={setLevel} />
-      </fieldset>
-      <fieldset>
-        <legend className="mb-3 text-sm font-medium">你常拍什么？</legend>
-        <OptionGroup value={category} options={CATEGORIES} onChange={setCategory} />
-      </fieldset>
-      <fieldset>
-        <legend className="mb-3 text-sm font-medium">你使用什么设备？</legend>
-        <OptionGroup value={device} options={DEVICES} onChange={setDevice} />
-      </fieldset>
-      <fieldset>
-        <legend className="mb-3 text-sm font-medium">每周想留多少时间？</legend>
-        <OptionGroup
+    <form className="preference-form" onSubmit={handleSubmit}>
+      <div className="preference-form__grid">
+        {SECTIONS.map((section, sectionIndex) => (
+          <PreferenceRadioSection
+            key={section.question}
+            question={section.question}
+            value={sectionValues[sectionIndex]}
+            options={section.options}
+            onChange={sectionSetters[sectionIndex]}
+          />
+        ))}
+
+        <PreferenceRadioSection
+          question="一周想留多少时间给摄影？"
           value={minutes}
           options={TIMES}
           onChange={setMinutes}
-          format={(item) => Number(item) >= 40 ? "40分钟以上" : `${item}分钟`}
+          format={(item) => (Number(item) >= 40 ? "40 min +" : `${item} min`)}
         />
-      </fieldset>
+      </div>
+
       {initial && (
-        <fieldset className="preference-reminder">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <legend className="text-sm font-medium">每周提醒</legend>
-              <p className="mt-1 text-xs text-muted">最多两次，完成后停止。</p>
-            </div>
+        <fieldset className="preference-section preference-reminder">
+          <legend className="preference-section__header">
+            <span className="preference-section__question">每周提醒</span>
+          </legend>
+          <p className="preference-section__hint">最多两次，完成后停止。</p>
+          <div className="preference-reminder__toggle flex items-center justify-between gap-4">
+            <span className="text-sm text-muted">{reminderEnabled ? "已开启" : "已关闭"}</span>
             <button
               type="button"
               role="switch"
@@ -123,22 +141,29 @@ export default function PreferenceForm({
             </button>
           </div>
           {reminderEnabled && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {DAYS.map((day, index) => (
-                <button
-                  key={day}
-                  type="button"
-                  className={`preference-day${practiceDay === index + 1 ? " preference-day--selected" : ""}`}
-                  onClick={() => setPracticeDay(index + 1)}
-                >
-                  {day}
-                </button>
-              ))}
-            </div>
+            <ul className="preference-radio-list preference-radio-list--days">
+              {DAYS.map((day, index) => {
+                const selected = practiceDay === index + 1;
+                return (
+                  <li key={day}>
+                    <button
+                      type="button"
+                      className={`preference-radio-option${selected ? " is-selected" : ""}`}
+                      aria-pressed={selected}
+                      onClick={() => setPracticeDay(index + 1)}
+                    >
+                      <span className="preference-radio-option__mark" aria-hidden="true">{selected ? "●" : "○"}</span>
+                      <span>{day}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </fieldset>
       )}
-      <button className="preference-save" type="submit" disabled={submitting}>
+
+      <button className="btn-primary btn-primary--ink preference-form__submit" type="submit" disabled={submitting}>
         {submitting ? "正在保存…" : submitText}
       </button>
     </form>

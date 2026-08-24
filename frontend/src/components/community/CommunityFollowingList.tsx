@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { getFollowingPeople, type FollowingPerson } from "../../api/community";
 import { getAssetUrl } from "../../api/client";
 import SearchLetterLoader from "../search/SearchLetterLoader";
+import animalSvg from "../../SVG/动物.svg?url";
 import "./CommunityFollowingList.css";
 
 function workCover(person: FollowingPerson, postId: number) {
@@ -44,9 +45,12 @@ export default function CommunityFollowingList() {
 
   if (!people.length) {
     return (
-      <div className="community-empty text-center">
-        <p className="community-empty-title">还没有关注任何人</p>
-        <p className="community-empty-subtitle">去推荐或热门里看看，把喜欢的创作者加进来。</p>
+      <div className="community-empty community-following-empty">
+        <img src={animalSvg} alt="" aria-hidden="true" draggable={false} className="community-following-empty__icon" />
+        <div className="community-following-empty__copy">
+          <p className="community-empty-title">还没有关注任何人</p>
+          <p className="community-empty-subtitle">去推荐或热门里看看，把喜欢的创作者加进来。</p>
+        </div>
       </div>
     );
   }
