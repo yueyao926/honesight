@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: HoneSight-production
+  group: lenscoach-production
   cancel-in-progress: false
 
 env:
@@ -63,8 +63,8 @@ jobs:
             find backend frontend -type f -print0 | sort -z | xargs -0 sha256sum
             sha256sum docker-compose.yml deploy-production.sh
           ) > "$release_dir/SHA256SUMS"
-          tar --create --gzip --file release/HoneSight-source.tar.gz --directory "$release_dir" .
-          (cd release && sha256sum HoneSight-source.tar.gz > SOURCE_SHA256SUM)
+          tar --create --gzip --file release/lenscoach-source.tar.gz --directory "$release_dir" .
+          (cd release && sha256sum lenscoach-source.tar.gz > SOURCE_SHA256SUM)
 
       - name: Configure SSH
         env:
@@ -85,13 +85,13 @@ jobs:
           SERVER_USER: ${{ secrets.SERVER_USER }}
         run: |
           set -euo pipefail
-          remote_release="/home/${SERVER_USER}/HoneSight/releases/${GITHUB_SHA}"
+          remote_release="/home/${SERVER_USER}/lenscoach/releases/${GITHUB_SHA}"
           ssh -i ~/.ssh/id_ed25519 -p "$SERVER_PORT" \
             -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
             "${SERVER_USER}@${SERVER_HOST}" "mkdir -p '$remote_release'"
           scp -i ~/.ssh/id_ed25519 -P "$SERVER_PORT" \
             -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
-            release/HoneSight-source.tar.gz release/SOURCE_SHA256SUM \
+            release/lenscoach-source.tar.gz release/SOURCE_SHA256SUM \
             "${SERVER_USER}@${SERVER_HOST}:${remote_release}/"
 
       - name: Activate release
@@ -101,8 +101,8 @@ jobs:
           SERVER_USER: ${{ secrets.SERVER_USER }}
         run: |
           set -euo pipefail
-          remote_release="/home/${SERVER_USER}/HoneSight/releases/${GITHUB_SHA}"
+          remote_release="/home/${SERVER_USER}/lenscoach/releases/${GITHUB_SHA}"
           ssh -i ~/.ssh/id_ed25519 -p "$SERVER_PORT" \
             -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
             "${SERVER_USER}@${SERVER_HOST}" \
-            "cd '$remote_release' && sha256sum --check SOURCE_SHA256SUM && tar --extract --gzip --file HoneSight-source.tar.gz && chmod +x deploy-production.sh && bash deploy-production.sh '$GITHUB_SHA'"
+            "cd '$remote_release' && sha256sum --check SOURCE_SHA256SUM && tar --extract --gzip --file lenscoach-source.tar.gz && chmod +x deploy-production.sh && bash deploy-production.sh '$GITHUB_SHA'"
