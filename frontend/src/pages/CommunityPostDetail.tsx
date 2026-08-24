@@ -309,11 +309,12 @@ export default function CommunityPostDetail() {
               post={post}
               onToggleLike={toggleLike}
               onToggleFavorite={toggleFavorite}
-              onShare={() =>
-                navigator.share
-                  ? navigator.share({ title: post.title, url: location.href })
-                  : navigator.clipboard.writeText(location.href)
-              }
+              onShare={() => {
+                const shareUrl = window.location.href;
+                return navigator.share
+                  ? navigator.share({ title: post.title, url: shareUrl })
+                  : navigator.clipboard.writeText(shareUrl);
+              }}
             />
 
             <CommentSection
