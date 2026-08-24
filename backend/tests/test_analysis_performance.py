@@ -149,6 +149,7 @@ def test_vision_input_prefers_signed_url_over_base64(monkeypatch) -> None:
 def test_full_analysis_has_no_output_cap_and_retries_invalid_json(monkeypatch) -> None:
     settings = SimpleNamespace(
         ai_analysis_enabled=True,
+        ai_analysis_mode="api",
         resolved_ai_api_key="test-key",
         resolved_ai_model="vision-test",
     )
