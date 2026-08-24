@@ -1,10 +1,13 @@
-import {useEffect,useState} from "react";
+﻿import {useEffect,useState} from "react";
 import {Link} from "react-router-dom";
 import {getFeed,type CommunityPost} from "../api/community";
-import {getUnreadCount} from "../api/messages";
-import PostCard from "../components/community/PostCard";
-import UnreadMessageBadge from "../components/messages/UnreadMessageBadge";
+import CommunityFeed from "../components/community/CommunityFeed";
+import CommunityFollowingList from "../components/community/CommunityFollowingList";
+import {CommunityFeedActions,CommunityFeedTabs} from "../components/community/CommunityToolbar";
 import {useAuth} from "../contexts/AuthContext";
+import SquigglyText from "../components/ui/SquigglyText";
+import arrow19Svg from "../SVG/arrow-19.svg?url";
+import filmRollSvg from "../SVG/胶卷.svg?url";
 
 export default function Community(){
   const {isAuthenticated}=useAuth();
@@ -13,22 +16,66 @@ export default function Community(){
   const [cursor,setCursor]=useState<number|null>();
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
-  const [unread,setUnread]=useState(0);
   async function load(){setLoading(true);try{const r=await getFeed(kind,cursor||undefined);setPosts(x=>[...x,...r.items.filter(p=>!x.some(a=>a.id===p.id))]);setCursor(r.next_cursor)}catch(e){setError(e instanceof Error?e.message:'加载失败')}finally{setLoading(false)}}
-  useEffect(()=>{setPosts([]);setCursor(undefined);setLoading(true);getFeed(kind).then(r=>{setPosts(r.items);setCursor(r.next_cursor)}).catch(e=>setError(e.message)).finally(()=>setLoading(false))},[kind]);
-  useEffect(()=>{if(isAuthenticated)getUnreadCount().then(r=>setUnread(r.unread_count)).catch(()=>{})},[isAuthenticated]);
-  return <main className="container-page">
-    <header className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-      <div><p className="section-eyebrow">LensCoach Community</p><h1 className="page-title mt-2">看见作品，也看见成长</h1><p className="mt-3 text-muted">分享摄影作品、参数与后期思路，获得真实反馈。</p></div>
-      <div className="flex flex-wrap gap-2">
-        <Link className="btn-secondary" to="/community/search">搜索</Link>
-        {isAuthenticated&&<Link className="btn-secondary" to="/community/messages">消息<UnreadMessageBadge count={unread}/></Link>}
-        {isAuthenticated&&<Link className="btn-secondary" to="/community/notifications">通知</Link>}
-        <Link className="btn-primary" to="/community/post/create">发布</Link>
+  useEffect(()=>{
+    if(kind==="following"){setPosts([]);setCursor(undefined);setLoading(false);setError("");return;}
+    setPosts([]);setCursor(undefined);setLoading(true);
+    getFeed(kind).then(r=>{setPosts(r.items);setCursor(r.next_cursor)}).catch(e=>setError(e.message)).finally(()=>setLoading(false));
+  },[kind]);
+  return <main className="handwriting-page community-page">
+    <div className="community-container">
+      <header className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+        <div className="community-header-intro">
+          <span className="section-eyebrow community-header-eyebrow">HoneSight Community</span>
+          <h1 className="page-title community-header-title">
+            <span className="community-title-line">
+              <span className="community-title-text">看见作品，也看见成长</span>
+              <img src={arrow19Svg} alt="" aria-hidden="true" draggable={false} className="community-title-arrow" />
+            </span>
+          </h1>
+          <p className="community-header-subtitle text-muted">
+            <SquigglyText as="span" stepDuration={70} scale={[2, 3.5]} baseFrequency={0.018}>
+              分享摄影作品、参数与后期思路，获得真实反馈。
+            </SquigglyText>
+          </p>
+        </div>
+        <CommunityFeedActions isAuthenticated={isAuthenticated} />
+      </header>
+      <CommunityFeedTabs kind={kind} onKindChange={setKind} />
+      <div className="community-content">
+        {kind==="following" ? (
+          isAuthenticated ? (
+            <CommunityFollowingList />
+          ) : (
+            <div className="community-empty text-center">
+              <p className="community-empty-title">登录后即可查看关注的人</p>
+              <p className="community-empty-subtitle">
+                <Link to="/login" className="underline">去登录</Link>
+                ，再回来看他们的作品。
+              </p>
+            </div>
+          )
+        ) : (
+          <>
+        {error&&<p className="mb-5 rounded-2xl bg-red-50 p-4 text-sm text-ink">{error}</p>}
+        {posts.length || loading ? (
+          <CommunityFeed
+            posts={posts}
+            loading={loading}
+            cursor={cursor}
+            onLoadMore={load}
+            onPostChange={(next) => setPosts((items) => items.map((item) => (item.id === next.id ? next : item)))}
+          />
+        ) : (
+          <div className="community-empty text-center">
+            <img src={filmRollSvg} alt="" aria-hidden="true" draggable={false} className="community-empty-film" />
+            <p className="community-empty-title">这里还安静得像一卷没冲洗的胶片。</p>
+            <p className="community-empty-subtitle">成为第一个贴照片的人吧。</p>
+          </div>
+        )}
+          </>
+        )}
       </div>
-    </header>
-    <nav className="my-8 flex gap-2 overflow-auto border-b border-sand pb-3">{[['recommended','推荐'],['following','关注'],['latest','最新'],['hot','热门']].map(([v,l])=><button key={v} className={kind===v?'rounded-full bg-brand px-5 py-2 text-sm text-white':'btn-ghost'} onClick={()=>setKind(v)}>{l}</button>)}</nav>
-    {error&&<p className="mb-5 rounded-2xl bg-red-50 p-4 text-sm text-red-700">{error}</p>}
-    {loading&&!posts.length?<div className="columns-2 gap-4 lg:columns-3">{[1,2,3,4,5,6].map(n=><div key={n} className="mb-4 h-72 animate-pulse break-inside-avoid rounded-3xl bg-sand/60"/>)}</div>:posts.length?<><div className="columns-2 gap-4 lg:columns-3">{posts.map(p=><PostCard key={p.id} post={p} onChange={next=>setPosts(x=>x.map(a=>a.id===next.id?next:a))}/>)}</div>{cursor?<button className="btn-secondary mx-auto mt-6 block" disabled={loading} onClick={load}>{loading?'加载中…':'加载更多'}</button>:<p className="py-8 text-center text-sm text-muted">已经看到这里了</p>}</>:<div className="card text-center"><h2 className="font-display text-2xl">还没有摄影帖</h2><p className="mt-2 text-muted">成为第一个分享作品的人吧。</p></div>}
+    </div>
   </main>
 }

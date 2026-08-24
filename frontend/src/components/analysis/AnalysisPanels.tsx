@@ -1,5 +1,11 @@
-import { FormEvent } from "react";
+﻿import { FormEvent } from "react";
 import type { BenchmarkDimension, ChatMessage, PhotoAnalysis } from "../../types";
+import arrow8Svg from "../../SVG/arrow-8.svg?url";
+import notebookSvg from "../../SVG/笔记本.svg?url";
+import StudioBikeLoader from "../studio/StudioBikeLoader";
+import StudioJumpCubeLoader from "../studio/StudioJumpCubeLoader";
+import StudioProgressBar from "../studio/StudioProgressBar";
+import StudioTapHandLoader from "../studio/StudioTapHandLoader";
 
 const dimensions = [
   ["exposure", "曝光"],
@@ -32,12 +38,32 @@ function buildPublishingAdvice(analysis: PhotoAnalysis, targetPlatform: string) 
   return advice ? `${platform}发布建议：${advice}。` : "";
 }
 
+function DetailsToggleArrow({ large = false }: { large?: boolean }) {
+  return (
+    <span
+      className={`flex shrink-0 items-center justify-center rounded-full bg-blush/55 ${large ? "h-9 w-9" : "h-8 w-8"}`}
+      aria-hidden="true"
+    >
+      <img
+        src={arrow8Svg}
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+        className={`analysis-panel-arrow rotate-180 transition-transform group-open:rotate-0 ${large ? "analysis-panel-arrow--lg" : ""}`}
+      />
+    </span>
+  );
+}
+
 export function BenchmarkOverview({ analysis, targetPlatform }: { analysis: PhotoAnalysis; targetPlatform: string }) {
   const publishingAdvice = buildPublishingAdvice(analysis, targetPlatform);
   return (
-    <div className="card">
-      <p className="section-eyebrow">质量评估</p>
-      <div className="mt-5 grid gap-4 md:grid-cols-4">
+    <section className="studio-result-section">
+      <div className="studio-section-heading">
+        <StudioBikeLoader />
+        <p className="section-eyebrow">质量评估</p>
+      </div>
+      <div className="mt-4 grid gap-4 md:grid-cols-4">
         <Metric label="综合评分" value={analysis.overall_score} />
         <Metric label="风格匹配度" value={analysis.target_style_match_score} />
         <Metric label="照片类型" value={analysis.photo_type} small />
@@ -47,13 +73,13 @@ export function BenchmarkOverview({ analysis, targetPlatform }: { analysis: Phot
       {publishingAdvice && (
         <p className="mt-3 text-sm leading-7 text-muted">{publishingAdvice}</p>
       )}
-    </div>
+    </section>
   );
 }
 
 function Metric({ label, value, small = false }: { label: string; value: string | number; small?: boolean }) {
   return (
-    <div className="rounded-2xl bg-blush/40 p-4">
+    <div className="rounded-2xl bg-white p-4">
       <p className="text-xs text-muted">{label}</p>
       <p className={small ? "mt-2 text-lg font-semibold text-ink" : "mt-2 font-display text-3xl font-semibold text-ink"}>
         {value}
@@ -64,9 +90,12 @@ function Metric({ label, value, small = false }: { label: string; value: string 
 
 export function DimensionCards({ analysis }: { analysis: PhotoAnalysis }) {
   return (
-    <section>
+    <section className="studio-result-section">
       <div className="mb-4">
-        <p className="section-eyebrow">AI 四维评分</p>
+        <div className="studio-section-heading">
+          <StudioTapHandLoader />
+          <p className="section-eyebrow">AI 四维评分</p>
+        </div>
         <h2 className="mt-1 font-display text-2xl font-semibold">曝光、对焦、构图、色彩</h2>
         <p className="mt-2 text-xs text-muted">各维度由 AI 根据原图评估，综合分按照片类型加权计算。</p>
       </div>
@@ -76,7 +105,7 @@ export function DimensionCards({ analysis }: { analysis: PhotoAnalysis }) {
           const score = analysis[`${key}_score` as keyof PhotoAnalysis] as number;
           const weight = analysis[`${key}_weight` as keyof PhotoAnalysis] as number;
           return (
-            <details key={key} className="card group">
+            <details key={key} className="studio-dimension-card group">
               <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
                 <span className="flex items-center justify-between gap-4">
                   <span>
@@ -85,19 +114,12 @@ export function DimensionCards({ analysis }: { analysis: PhotoAnalysis }) {
                   </span>
                   <span className="flex items-center gap-4">
                     <span className="font-display text-3xl font-semibold text-ink">{score}</span>
-                    <span
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-blush/55 text-lg text-brand-deep transition-transform group-open:rotate-180"
-                      aria-hidden="true"
-                    >
-                      ↓
-                    </span>
+                    <DetailsToggleArrow />
                   </span>
                 </span>
-                <span className="mt-4 block h-1.5 rounded-full bg-sand">
-                  <span className="block h-1.5 rounded-full bg-brand" style={{ width: `${score}%` }} />
-                </span>
+                <StudioProgressBar value={score} className="mt-4" />
               </summary>
-              <div className="mt-5 border-t border-sand/70 pt-5">
+              <div className="studio-dimension-detail mt-5">
                 <p className="text-sm leading-7 text-muted">{detail?.reason}</p>
                 <p className="mt-4 text-xs font-medium uppercase tracking-wider text-muted">问题</p>
                 {detail?.problems?.length ? (
@@ -118,31 +140,32 @@ export function DimensionCards({ analysis }: { analysis: PhotoAnalysis }) {
 
 export function AdvicePanel({ analysis }: { analysis: PhotoAnalysis }) {
   return (
-    <details className="card group" open>
-      <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
-        <span className="flex items-center justify-between gap-4">
-          <span>
-            <span className="section-eyebrow block">AI 教练建议</span>
-            <span className="mt-1 block font-display text-2xl font-semibold sm:text-3xl">
-              针对这张照片的整体改进建议
+    <section className="studio-result-section">
+      <details className="group studio-advice-panel" open>
+        <summary className="studio-advice-summary cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+          <span className="flex items-center justify-between gap-4">
+            <span>
+              <span className="studio-section-heading">
+                <StudioJumpCubeLoader />
+                <span className="section-eyebrow block">AI 教练建议</span>
+              </span>
+              <span className="mt-1 block font-display text-2xl font-semibold sm:text-3xl">
+                针对这张照片的整体改进建议
+              </span>
             </span>
+            <DetailsToggleArrow large />
           </span>
-          <span
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blush/55 text-lg text-brand-deep transition-transform group-open:rotate-180"
-            aria-hidden="true"
-          >
-            ↓
-          </span>
-        </span>
-      </summary>
-      <div className="mt-6 grid gap-5 border-t border-sand/70 pt-6 md:grid-cols-2">
-        <Advice title="构图建议" text={analysis.composition_advice} />
-        <Advice title="光线建议" text={analysis.lighting_advice} />
-        <Advice title="色彩建议" text={analysis.color_advice} />
-        <Advice title="下一步" text={analysis.next_step} />
-        <div className="md:col-span-2"><Advice title="下次拍摄建议" text={analysis.shooting_tips} /></div>
-      </div>
-    </details>
+          <p className="studio-advice-hint group-open:hidden">快打开查看教练建议吧</p>
+        </summary>
+        <div className="mt-6 grid gap-5 md:grid-cols-2">
+          <Advice title="构图建议" text={analysis.composition_advice} />
+          <Advice title="光线建议" text={analysis.lighting_advice} />
+          <Advice title="色彩建议" text={analysis.color_advice} />
+          <Advice title="下一步" text={analysis.next_step} />
+          <div className="md:col-span-2"><Advice title="下次拍摄建议" text={analysis.shooting_tips} /></div>
+        </div>
+      </details>
+    </section>
   );
 }
 
@@ -157,14 +180,17 @@ function Advice({ title, text }: { title: string; text: string }) {
 
 export function ParamsPanel({ analysis }: { analysis: PhotoAnalysis }) {
   return (
-    <div className="card">
-      <p className="section-eyebrow">修图参数</p>
+    <section className="studio-result-section">
+      <div className="studio-section-heading">
+        <img src={notebookSvg} alt="" aria-hidden="true" className="studio-section-mark" draggable={false} />
+        <p className="section-eyebrow">修图参数</p>
+      </div>
       <h2 className="mt-1 font-display text-2xl font-semibold">Lightroom & 手机 App</h2>
       <div className="mt-5 grid gap-5 md:grid-cols-2">
         <ParamTable title="Lightroom" params={analysis.editing_params.lightroom || {}} />
         <ParamTable title="手机修图 App" params={analysis.editing_params.mobile_apps || {}} />
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -174,7 +200,7 @@ function ParamTable({ title, params }: { title: string; params: Record<string, s
       <h3 className="font-medium text-ink">{title}</h3>
       <div className="mt-3 grid gap-2">
         {Object.entries(params).map(([key, value]) => (
-          <div key={key} className="flex justify-between rounded-xl bg-white/70 px-3 py-2 text-sm">
+          <div key={key} className="flex justify-between rounded-xl bg-blush/35 px-3 py-2 text-sm">
             <span className="text-muted">{key}</span>
             <span className="font-medium text-ink">{value}</span>
           </div>
@@ -206,7 +232,7 @@ export function ChatPanel({
           <button
             key={question}
             type="button"
-            className="rounded-full border border-sand bg-white/60 px-3 py-2 text-xs text-muted transition hover:border-brand hover:text-brand-deep"
+            className="rounded-full border border-sand bg-white/60 px-3 py-2 text-xs text-muted transition hover:border-brand hover:text-ink"
             onClick={() => onSubmit(undefined, question)}
             disabled={loading}
           >

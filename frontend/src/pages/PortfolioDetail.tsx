@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { getAssetUrl } from "../api/client";
 import {
@@ -9,7 +9,30 @@ import {
   renamePortfolio,
 } from "../api/portfolio";
 import PhotoUpload from "../components/PhotoUpload";
+import PortfolioStarButton from "../components/portfolio/PortfolioStarButton";
+import OutlineLiftButton from "../components/ui/OutlineLiftButton";
+import PillShiftButton from "../components/ui/PillShiftButton";
 import type { PortfolioCollectionDetail, PortfolioPhoto } from "../types";
+import portrait2Svg from "../SVG/人像2.svg?url";
+import portrait3Svg from "../SVG/人像3.svg?url";
+import portrait4Svg from "../SVG/人像4.svg?url";
+import portrait5Svg from "../SVG/人像5.svg?url";
+import portraitAvatarSvg from "../SVG/人像头像.svg?url";
+import vectorBorderSvg from "../SVG/Vector.svg?url";
+import youMatterALotSvg from "../SVG/you_matter_a_lot.svg?url";
+import cameraPersonPng from "../SVG/拍照的人.png";
+
+const PORTFOLIO_PORTRAIT_SVGS = [
+  portrait2Svg,
+  portrait3Svg,
+  portrait4Svg,
+  portrait5Svg,
+  portraitAvatarSvg,
+];
+
+function pickRandomPortfolioPortrait() {
+  return PORTFOLIO_PORTRAIT_SVGS[Math.floor(Math.random() * PORTFOLIO_PORTRAIT_SVGS.length)];
+}
 
 const sourceLabels: Record<string, string> = {
   direct_upload: "直接上传",
@@ -29,6 +52,41 @@ export default function PortfolioDetail() {
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [portraitArt, setPortraitArt] = useState(PORTFOLIO_PORTRAIT_SVGS[0]);
+  const panelBodyRef = useRef<HTMLDivElement>(null);
+  const previewSlotRef = useRef<HTMLDivElement>(null);
+  const [panelPreviewMaxHeight, setPanelPreviewMaxHeight] = useState<number | undefined>();
+
+  useLayoutEffect(() => {
+    if (!managing || !uploadUrl) {
+      setPanelPreviewMaxHeight(undefined);
+      return;
+    }
+
+    const slot = previewSlotRef.current;
+    const body = panelBodyRef.current;
+    if (!slot) return;
+
+    const measure = () => {
+      setPanelPreviewMaxHeight(Math.max(72, slot.clientHeight));
+    };
+
+    measure();
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(slot);
+    if (body) observer.observe(body);
+    window.addEventListener("resize", measure);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [managing, uploadUrl, renaming]);
+
+  useEffect(() => {
+    setPortraitArt(pickRandomPortfolioPortrait());
+  }, [id]);
 
   useEffect(() => {
     if (!id) return;
@@ -104,77 +162,157 @@ export default function PortfolioDetail() {
 
   if (!collection) {
     return (
-      <main className="container-page">
-        <Link className="text-sm text-brand-deep" to="/portfolio">← 返回作品集</Link>
+      <main className="handwriting-page container-page">
+        <Link className="text-sm text-ink" to="/portfolio">← 返回作品集</Link>
         <div className="card mt-8 text-center text-sm text-muted">{error || "加载中…"}</div>
       </main>
     );
   }
 
   return (
-    <main className="container-page">
-      <Link className="text-sm text-brand-deep" to="/portfolio">← 返回作品集</Link>
+    <main className="handwriting-page container-page">
+      <Link className="text-sm text-ink" to="/portfolio">← 返回作品集</Link>
 
       <header className="mt-6 flex flex-col justify-between gap-5 md:flex-row md:items-end">
-        <div>
-          <p className="section-eyebrow">Portfolio</p>
-          <h1 className="page-title mt-2">{collection.name}</h1>
-          <p className="mt-3 text-sm text-muted">{collection.photo_count} 张照片</p>
+        <div className="portfolio-detail-header">
+          <div className="portfolio-detail-header__inner">
+            <div className="portfolio-detail-header__text-stack">
+              <p className="section-eyebrow">Portfolio</p>
+              <h1 className="page-title">{collection.name}</h1>
+              <p className="portfolio-detail-header__meta text-sm text-muted">
+                {collection.photo_count} 张照片
+              </p>
+            </div>
+            <img
+              src={portraitArt}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              className="portfolio-title-portrait"
+            />
+          </div>
         </div>
-        <button className={managing ? "btn-primary" : "btn-secondary"} type="button" onClick={() => setManaging((value) => !value)}>
+        <PortfolioStarButton type="button" onClick={() => setManaging((value) => !value)}>
           {managing ? "完成管理" : "管理作品集"}
-        </button>
+        </PortfolioStarButton>
       </header>
 
       {managing && (
-        <section className="card mt-8 space-y-7">
-          <div>
-            <h2 className="font-display text-2xl font-semibold">添加照片</h2>
-            <p className="mt-2 text-sm text-muted">可上传原图，或你根据建议自行调整后的作品。</p>
-            <div className="mt-5 max-w-xl">
-              <PhotoUpload value={uploadUrl} onChange={setUploadUrl} label="选择要加入的原图" purpose="portfolio" />
-            </div>
-            {uploadUrl && <button className="btn-primary mt-4" type="button" onClick={handleAddPhoto} disabled={saving}>{saving ? "添加中…" : "加入作品集"}</button>}
-          </div>
+        <section className="portfolio-manage-panel">
+          <div className="portfolio-manage-panel__frame portfolio-manage-panel__frame--stage">
+            <div className="portfolio-manage-panel__inner">
+              <div className="portfolio-manage-panel__body" ref={panelBodyRef}>
+                <header className="portfolio-manage-panel__header">
+                  <div className="portfolio-manage-panel__title-row">
+                    <h2 className="font-display text-2xl font-semibold">添加照片</h2>
+                    <div className="portfolio-manage-panel__loader" aria-hidden="true" />
+                  </div>
+                  <p className="mt-2 max-w-md text-sm text-muted">可上传原图，或你根据建议自行调整后的作品。</p>
+                </header>
 
-          <div className="border-t border-sand/60 pt-6">
-            {!renaming ? (
-              <div className="flex flex-wrap gap-3">
-                <button className="btn-secondary" type="button" onClick={() => setRenaming(true)}>重命名</button>
-                <button className="btn-ghost text-red-500" type="button" onClick={handleDeleteCollection}>删除作品集</button>
+                <div
+                  className={`portfolio-manage-panel__main${uploadUrl ? " portfolio-manage-panel__main--with-preview" : ""}`}
+                >
+                  <div ref={previewSlotRef} className="portfolio-manage-panel__preview-slot">
+                    <PhotoUpload
+                      value={uploadUrl}
+                      onChange={setUploadUrl}
+                      label="选择要加入的原图"
+                      purpose="portfolio"
+                      outlineOnly
+                      compactPreview
+                      previewMaxHeight={panelPreviewMaxHeight}
+                    />
+                  </div>
+                  {uploadUrl && (
+                    <PillShiftButton
+                      className="portfolio-manage-panel__add-btn shrink-0"
+                      type="button"
+                      onClick={handleAddPhoto}
+                      disabled={saving}
+                    >
+                      {saving ? "添加中…" : "加入作品集"}
+                    </PillShiftButton>
+                  )}
+                </div>
+
+                <div className="portfolio-manage-panel__footer">
+                  {!renaming ? (
+                    <div className="flex flex-wrap gap-3">
+                      <OutlineLiftButton type="button" onClick={() => setRenaming(true)}>重命名</OutlineLiftButton>
+                      <button className="btn-ghost text-ink" type="button" onClick={handleDeleteCollection}>删除作品集</button>
+                    </div>
+                  ) : (
+                    <form className="portfolio-inline-form" onSubmit={handleRename}>
+                      <input
+                        className="input portfolio-manage-rename-input min-w-0 flex-1"
+                        value={name}
+                        onChange={(event) => setName(event.target.value)}
+                        maxLength={120}
+                        required
+                      />
+                      <OutlineLiftButton variant="solid" className="shrink-0" type="submit" disabled={saving}>
+                        {saving ? "保存中…" : "保存名称"}
+                      </OutlineLiftButton>
+                      <button className="btn-secondary portfolio-manage-cancel-btn shrink-0" type="button" onClick={() => setRenaming(false)}>取消</button>
+                    </form>
+                  )}
+                </div>
               </div>
-            ) : (
-              <form className="flex max-w-xl flex-col gap-3 sm:flex-row" onSubmit={handleRename}>
-                <input className="input" value={name} onChange={(event) => setName(event.target.value)} maxLength={120} required />
-                <button className="btn-primary shrink-0" type="submit" disabled={saving}>保存名称</button>
-                <button className="btn-secondary shrink-0" type="button" onClick={() => setRenaming(false)}>取消</button>
-              </form>
-            )}
+              <img
+                src={cameraPersonPng}
+                alt=""
+                aria-hidden="true"
+                draggable={false}
+                className="portfolio-manage-panel__art"
+              />
+            </div>
+            <img
+              src={vectorBorderSvg}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              className="portfolio-manage-panel__border"
+            />
           </div>
         </section>
       )}
 
-      {error && <p className="mt-5 text-sm text-red-500">{error}</p>}
+      {error && <p className="mt-5 text-sm text-ink">{error}</p>}
 
       {collection.photos.length === 0 ? (
-        <div className="card mt-10 text-center">
-          <h2 className="font-display text-2xl font-semibold">这个作品集还是空的</h2>
-          <p className="mt-3 text-sm text-muted">打开管理功能上传作品，或从 AI 工作室保存原图和 AI 精修版本。</p>
-          {!managing && <button className="btn-primary mt-6" type="button" onClick={() => setManaging(true)}>添加照片</button>}
+        <div className="portfolio-detail-empty mt-10">
+          <div className="portfolio-detail-empty__copy">
+            <h2 className="font-display text-2xl font-semibold">这个作品集还是空的</h2>
+            <p className="mt-3 text-sm text-muted">打开管理功能上传作品，或从 AI 工作室保存原图和 AI 精修版本。</p>
+            {!managing && (
+              <button className="portfolio-add-photo-btn mt-6" type="button" onClick={() => setManaging(true)}>
+                <img src={vectorBorderSvg} alt="" aria-hidden="true" className="portfolio-add-photo-btn__frame" />
+                <span>添加照片</span>
+              </button>
+            )}
+          </div>
+          <img
+            className="portfolio-detail-empty__art"
+            src={youMatterALotSvg}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+          />
         </div>
       ) : (
-        <div className="ins-grid mt-10">
+        <div className="portfolio-detail-grid mt-10">
           {collection.photos.map((photo) => (
-            <div key={photo.id} className="group relative overflow-hidden rounded-3xl bg-white shadow-card">
+            <div key={photo.id} className="portfolio-photo-card group relative overflow-hidden rounded-2xl bg-white shadow-card">
               <button className="block w-full" type="button" onClick={() => !managing && setSelectedPhoto(photo)}>
-                <img className="h-72 w-full object-cover transition group-hover:scale-[1.02]" src={getAssetUrl(photo.thumbnail_url || photo.image_url)} alt="作品照片" loading="lazy" decoding="async" />
+                <img className="aspect-square w-full object-cover transition group-hover:scale-[1.02]" src={getAssetUrl(photo.thumbnail_url || photo.image_url)} alt="作品照片" loading="lazy" decoding="async" />
               </button>
-              <span className="absolute bottom-3 left-3 rounded-full bg-ink/75 px-3 py-1 text-xs text-white">
+              <span className="absolute bottom-2 left-2 rounded-full bg-ink/75 px-2.5 py-0.5 text-[0.6875rem] text-white">
                 {sourceLabels[photo.source] || "作品"}
               </span>
               {managing && (
                 <button
-                  className="absolute right-3 top-3 rounded-full bg-ink/80 px-4 py-2 text-xs text-white"
+                  className="absolute right-2 top-2 rounded-full bg-ink/80 px-3 py-1.5 text-[0.6875rem] text-white"
                   type="button"
                   onClick={() => handleDeletePhoto(photo)}
                 >

@@ -14,6 +14,7 @@ import httpx
 
 from app.core.config import get_settings
 from app.models.preference import Preference
+from app.services.mock_analyzer import build_mock_vision_result
 from app.services.signed_media import build_ai_media_url
 
 
@@ -38,6 +39,8 @@ def call_vision_model(
 ) -> dict:
     started_at = time.perf_counter()
     settings = get_settings()
+    if settings.ai_analysis_mode.strip().lower() == "mock":
+        return build_mock_vision_result(category or "general", target_style, target_platform)
     if not settings.ai_analysis_enabled:
         raise VisionAnalysisError("AI analysis is disabled on the server")
     if not settings.resolved_ai_api_key:
@@ -119,6 +122,15 @@ def call_practice_vision_model(
 ) -> dict[str, Any]:
     started_at = time.perf_counter()
     settings = get_settings()
+    if settings.ai_analysis_mode.strip().lower() == "mock":
+        return _build_mock_practice_result(
+            mode=mode,
+            category=category,
+            ability=ability,
+            criteria=criteria or [],
+            level=level,
+            selected_goal=selected_goal,
+        )
     if not settings.ai_analysis_enabled:
         raise VisionAnalysisError("AI analysis is disabled on the server")
     if not settings.resolved_ai_api_key:
@@ -387,8 +399,45 @@ def close_vision_http_client() -> None:
             _vision_client = None
 
 
+def _build_mock_practice_result(
+    *,
+    mode: str,
+    category: str | None,
+    ability: str | None,
+    criteria: list[str],
+    level: int,
+    selected_goal: str | None,
+) -> dict[str, Any]:
+    focus_ability = selected_goal if selected_goal in {"构图", "光线", "清晰度", "色彩"} else (ability or "构图")
+    if mode == "source":
+        return {
+            "photo_type": category or "portrait",
+            "intent": "mock 模式：画面主体明确，适合作为本周练习起点。",
+            "priority_issue": "背景元素略多，主体还可以更突出。",
+            "recommended_ability": focus_ability,
+            "focus_score": 68,
+            "reason": "mock 模式：主体位置基本清楚，但层次还可以再整理。",
+            "suggestion": "下一次拍摄时先简化背景，再调整主体位置。",
+            "confidence": 0.82,
+            "_timings": {"provider_ms": 0, "total_ms": 0},
+        }
+    return {
+        "photo_type": category or "portrait",
+        "focus_score": 72,
+        "reason": f"mock 模式：{focus_ability}表现已有基础。",
+        "problem": "边缘细节还可以再干净一点。",
+        "suggestion": "保持当前拍法，再拍一张背景更简洁的版本。",
+        "criterion_results": [
+            {"criterion": text, "achieved": True, "evidence": "mock 模式：画面已满足该完成标准。"}
+            for text in criteria[:2]
+        ] or [{"criterion": "完成标准", "achieved": True, "evidence": "mock 模式"}],
+        "confidence": 0.82,
+        "_timings": {"provider_ms": 0, "total_ms": 0},
+    }
+
+
 SYSTEM_PROMPT = """
-You are LensCoach, a professional AI photography coach with image understanding.
+You are HoneSight, a professional AI photography coach with image understanding.
 Analyze the source photo itself. Do not invent details that are not visible.
 Your job is to help a beginner improve the photo for the selected target style
 and publishing platform.

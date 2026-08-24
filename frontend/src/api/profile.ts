@@ -1,10 +1,13 @@
 import { apiRequest } from "./client";
-import type { PortfolioPhoto, PrivacySettings, Profile } from "../types";
+import type { PortfolioCollection, PortfolioCollectionDetail, PortfolioPhoto, PrivacySettings, Profile } from "../types";
 
 export const getMyProfile = () => apiRequest<Profile>("/me/profile");
 export const getPublicProfile = (id: string | number) => apiRequest<Profile>(`/users/${id}/profile`);
 export const updateProfile = (payload: Partial<Profile>) => apiRequest<Profile>("/me/profile", { method: "PATCH", body: JSON.stringify(payload) });
 export const getWorks = (id: string | number) => apiRequest<PortfolioPhoto[]>(`/users/${id}/works`);
+export const getUserCollections = (id: string | number) => apiRequest<PortfolioCollection[]>(`/users/${id}/collections`);
+export const getUserCollection = (userId: string | number, collectionId: string | number) =>
+  apiRequest<PortfolioCollectionDetail>(`/users/${userId}/collections/${collectionId}`);
 export const updateWork = (id: number, payload: Partial<PortfolioPhoto>) => apiRequest<PortfolioPhoto>(`/works/${id}`, { method: "PATCH", body: JSON.stringify(payload) });
 export const getFavorites = () => apiRequest<PortfolioPhoto[]>("/me/favorites");
 export const favoriteWork = (id: number) => apiRequest<{ favorited: boolean }>(`/works/${id}/favorite`, { method: "POST" });

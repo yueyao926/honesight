@@ -1,0 +1,41 @@
+.community-camera-notes {
+  margin-top: 0.5rem;
+  width: fit-content;
+  max-width: 100%;
+  border-radius: 1rem;
+  background: rgba(39, 37, 34, 0.06);
+  padding: 0.85rem 1rem;
+  color: #272522;
+}
+
+.community-camera-notes__device {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  letter-spacing: 0.04em;
+}
+
+.community-camera-notes__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 1rem;
+  margin-top: 0.35rem;
+}
+
+.community-camera-notes__row:first-child {
+  margin-top: 0;
+}
+
+.community-camera-notes__row--context {
+  margin-top: 0.65rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid rgba(39, 37, 34, 0.08);
+  white-space: normal;
+}
+
+.community-camera-notes__item {
+  font-size: 0.875rem;
+  line-height: 1.45;
+  white-space: nowrap;
+}

@@ -92,6 +92,40 @@ def feed(kind:str,limit:int=Query(20,ge=1,le=50),cursor:int|None=None,tag:str|No
     rows=db.scalars(q.order_by(order,CommunityPost.id.desc()).limit(limit+1)).unique().all(); items=rows[:limit]
     return {"items":[post_dict(p,viewer,db) for p in items],"next_cursor":items[-1].id if len(rows)>limit else None}
 
+@router.get("/following-people")
+def following_people(works_limit:int=Query(4,ge=1,le=8),user:User=Depends(get_current_user),db:Session=Depends(get_db)):
+    follows=db.scalars(select(UserFollow).where(UserFollow.follower_id==user.id).order_by(UserFollow.created_at.desc())).all()
+    author_ids=[row.following_id for row in follows]
+    if not author_ids:
+        return {"items":[]}
+    authors={author.id:author for author in db.scalars(select(User).where(User.id.in_(author_ids),User.is_deleted.is_(False))).all()}
+    visible_filter=[
+        CommunityPost.author_id.in_(author_ids),
+        CommunityPost.status=="published",
+        CommunityPost.visibility.in_(["public","followers"]),
+        CommunityPost.deleted_at.is_(None),
+    ]
+    counts={author_id:count for author_id,count in db.execute(select(CommunityPost.author_id,func.count()).where(*visible_filter).group_by(CommunityPost.author_id)).all()}
+    posts=db.scalars(select(CommunityPost).options(selectinload(CommunityPost.images),selectinload(CommunityPost.tags),selectinload(CommunityPost.author)).where(*visible_filter).order_by(CommunityPost.published_at.desc(),CommunityPost.id.desc())).unique().all()
+    grouped={author_id:[] for author_id in author_ids}
+    for post in posts:
+        if not visible(post,user,db):
+            continue
+        bucket=grouped.setdefault(post.author_id,[])
+        if len(bucket)<works_limit:
+            bucket.append(post)
+    items=[]
+    for author_id in author_ids:
+        author=authors.get(author_id)
+        if not author:
+            continue
+        items.append({
+            "author":{"id":author.id,"username":author.username,"avatar_url":author.avatar_url,"signature":author.signature},
+            "work_count":int(counts.get(author_id,0)),
+            "posts":[post_dict(post,user,db) for post in grouped.get(author_id,[])],
+        })
+    return {"items":items}
+
 @router.get("/me/drafts")
 def drafts(user:User=Depends(get_current_user),db:Session=Depends(get_db)):
     rows=db.scalars(select(CommunityPost).options(selectinload(CommunityPost.images),selectinload(CommunityPost.tags),selectinload(CommunityPost.author)).where(CommunityPost.author_id==user.id,CommunityPost.status=="draft",CommunityPost.deleted_at.is_(None)).order_by(CommunityPost.updated_at.desc())).unique().all(); return [post_dict(p,user,db) for p in rows]
@@ -174,6 +208,27 @@ def unlike_comment(comment_id:int,user:User=Depends(get_current_user),db:Session
     row=db.scalar(select(CommentLike).where(CommentLike.user_id==user.id,CommentLike.comment_id==comment_id))
     if row: db.delete(row);comment.like_count=max(0,comment.like_count-1);db.commit()
     return {"liked":False,"like_count":comment.like_count}
+
+@router.delete("/comments/{comment_id}",status_code=204)
+def delete_comment(comment_id:int,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
+    comment=db.scalar(select(Comment).where(Comment.id==comment_id).with_for_update())
+    if not comment or comment.deleted_at: raise HTTPException(404,"评论不存在")
+    if comment.author_id!=user.id: raise HTTPException(403,"只能删除自己的评论")
+    post=db.get(CommunityPost,comment.post_id)
+    if not post: raise HTTPException(404,"帖子不存在")
+    now=datetime.now(timezone.utc)
+    comment.deleted_at=now
+    post.comment_count=max(0,post.comment_count-1)
+    if comment.parent_id:
+        parent=db.get(Comment,comment.parent_id)
+        if parent and not parent.deleted_at: parent.reply_count=max(0,parent.reply_count-1)
+    else:
+        replies=db.scalars(select(Comment).where(Comment.parent_id==comment_id,Comment.deleted_at.is_(None))).all()
+        for reply in replies:
+            reply.deleted_at=now
+            post.comment_count=max(0,post.comment_count-1)
+        comment.reply_count=0
+    db.commit()
 
 @router.get("/me/favorite-collections")
 def collections(user:User=Depends(get_current_user),db:Session=Depends(get_db)):

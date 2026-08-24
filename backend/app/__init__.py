@@ -1,1 +1,1 @@
-"""LensCoach backend application."""
+"""HoneSight backend application."""

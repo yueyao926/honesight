@@ -1,0 +1,10 @@
+<svg viewBox="0 0 1000 100" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+  <path
+    d="M50 10 C25 10 10 25 10 50 C10 75 25 90 50 90 H950 C975 90 990 75 990 50 C990 25 975 10 950 10 H50 Z"
+    stroke="#272522"
+    stroke-width="2.5"
+    fill="none"
+    stroke-linejoin="round"
+    vector-effect="non-scaling-stroke"
+  />
+</svg>

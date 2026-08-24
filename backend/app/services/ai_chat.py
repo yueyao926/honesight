@@ -22,7 +22,7 @@ def _call_chat_model(item: PortfolioItem, analysis: AnalysisResult | None, messa
     settings = get_settings()
     context = _analysis_context(analysis)
     prompt = f"""
-你是 LensCoach 的 AI 摄影教练。你正在围绕用户上传的一张具体照片进行追问式指导。
+你是 HoneSight 的 AI 摄影教练。你正在围绕用户上传的一张具体照片进行追问式指导。
 你应该结合这张照片已有的分析结果、目标风格、发布平台和用户问题，给出具体、可执行、分步骤的建议。
 不要泛泛而谈。不要说你不能看图，因为系统已经提供了照片和分析上下文。
 

@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI, Request
@@ -15,9 +16,18 @@ from app.services.upload_cleanup_scheduler import run_upload_cleanup_loop
 
 settings = get_settings()
 settings.upload_path.mkdir(parents=True, exist_ok=True)
+logger = logging.getLogger("uvicorn.error")
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    get_settings.cache_clear()
+    runtime = get_settings()
+    logger.info(
+        "AI runtime mode=%s model=%s enabled=%s",
+        runtime.ai_analysis_mode,
+        runtime.resolved_ai_model,
+        runtime.ai_analysis_enabled,
+    )
     analyze.fail_stale_analysis_jobs()
     inspiration_sync_task = asyncio.create_task(run_inspiration_sync_loop())
     upload_cleanup_task = asyncio.create_task(run_upload_cleanup_loop())
@@ -33,7 +43,7 @@ async def lifespan(_app: FastAPI):
         close_vision_http_client()
 
 
-app = FastAPI(title="LensCoach API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="HoneSight API", version="0.1.0", lifespan=lifespan)
 
 @app.exception_handler(VisionAnalysisError)
 async def handle_vision_analysis_error(_request: Request, exc: VisionAnalysisError) -> JSONResponse:
@@ -66,4 +76,9 @@ app.include_router(search.router)
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok"}
+    runtime = get_settings()
+    return {
+        "status": "ok",
+        "ai_analysis_mode": runtime.ai_analysis_mode,
+        "ai_model": runtime.resolved_ai_model,
+    }

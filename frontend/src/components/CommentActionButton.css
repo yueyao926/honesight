@@ -1,0 +1,58 @@
+.comment-action-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.comment-action-link:hover {
+  color: #5a5752;
+}
+
+.comment-action-button {
+  --comment-icon-size: 36px;
+  display: inline-flex;
+  cursor: pointer;
+  outline: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  transition: transform 300ms ease;
+}
+
+.comment-action-button--sm {
+  --comment-icon-size: 18px;
+}
+
+.comment-action-button:hover {
+  transform: rotate(90deg);
+}
+
+.comment-action-button svg {
+  width: var(--comment-icon-size);
+  height: var(--comment-icon-size);
+  stroke: #8a8780;
+  fill: none;
+  transition:
+    fill 300ms ease,
+    stroke 300ms ease;
+}
+
+.comment-action-button:hover svg {
+  fill: #d8d6d0;
+  stroke: #6b6862;
+}
+
+.comment-action-button:active svg {
+  stroke: #5a5752;
+  fill: #c8c6c0;
+  transition-duration: 0ms;
+}
+
+.comment-action-count {
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+}

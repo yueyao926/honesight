@@ -1,0 +1,66 @@
+.search-outline-tab {
+  appearance: none;
+  background-color: transparent;
+  border: 1px solid #1a1a1a;
+  border-radius: 0.9375em;
+  box-sizing: border-box;
+  color: #3b3b3b;
+  cursor: pointer;
+  display: inline-block;
+  font-size: 1.05rem;
+  font-weight: normal;
+  line-height: 1;
+  margin: 0;
+  min-height: 0;
+  min-width: 0;
+  outline: none;
+  padding: 0.42em 1.05em;
+  text-align: center;
+  text-decoration: none;
+  transition: all 300ms cubic-bezier(0.23, 1, 0.32, 1);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  will-change: transform;
+}
+
+.handwriting-page .search-outline-tab,
+.search-outline-tab {
+  font-family: "JasonHandwriting", "Amatic SC", cursive;
+  font-weight: normal;
+  letter-spacing: 0.02em;
+}
+
+.search-outline-tab:disabled {
+  pointer-events: none;
+}
+
+.search-outline-tab:hover:not(:disabled),
+.search-outline-tab--active {
+  color: #fff;
+  background-color: #1a1a1a;
+  box-shadow: rgba(0, 0, 0, 0.25) 0 8px 15px;
+  transform: translateY(-2px);
+}
+
+.search-outline-tab:active:not(:disabled) {
+  box-shadow: none;
+  transform: translateY(0);
+}
+
+.search-outline-tab:focus-visible {
+  outline: 2px solid rgba(26, 26, 26, 0.35);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-outline-tab {
+    transition: none;
+  }
+
+  .search-outline-tab:hover:not(:disabled),
+  .search-outline-tab--active,
+  .search-outline-tab:active:not(:disabled) {
+    transform: none;
+  }
+}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { NavLink, Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { getAssetUrl } from "../api/client";
@@ -20,6 +20,14 @@ export default function Layout() {
   const { isAuthenticated, logout, user } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const isCommunitySurface = location.pathname.startsWith("/community");
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("community-surface", isCommunitySurface);
+    return () => {
+      document.documentElement.classList.remove("community-surface");
+    };
+  }, [isCommunitySurface]);
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -42,29 +50,34 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-50 border-b border-white/50 bg-cream/80 backdrop-blur-md">
-        <nav className="container-page flex items-center justify-between !py-4 md:!py-5" aria-label="主导航">
-          <Link to="/" className="font-display text-2xl font-semibold tracking-tight text-ink">
-            LensCoach
-          </Link>
-          <div className="hidden items-center gap-1 md:flex lg:gap-2">
+      <header className="app-header sticky top-0 z-50 border-b border-white/50 bg-cream/80 backdrop-blur-md">
+        <nav className="container-page relative flex items-center justify-center !py-4 md:!py-5" aria-label="主导航">
+          <div className="hidden items-center justify-center gap-1 md:flex lg:gap-2">
+            <Link to="/" className="home-logo-type mr-2 text-[1.75rem] leading-none text-ink lg:mr-4 lg:text-[2rem]">
+              HoneSight
+            </Link>
             {isAuthenticated && authenticatedNavItems.map((item) => (
               <NavLink key={item.to} to={item.to} className={navClass}>{item.label}</NavLink>
             ))}
             {!isAuthenticated ? (
               <>
                 <NavLink to="/login" className={navClass}>登录</NavLink>
-                <Link to="/register" className="btn-primary ml-2 py-2 text-xs md:text-sm">注册</Link>
+                <Link to="/register" className="btn-primary btn-primary--ink ml-1 py-2 text-xs md:text-sm">注册</Link>
               </>
             ) : (
-              <Link className="ml-2 flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-blush text-sm font-medium text-brand-deep" to="/profile" aria-label="个人主页">
+              <Link className="ml-1 flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-blush text-sm font-medium text-ink" to="/profile" aria-label="个人主页">
                 {user?.avatar_url ? <img className="h-full w-full object-cover" src={getAssetUrl(user.avatar_url)} alt="" /> : user?.username?.slice(0, 1).toUpperCase()}
               </Link>
             )}
           </div>
+
+          <Link to="/" className="home-logo-type text-[1.75rem] leading-none text-ink md:hidden">
+            HoneSight
+          </Link>
+
           <button
             type="button"
-            className="flex h-11 w-11 items-center justify-center rounded-full border border-sand bg-white/75 text-ink transition hover:border-brand md:hidden"
+            className="absolute right-4 flex h-11 w-11 items-center justify-center rounded-full border border-sand bg-white/75 text-ink transition hover:border-brand sm:right-6 md:hidden"
             aria-label={mobileMenuOpen ? "关闭导航菜单" : "打开导航菜单"}
             aria-expanded={mobileMenuOpen}
             aria-controls="mobile-navigation"
@@ -86,7 +99,7 @@ export default function Layout() {
             {isAuthenticated ? (
               <>
                 <div className="mb-4 flex items-center gap-3 rounded-2xl bg-white/70 p-3">
-                  <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-blush font-medium text-brand-deep">
+                  <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-blush font-medium text-ink">
                     {user?.avatar_url ? <img className="h-full w-full object-cover" src={getAssetUrl(user.avatar_url)} alt="" /> : user?.username?.slice(0, 1).toUpperCase()}
                   </span>
                   <div className="min-w-0">
@@ -112,7 +125,7 @@ export default function Layout() {
             ) : (
               <div className="grid grid-cols-2 gap-3">
                 <Link to="/login" className="btn-secondary w-full">登录</Link>
-                <Link to="/register" className="btn-primary w-full">免费注册</Link>
+                <Link to="/register" className="btn-primary btn-primary--ink w-full">免费注册</Link>
                 <Link to="/community" className="col-span-2 rounded-2xl bg-white/65 px-4 py-3 text-center text-sm font-medium text-ink">
                   先逛逛摄影社区
                 </Link>
@@ -122,10 +135,10 @@ export default function Layout() {
         </div>
       </header>
       <Outlet />
-      <footer className="border-t border-sand/50 px-4 py-7 text-center text-sm text-muted">
+      <footer className={`px-4 py-7 text-center text-sm text-muted${isCommunitySurface ? " community-footer" : " border-t border-sand/50"}`}>
         <a
           className="transition hover:text-ink hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose/50"
-          href="https://github.com/yueyao926/lenscoach/issues/new"
+          href="https://github.com/yueyao926/HoneSight/issues/new"
           target="_blank"
           rel="noreferrer"
         >

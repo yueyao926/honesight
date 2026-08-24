@@ -1,11 +1,61 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { favoriteInspiration, getDailyInspirations, unfavoriteInspiration } from "../api/inspirations";
 import { getAssetUrl } from "../api/client";
 import { useAuth } from "../contexts/AuthContext";
 import type { Inspiration } from "../types";
+import inspirationCardBorderSvg from "../SVG/Vector.svg?url";
+import favoriteTagSvg from "../SVG/收藏标签.svg?url";
+import inspirationPeepSvg from "../SVG/灵感90.svg?url";
+import lightbulbGlowSvg from "../SVG/lightbulb_glow.svg?url";
+import lightbulbLineartSvg from "../SVG/lightbulb_lineart.svg?url";
+import arrow24Svg from "../SVG/arrow-24.svg?url";
+import carouselDotSvg from "../SVG/misc-40.svg?url";
+import carouselActiveSvg from "../SVG/line-9.svg?url";
 
 const INTERVAL = Number(import.meta.env.VITE_INSPIRATION_AUTOPLAY_INTERVAL_MS || 6000);
+
+function InspirationFavoriteButton({
+  active,
+  onClick,
+  large = false,
+  label = "收藏",
+  activeLabel = "已收藏",
+}: {
+  active: boolean;
+  onClick: () => void;
+  large?: boolean;
+  label?: string;
+  activeLabel?: string;
+}) {
+  return (
+    <button
+      type="button"
+      className={`daily-inspiration-favorite-btn${large ? " daily-inspiration-favorite-btn--large" : ""}${active ? " is-active" : ""}`}
+      onClick={onClick}
+      aria-label={active ? "取消收藏" : "收藏作品"}
+      aria-pressed={active}
+    >
+      <img src={favoriteTagSvg} alt="" draggable={false} className="daily-inspiration-favorite-icon" />
+      <span>{active ? activeLabel : label}</span>
+    </button>
+  );
+}
+
+function InspirationTitleRow({ className = "" }: { className?: string }) {
+  return (
+    <h2 className={`daily-inspiration-title-row ${className}`.trim()}>
+      <span className="daily-inspiration-title-text">今日摄影灵感</span>
+      <span className="daily-inspiration-title-icons" aria-hidden="true">
+        <img src={inspirationPeepSvg} alt="" draggable={false} className="daily-inspiration-icon-peep" />
+        <span className="daily-inspiration-icon-bulb">
+          <img src={lightbulbLineartSvg} alt="" draggable={false} className="daily-inspiration-bulb-lineart" />
+          <img src={lightbulbGlowSvg} alt="" draggable={false} className="daily-inspiration-bulb-glow" />
+        </span>
+      </span>
+    </h2>
+  );
+}
 
 function InspirationArtwork({
   photo,
@@ -93,6 +143,7 @@ export default function DailyInspirationSection({ embedded = false }: { embedded
     const previous = document.activeElement as HTMLElement | null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    document.body.classList.add("inspiration-dialog-open");
     window.requestAnimationFrame(() => closeRef.current?.focus());
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") setDetail(null);
@@ -101,6 +152,7 @@ export default function DailyInspirationSection({ embedded = false }: { embedded
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = previousOverflow;
+      document.body.classList.remove("inspiration-dialog-open");
       previous?.focus();
     };
   }, [detail]);
@@ -126,11 +178,11 @@ export default function DailyInspirationSection({ embedded = false }: { embedded
     }
   }
 
-  const sectionClass = embedded ? "py-10" : "container-page !py-12 sm:!py-14";
+  const sectionClass = embedded ? "py-10" : "container-page !pb-12 !pt-4 sm:!pb-14 sm:!pt-5";
 
   if (loading) {
     return (
-      <section className={sectionClass}>
+      <section className={`daily-inspiration-section ${sectionClass}`}>
         <div className="inspiration-skeleton" aria-label="正在加载今日摄影灵感" />
       </section>
     );
@@ -138,13 +190,24 @@ export default function DailyInspirationSection({ embedded = false }: { embedded
 
   if (error || !items.length) {
     return (
-      <section className={sectionClass}>
-        <p className="section-eyebrow">今日摄影灵感</p>
-        <div className="mt-4 rounded-3xl border border-sand bg-white/60 p-6 sm:p-8">
-          <p className="text-sm leading-6 text-muted">{error || "今天的灵感正在路上，请稍后再来看看。"}</p>
-          <button type="button" className="btn-secondary mt-5 !px-5 !py-2" onClick={() => void load()}>
-            重新加载
-          </button>
+      <section className={`daily-inspiration-section ${sectionClass}`}>
+        <InspirationTitleRow className="section-eyebrow" />
+        <div className="daily-inspiration-card">
+          <div className="daily-inspiration-card-frame">
+            <div className="daily-inspiration-card-inner">
+              <p className="daily-inspiration-body">{error || "今天的灵感正在路上，请稍后再来看看。"}</p>
+              <button type="button" className="btn-secondary mt-5 !px-5 !py-2" onClick={() => void load()}>
+                重新加载
+              </button>
+            </div>
+            <img
+              src={inspirationCardBorderSvg}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              className="daily-inspiration-card-border"
+            />
+          </div>
         </div>
       </section>
     );
@@ -155,7 +218,7 @@ export default function DailyInspirationSection({ embedded = false }: { embedded
   return (
     <>
       <section
-        className={sectionClass}
+        className={`daily-inspiration-section ${sectionClass}`}
         aria-label="今日摄影灵感轮播"
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
@@ -165,70 +228,105 @@ export default function DailyInspirationSection({ embedded = false }: { embedded
         <div className="mb-6 flex items-end justify-between gap-4 sm:mb-7">
           <div>
             <p className="section-eyebrow">Daily Inspiration</p>
-            <h2 className="mt-2 font-display text-3xl font-semibold sm:text-4xl">今日摄影灵感</h2>
-            <p className="mt-2 text-sm text-muted">从一张好照片里，学习如何观察世界</p>
+            <InspirationTitleRow className="daily-inspiration-heading mt-2" />
+            <p className="daily-inspiration-subtitle mt-2">从一张好照片里，学习如何观察世界</p>
           </div>
           <div className="hidden items-end gap-5 sm:flex">
             <p className="text-xs tracking-widest text-muted">{String(index + 1).padStart(2, "0")} / {String(items.length).padStart(2, "0")}</p>
-            <Link to="/community" className="text-sm font-medium text-brand-deep transition hover:text-ink">发现更多作品 →</Link>
+            <Link to="/community" className="text-sm font-medium text-ink transition hover:opacity-80">发现更多作品 →</Link>
           </div>
         </div>
 
-        <div
-          className="inspiration-stage"
-          onTouchStart={(event) => {
-            touchStart.current = event.touches[0].clientX;
-            setPaused(true);
-          }}
-          onTouchEnd={(event) => {
-            if (touchStart.current !== null) {
-              const delta = event.changedTouches[0].clientX - touchStart.current;
-              if (Math.abs(delta) > 45) move(delta < 0 ? 1 : -1);
-            }
-            touchStart.current = null;
-            setPaused(false);
-          }}
-        >
-          <button className="inspiration-image" type="button" onClick={() => setDetail(current)} aria-label={`查看${current.title}大图与摄影赏析`}>
-            <InspirationArtwork key={current.id} photo={current} className="h-full w-full object-cover transition duration-500 hover:scale-[1.01]" eager={index === 0} />
-          </button>
-          <div className="inspiration-copy">
-            <p className="font-display text-2xl italic leading-relaxed">“{current.poetic_caption}”</p>
-            <p className="mt-4 text-sm leading-7 text-muted sm:mt-5">{current.recommendation_reason}</p>
-            <div className="mt-6 flex flex-col items-start gap-4 text-xs text-muted sm:mt-7 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-              <p className="leading-6">
-                摄影：
-                <a href={current.photographer_url} target="_blank" rel="noopener noreferrer" className="underline">{current.photographer_name}</a>
-                {" · "}
-                <a href={current.source_page_url} target="_blank" rel="noopener noreferrer" className="underline">{current.source_name}</a>
-                {current.license_code ? ` · ${current.license_code}` : ""}
-              </p>
-              <button className="btn-secondary shrink-0 !px-4 !py-2" type="button" onClick={() => void toggleFavorite(current)} aria-label={current.is_favorite ? "取消收藏" : "收藏作品"}>
-                {current.is_favorite ? "已收藏" : "收藏"}
-              </button>
+        <div className="daily-inspiration-card daily-inspiration-card--stage">
+          <div
+            className="daily-inspiration-card-frame daily-inspiration-card-frame--stage"
+            onTouchStart={(event) => {
+              touchStart.current = event.touches[0].clientX;
+              setPaused(true);
+            }}
+            onTouchEnd={(event) => {
+              if (touchStart.current !== null) {
+                const delta = event.changedTouches[0].clientX - touchStart.current;
+                if (Math.abs(delta) > 45) move(delta < 0 ? 1 : -1);
+              }
+              touchStart.current = null;
+              setPaused(false);
+            }}
+          >
+            <div className="daily-inspiration-stage-inner">
+              <div className="daily-inspiration-stage-content">
+                <div className="daily-inspiration-stage-panel">
+                  <button className="inspiration-image" type="button" onClick={() => setDetail(current)} aria-label={`查看${current.title}大图与摄影赏析`}>
+                    <InspirationArtwork key={current.id} photo={current} className="h-full w-full object-cover transition duration-500 hover:scale-[1.01]" eager={index === 0} />
+                  </button>
+                  <div className="inspiration-copy">
+                    <p className="daily-inspiration-quote">“{current.poetic_caption}”</p>
+                    <p className="daily-inspiration-body mt-4 sm:mt-5">{current.recommendation_reason}</p>
+                    <div className="mt-6 flex flex-col items-start gap-3 sm:mt-7">
+                      <div className="daily-inspiration-meta text-xs leading-6 text-muted">
+                        <p>
+                          拍摄：
+                          <a href={current.photographer_url} target="_blank" rel="noopener noreferrer" className="underline">
+                            {current.photographer_name}
+                          </a>
+                        </p>
+                        <p>
+                          来源：
+                          <a href={current.source_page_url} target="_blank" rel="noopener noreferrer" className="underline">
+                            {current.source_name}
+                          </a>
+                        </p>
+                        {current.license_code ? <p>许可： {current.license_code}</p> : null}
+                      </div>
+                      <InspirationFavoriteButton active={!!current.is_favorite} onClick={() => void toggleFavorite(current)} />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
+            <img
+              src={inspirationCardBorderSvg}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              className="daily-inspiration-card-border"
+            />
           </div>
           {items.length > 1 && (
             <>
-              <button className="carousel-arrow left-3" type="button" onClick={() => move(-1)} aria-label="上一张">←</button>
-              <button className="carousel-arrow right-3" type="button" onClick={() => move(1)} aria-label="下一张">→</button>
+              <button className="carousel-arrow carousel-arrow--stage-left" type="button" onClick={() => move(-1)} aria-label="上一张">
+                <img src={arrow24Svg} alt="" draggable={false} className="carousel-arrow-icon carousel-arrow-icon-prev" />
+              </button>
+              <button className="carousel-arrow carousel-arrow--stage-right" type="button" onClick={() => move(1)} aria-label="下一张">
+                <img src={arrow24Svg} alt="" draggable={false} className="carousel-arrow-icon" />
+              </button>
             </>
           )}
         </div>
 
         <div className="mt-5 flex items-center justify-between sm:justify-center">
-          <Link to="/community" className="text-sm font-medium text-brand-deep sm:hidden">发现更多作品 →</Link>
-          <div className="flex gap-2">
-            {items.map((item, itemIndex) => (
-              <button
-                key={item.id}
-                type="button"
-                className={`carousel-dot ${itemIndex === index ? "carousel-dot-active" : ""}`}
-                onClick={() => setIndex(itemIndex)}
-                aria-label={`转到第 ${itemIndex + 1} 张`}
-                aria-current={itemIndex === index ? "true" : undefined}
-              />
-            ))}
+          <Link to="/community" className="text-sm font-medium text-ink sm:hidden">发现更多作品 →</Link>
+          <div className="flex items-center gap-4">
+            {items.map((item, itemIndex) => {
+              const isActive = itemIndex === index;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`carousel-dot ${isActive ? "carousel-dot-active" : ""}`}
+                  onClick={() => setIndex(itemIndex)}
+                  aria-label={`转到第 ${itemIndex + 1} 张`}
+                  aria-current={isActive ? "true" : undefined}
+                >
+                  <img
+                    src={isActive ? carouselActiveSvg : carouselDotSvg}
+                    alt=""
+                    draggable={false}
+                    className="carousel-dot-icon"
+                  />
+                </button>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -237,23 +335,29 @@ export default function DailyInspirationSection({ embedded = false }: { embedded
         <div className="inspiration-dialog-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setDetail(null)}>
           <div role="dialog" aria-modal="true" aria-labelledby="inspiration-title" className="inspiration-dialog">
             <button ref={closeRef} className="dialog-close" type="button" onClick={() => setDetail(null)} aria-label="关闭详情">×</button>
-            <div className="h-[40vh] min-h-0 bg-ink sm:h-[44vh] md:h-auto">
+            <div className="inspiration-dialog-media h-[40vh] sm:h-[44vh] md:h-full">
               <InspirationArtwork photo={detail} className="h-full w-full object-contain" eager />
             </div>
-            <aside className="max-h-[56vh] overflow-y-auto p-6 sm:p-7 md:max-h-none md:p-9">
+            <aside className="inspiration-dialog-aside">
               <p className="section-eyebrow">Photography Appreciation</p>
-              <h3 id="inspiration-title" className="mt-2 font-display text-3xl font-semibold">{detail.title}</h3>
-              <p className="mt-5 font-display text-xl italic leading-8">“{detail.poetic_caption}”</p>
+              <h3 id="inspiration-title" className="inspiration-dialog-title">{detail.title}</h3>
+              <p className="inspiration-dialog-quote">“{detail.poetic_caption}”</p>
               <Analysis title="整体赏析" text={detail.appreciation_summary} />
               <Analysis title="构图" text={detail.composition_analysis} />
               <Analysis title="光线" text={detail.light_analysis} />
               <Analysis title="色彩" text={detail.color_analysis} />
               <Analysis title="情绪与叙事" text={detail.emotion_analysis} />
               <Analysis title="学习提示" text={detail.learning_tip} />
-              <button className="btn-primary mt-7 w-full" type="button" onClick={() => void toggleFavorite(detail)}>
-                {detail.is_favorite ? "取消收藏" : "收藏这张作品"}
-              </button>
-              <p className="mt-6 text-xs leading-6 text-muted">
+              <div className="mt-7">
+                <InspirationFavoriteButton
+                  active={!!detail.is_favorite}
+                  onClick={() => void toggleFavorite(detail)}
+                  large
+                  label="收藏这张照片"
+                  activeLabel="已收藏这张照片"
+                />
+              </div>
+              <p className="inspiration-dialog-attribution mt-6">
                 {detail.attribution_text}
                 <br />
                 作品版权归原作者所有，本页面用于摄影学习与鉴赏。
@@ -269,8 +373,8 @@ export default function DailyInspirationSection({ embedded = false }: { embedded
 function Analysis({ title, text }: { title: string; text: string }) {
   return (
     <div className="mt-6 border-t border-sand pt-4">
-      <h4 className="text-xs font-medium uppercase tracking-widest text-brand-deep">{title}</h4>
-      <p className="mt-2 text-sm leading-7 text-muted">{text}</p>
+      <h4 className="inspiration-dialog-analysis-title">{title}</h4>
+      <p className="inspiration-dialog-analysis-text">{text}</p>
     </div>
   );
 }

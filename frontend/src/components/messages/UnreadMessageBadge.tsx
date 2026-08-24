@@ -1,1 +1,14 @@
-export default function UnreadMessageBadge({count}:{count:number}){return count>0?<span className="ml-1 inline-flex min-w-5 items-center justify-center rounded-full bg-brand px-1.5 text-[10px] leading-5 text-white">{count>99?'99+':count}</span>:null}
+export default function UnreadMessageBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+
+  const label = count > 99 ? "99+" : String(count);
+
+  return (
+    <span
+      className={`unread-hand-circle${label.length > 1 ? " unread-hand-circle--wide" : ""}`}
+      aria-label={`${count} 条未读`}
+    >
+      {label}
+    </span>
+  );
+}

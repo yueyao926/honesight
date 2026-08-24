@@ -1,0 +1,114 @@
+.heart-container {
+  --heart-color: rgb(255, 91, 137);
+  --heart-size: 36px;
+  --heart-padding: 6px;
+  position: relative;
+  width: var(--heart-size);
+  height: var(--heart-size);
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+.heart-container--sm {
+  --heart-size: 22px;
+  --heart-padding: 4px;
+}
+
+.heart-container--xs {
+  --heart-size: 24px;
+  --heart-padding: 4px;
+}
+
+.heart-container .heart-checkbox {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  z-index: 20;
+  cursor: pointer;
+  margin: 0;
+}
+
+.heart-container .svg-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(var(--heart-size) + var(--heart-padding) * 2);
+  height: calc(var(--heart-size) + var(--heart-padding) * 2);
+  transform: translate(-50%, -50%);
+  overflow: visible;
+}
+
+.heart-container .svg-outline,
+.heart-container .svg-filled {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  transform-origin: center center;
+  width: calc(var(--heart-size) * 0.88);
+  height: calc(var(--heart-size) * 0.88);
+}
+
+.heart-container .svg-outline path {
+  fill: rgba(255, 91, 137, 0.42);
+  stroke: none;
+}
+
+.heart-container .svg-filled path {
+  fill: var(--heart-color);
+  stroke: none;
+}
+
+.heart-container .svg-filled {
+  display: none;
+}
+
+.heart-container .heart-checkbox:checked ~ .svg-container .svg-outline {
+  display: none;
+}
+
+.heart-container .heart-checkbox:checked ~ .svg-container .svg-filled {
+  display: block;
+}
+
+.heart-container--liking .svg-filled {
+  animation: keyframes-heart-bounce 0.55s ease;
+}
+
+@keyframes keyframes-heart-bounce {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  35% {
+    transform: translate(-50%, -50%) scale(1.2);
+  }
+
+  60% {
+    transform: translate(-50%, -50%) scale(0.94);
+  }
+
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.heart-like-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  overflow: visible;
+  position: relative;
+}
+
+.heart-like-count {
+  font-size: 0.875rem;
+  line-height: 1;
+  color: inherit;
+}
+
+.heart-like-count--sm {
+  font-size: 0.75rem;
+}

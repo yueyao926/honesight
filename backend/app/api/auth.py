@@ -33,7 +33,9 @@ def _utc_now() -> datetime:
 
 
 def _as_utc(value: datetime) -> datetime:
-    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 def _set_refresh_cookie(response: Response, token: str, expires_at: datetime, settings: Settings) -> None:

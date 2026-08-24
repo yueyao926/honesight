@@ -4,56 +4,444 @@ import { getAssetUrl } from "../api/client";
 import { getFavoriteInspirations, unfavoriteInspiration } from "../api/inspirations";
 import { getMyPreferences, updateMyPreferences } from "../api/preferences";
 import { createConversation } from "../api/messages";
-import { favoriteWork, followUser, getFavorites, getFollowers, getFollowing, getMyProfile, getPrivacy, getPublicProfile, getWorks, resetAvatar, unfavoriteWork, unfollowUser, updatePrivacy, updateProfile, updateWork, uploadAvatar } from "../api/profile";
+import { listPortfolio } from "../api/portfolio";
+import {
+  followUser,
+  getFavorites,
+  getFollowers,
+  getFollowing,
+  getMyProfile,
+  getPublicProfile,
+  getUserCollections,
+  resetAvatar,
+  unfollowUser,
+  updateProfile,
+  uploadAvatar,
+} from "../api/profile";
 import AvatarUploader from "../components/AvatarUploader";
 import PreferenceForm from "../components/PreferenceForm";
+import ProfileCollectionGrid from "../components/profile/ProfileCollectionGrid";
+import ProfileFavoriteFolderCard from "../components/profile/ProfileFavoriteFolderCard";
+import ProfileHero, { parsePersonalityTags } from "../components/profile/ProfileHero";
+import ProfileTabNav from "../components/profile/ProfileTabNav";
+import ProfileWorkGrid from "../components/profile/ProfileWorkGrid";
+import OutlineLiftButton from "../components/ui/OutlineLiftButton";
 import { useAuth } from "../contexts/AuthContext";
-import type { Inspiration, PortfolioPhoto, Preference, PrivacySettings, Profile as ProfileType } from "../types";
+import arrow28Svg from "../SVG/arrow-28.svg?url";
+import computerSvg from "../SVG/电脑.svg?url";
+import hangerSvg from "../SVG/衣架.svg?url";
+import type { Inspiration, PortfolioCollection, PortfolioPhoto, Preference, Profile as ProfileType } from "../types";
 
-type Tab = "works" | "favorites" | "following" | "followers" | "preferences" | "account";
-const privateTabs: Tab[] = ["favorites", "preferences", "account"];
-const tabNames: Record<Tab, string> = { works: "作品集", favorites: "收藏", following: "关注", followers: "粉丝", preferences: "个人偏好", account: "账户设置" };
+type Tab = "works" | "favorites" | "following" | "followers" | "preferences";
+
+const privateTabs: Tab[] = ["favorites", "preferences"];
+
+const tabNames: Record<Tab, string> = {
+  works: "作品集",
+  favorites: "收藏",
+  following: "关注",
+  followers: "粉丝",
+  preferences: "个人偏好",
+};
 
 export default function Profile() {
-  const { user, isAuthenticated, logout, refreshMe } = useAuth(); const { userId } = useParams(); const navigate = useNavigate(); const location = useLocation();
-  const own = !userId; const id = own ? user?.id : Number(userId); const [profile, setProfile] = useState<ProfileType | null>(null); const [works, setWorks] = useState<PortfolioPhoto[]>([]);
-  const [people, setPeople] = useState<ProfileType[]>([]); const [preference, setPreference] = useState<Preference | null>(null); const [privacy, setPrivacy] = useState<PrivacySettings | null>(null);
-  const [inspirationFavorites, setInspirationFavorites] = useState<Inspiration[]>([]); const [favoriteFolder, setFavoriteFolder] = useState<"root" | "inspirations" | "works">("root");
-  const [tab, setTab] = useState<Tab>("works"); const [editing, setEditing] = useState(false); const [avatar, setAvatar] = useState(false); const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [toast, setToast] = useState("");
-  const load = async () => { setLoading(true); setError(""); try { const value = own ? await getMyProfile() : await getPublicProfile(Number(userId)); setProfile(value); setWorks(await getWorks(value.id)); } catch (e) { setError(e instanceof Error ? e.message : "加载失败"); } finally { setLoading(false); } };
-  useEffect(() => { if (own && !isAuthenticated) { navigate("/login", { state: { from: location } }); return; } load(); }, [userId, isAuthenticated]);
-  useEffect(() => { if (!profile) return; (async () => { try { if (tab === "favorites" && own) { const [savedWorks, savedInspirations] = await Promise.all([getFavorites(), getFavoriteInspirations()]); setWorks(savedWorks); setInspirationFavorites(savedInspirations); setFavoriteFolder("root"); } if (tab === "following") setPeople(await getFollowing(profile.id)); if (tab === "followers") setPeople(await getFollowers(profile.id)); if (tab === "preferences" && own) setPreference(await getMyPreferences().catch(() => null)); if (tab === "account" && own) setPrivacy(await getPrivacy()); } catch (e) { setError(e instanceof Error ? e.message : "加载失败"); } })(); }, [tab, profile?.id]);
-  const flash = (message: string) => { setToast(message); window.setTimeout(() => setToast(""), 2500); };
-  if (loading) return <main className="container-page"><div className="h-56 animate-pulse rounded-3xl bg-sand/70" /></main>;
-  if (error && !profile) return <main className="container-page"><div className="card text-center"><h1 className="text-2xl">无法打开个人主页</h1><p className="mt-3 text-muted">{error}</p><button className="btn-primary mt-6" onClick={load}>重试</button></div></main>;
-  if (!profile) return null;
-  const initial = profile.username.slice(0, 1).toUpperCase();
-  async function toggleFollow() { if (!isAuthenticated) return navigate("/login", { state: { from: location } }); if (!profile) return; profile.is_following ? await unfollowUser(profile.id) : await followUser(profile.id); setProfile({ ...profile, is_following: !profile.is_following, follower_count: profile.follower_count + (profile.is_following ? -1 : 1) }); }
-  async function saveProfile(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const f = new FormData(event.currentTarget); const updated = await updateProfile({ username: String(f.get("username")), signature: String(f.get("signature")), bio: String(f.get("bio")), location: String(f.get("location")), photography_level: String(f.get("photography_level")), equipment: String(f.get("equipment")) }); setProfile(updated); await refreshMe(); setEditing(false); flash("资料已保存"); }
-  const tabs = (Object.keys(tabNames) as Tab[]).filter((value) => own || !privateTabs.includes(value));
-  return <main className="container-page">
-    {toast && <div className="fixed right-5 top-24 z-[70] rounded-2xl bg-ink px-5 py-3 text-sm text-white shadow-card">{toast}</div>}
-    <section className="card animate-fade-up"><div className="flex flex-col gap-7 md:flex-row md:items-center">
-      <button className="relative h-28 w-28 shrink-0 overflow-hidden rounded-full bg-blush text-4xl font-semibold text-brand-deep" onClick={() => own && setAvatar(true)}>{profile.avatar_url ? <img className="h-full w-full object-cover" src={getAssetUrl(profile.avatar_url)} /> : initial}{own && <span className="absolute inset-x-0 bottom-0 bg-black/45 py-1 text-xs text-white">更换</span>}</button>
-      <div className="min-w-0 flex-1"><h1 className="page-title break-words">{profile.username}</h1><p className="mt-2 text-muted">{profile.signature || "用镜头记录正在发生的生活"}</p><p className="mt-3 max-w-2xl whitespace-pre-line text-sm leading-7">{profile.bio}</p><p className="mt-3 text-xs text-muted">{profile.location && `${profile.location} · `}加入 LensCoach 于 {new Date(profile.created_at).toLocaleDateString("zh-CN", { year: "numeric", month: "long" })}</p></div>
-      <div>{own ? <button className="btn-primary" onClick={() => setEditing(true)}>编辑资料</button> : <div className="flex gap-2"><button className={profile.is_following ? "btn-secondary" : "btn-primary"} onClick={toggleFollow}>{profile.is_following ? "已关注" : "关注"}</button><button className="btn-secondary" onClick={async()=>{if(!isAuthenticated)return navigate('/login',{state:{from:location}});try{const c=await createConversation(profile.id);navigate(`/community/messages/${c.id}`)}catch(e){setError(e instanceof Error?e.message:'无法发起私信')}}}>私信</button></div>}</div>
-    </div><div className="mt-8 grid grid-cols-3 gap-3 border-t border-sand pt-6 text-center"><div><b className="text-xl">{profile.work_count}</b><p className="text-xs text-muted">作品</p></div><button onClick={() => setTab("following")}><b className="text-xl">{profile.following_count}</b><p className="text-xs text-muted">关注</p></button><button onClick={() => setTab("followers")}><b className="text-xl">{profile.follower_count}</b><p className="text-xs text-muted">粉丝</p></button></div></section>
-    <nav className="mt-8 flex gap-2 overflow-x-auto border-b border-sand pb-3">{tabs.map((value) => <button key={value} className={`whitespace-nowrap rounded-full px-5 py-2.5 text-sm ${tab === value ? "bg-brand text-white" : "text-muted hover:bg-white"}`} onClick={() => setTab(value)}>{tabNames[value]}</button>)}</nav>
-    {tab === "works" && <section className="mt-8">{works.length ? <WorkGrid works={works} own={own} isAuthenticated={isAuthenticated} navigate={navigate} location={location} setWorks={setWorks} /> : <div className="card text-center"><h2 className="text-xl">这里还没有内容</h2><p className="mt-2 text-sm text-muted">{own ? "去作品集上传第一张照片吧。" : "暂时没有可展示的作品。"}</p>{own && <Link className="btn-primary mt-5 inline-block" to="/portfolio">上传作品</Link>}</div>}</section>}
-    {tab === "favorites" && own && <section className="mt-8">
-      {favoriteFolder === "root" && <div className="grid gap-5 md:grid-cols-2"><button className="community-folder text-left" onClick={() => setFavoriteFolder("inspirations")}><div><p className="text-xs uppercase tracking-[.18em] text-muted">Collection</p><h2 className="mt-2 font-display text-3xl font-semibold">首页灵感收藏夹</h2><p className="mt-2 text-sm text-muted">你在首页个性化推荐中收藏的摄影作品。</p></div><strong className="font-display text-4xl text-brand-deep">{inspirationFavorites.length}</strong></button><button className="community-folder text-left" onClick={() => setFavoriteFolder("works")}><div><p className="text-xs uppercase tracking-[.18em] text-muted">Collection</p><h2 className="mt-2 font-display text-3xl font-semibold">作品收藏</h2><p className="mt-2 text-sm text-muted">你收藏的 LensCoach 用户公开作品。</p></div><strong className="font-display text-4xl text-brand-deep">{works.length}</strong></button></div>}
-      {favoriteFolder !== "root" && <button className="btn-ghost mb-5" onClick={() => setFavoriteFolder("root")}>← 返回我的收藏</button>}
-      {favoriteFolder === "inspirations" && (inspirationFavorites.length ? <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">{inspirationFavorites.map(photo => <article key={photo.id} className="group overflow-hidden rounded-3xl bg-white/75 shadow-card"><a className="block aspect-square overflow-hidden" href={photo.source_page_url} target="_blank" rel="noreferrer"><img className="h-full w-full object-cover transition group-hover:scale-[1.02]" src={photo.thumbnail_url || photo.image_url} alt={photo.title} /></a><div className="p-4"><h3 className="truncate font-medium">{photo.title}</h3><p className="mt-1 truncate text-xs text-muted">摄影：{photo.photographer_name} · {photo.source_name}</p><button className="mt-3 text-xs text-brand-deep" onClick={async () => { await unfavoriteInspiration(photo.id); setInspirationFavorites(items => items.filter(item => item.id !== photo.id)); flash("已取消收藏"); }}>取消收藏</button></div></article>)}</div> : <div className="card text-center text-muted">首页灵感收藏夹还是空的</div>)}
-      {favoriteFolder === "works" && (works.length ? <WorkGrid works={works} own={false} isAuthenticated={isAuthenticated} navigate={navigate} location={location} setWorks={setWorks} /> : <div className="card text-center text-muted">还没有收藏用户作品</div>)}
-    </section>}
-    {(tab === "following" || tab === "followers") && <section className="mt-8 space-y-3">{people.length ? people.map(person => <Link className="card flex items-center gap-4 p-4" key={person.id} to={`/users/${person.id}`}><div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-blush">{person.avatar_url ? <img className="h-full w-full object-cover" src={getAssetUrl(person.avatar_url)} /> : person.username[0]}</div><div><h3 className="font-medium">{person.username}</h3><p className="text-sm text-muted">{person.signature || "LensCoach 摄影用户"}</p></div></Link>) : <div className="card text-center text-muted">暂无{tabNames[tab]}</div>}</section>}
-    {tab === "preferences" && own && <section className="card mt-8"><h2 className="font-display text-2xl font-semibold">个人偏好</h2><p className="mt-2 text-sm text-muted">仅你可见，用于优化首页推荐。</p><div className="mt-7"><PreferenceForm initial={preference} submitText="保存偏好" onSubmit={async payload => { setPreference(await updateMyPreferences(payload)); flash("偏好已保存"); }} /></div></section>}
-    {tab === "account" && own && <section className="mt-8 grid gap-5 md:grid-cols-2"><div className="card"><h2 className="font-display text-2xl font-semibold">绑定邮箱</h2><p className="mt-5 font-medium">{profile.email?.replace(/^(.{2}).*(@.*)$/, "$1***$2")}</p><p className="mt-2 text-sm text-muted">{profile.email_verified ? "✓ 已验证" : "尚未验证 · 重新验证暂未开放"}</p></div><div className="card"><h2 className="font-display text-2xl font-semibold">隐私设置</h2>{privacy && <div className="mt-5 space-y-4">{Object.entries(privacy).map(([key, value]) => <label className="flex items-center justify-between gap-5 text-sm" key={key}><span>{{ show_following: "公开关注列表", show_followers: "公开粉丝列表", allow_work_favorites: "允许收藏公开作品", discoverable_by_username: "允许通过用户名搜索", allow_follow_notifications: "接收新关注通知" }[key as keyof PrivacySettings]}</span><input type="checkbox" checked={value} onChange={async e => { const next = { ...privacy, [key]: e.target.checked }; setPrivacy(await updatePrivacy(next)); flash("隐私设置已保存"); }} /></label>)}</div>}</div><div className="card md:col-span-2"><button className="btn-secondary" onClick={async () => { await logout(); navigate("/"); }}>退出登录</button><button className="ml-3 cursor-not-allowed rounded-full border border-red-200 px-6 py-3 text-sm text-red-300" disabled>删除账户（暂未开放）</button></div></section>}
-    {editing && <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/55 p-4"><form className="card max-h-[92vh] w-full max-w-2xl overflow-y-auto bg-cream" onSubmit={saveProfile}><div className="flex justify-between"><h2 className="font-display text-2xl font-semibold">编辑资料</h2><button type="button" className="btn-ghost" onClick={() => setEditing(false)}>取消</button></div><div className="mt-6 grid gap-5 md:grid-cols-2"><label><span className="label">用户名</span><input className="input" name="username" minLength={2} maxLength={80} required defaultValue={profile.username} /></label><label><span className="label">个性签名（80字）</span><input className="input" name="signature" maxLength={80} defaultValue={profile.signature || ""} /></label><label className="md:col-span-2"><span className="label">个人简介（300字）</span><textarea className="input min-h-28" name="bio" maxLength={300} defaultValue={profile.bio || ""} /></label><label><span className="label">地区</span><input className="input" name="location" defaultValue={profile.location || ""} /></label><label><span className="label">摄影水平</span><select className="input" name="photography_level" defaultValue={profile.photography_level || ""}><option value="">未选择</option><option>初学者</option><option>入门</option><option>进阶</option><option>专业</option></select></label><label className="md:col-span-2"><span className="label">常用设备</span><input className="input" name="equipment" defaultValue={profile.equipment || ""} /></label></div><button className="btn-primary mt-7" type="submit">保存资料</button></form></div>}
-    {avatar && <AvatarUploader onClose={() => setAvatar(false)} onSave={async blob => { setProfile(await uploadAvatar(blob)); await refreshMe(); flash("头像已更新"); }} onReset={async () => { setProfile(await resetAvatar()); await refreshMe(); flash("已恢复默认头像"); }} />}
-  </main>;
-}
+  const { isAuthenticated, refreshMe } = useAuth();
+  const { userId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-function WorkGrid({ works, own, isAuthenticated, navigate, location, setWorks }: { works: PortfolioPhoto[]; own: boolean; isAuthenticated: boolean; navigate: ReturnType<typeof useNavigate>; location: ReturnType<typeof useLocation>; setWorks: React.Dispatch<React.SetStateAction<PortfolioPhoto[]>> }) {
-  return <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">{works.map(work => <article key={work.id} className="group overflow-hidden rounded-3xl bg-white/75 shadow-card"><button className="block aspect-square w-full overflow-hidden" onClick={() => window.open(getAssetUrl(work.image_url), "_blank")}><img className="h-full w-full object-cover transition group-hover:scale-[1.02]" src={getAssetUrl(work.thumbnail_url || work.image_url)} alt={work.title} loading="lazy" decoding="async" /></button><div className="p-4"><div className="flex items-start justify-between gap-2"><h3 className="truncate font-medium">{work.title}</h3>{own && <button className="text-xs text-muted" onClick={async () => { const updated = await updateWork(work.id, { visibility: work.visibility === "public" ? "private" : "public" }); setWorks(items => items.map(item => item.id === updated.id ? updated : item)); }}>{work.visibility === "private" ? "🔒 私密" : "公开"}</button>}</div>{!own && <button className="mt-3 text-xs text-brand-deep" onClick={async () => { if (!isAuthenticated) return navigate("/login", { state: { from: location } }); work.is_favorited ? await unfavoriteWork(work.id) : await favoriteWork(work.id); setWorks(items => work.is_favorited ? items.filter(item => item.id !== work.id) : items.map(item => item.id === work.id ? { ...item, is_favorited: true } : item)); }}>{work.is_favorited ? "取消收藏" : "收藏"} · {work.favorite_count}</button>}</div></article>)}</div>;
+  const own = !userId;
+  const [profile, setProfile] = useState<ProfileType | null>(null);
+  const [collections, setCollections] = useState<PortfolioCollection[]>([]);
+  const [works, setWorks] = useState<PortfolioPhoto[]>([]);
+  const [people, setPeople] = useState<ProfileType[]>([]);
+  const [preference, setPreference] = useState<Preference | null>(null);
+  const [inspirationFavorites, setInspirationFavorites] = useState<Inspiration[]>([]);
+  const [favoriteFolder, setFavoriteFolder] = useState<"root" | "inspirations" | "works">("root");
+  const [tab, setTab] = useState<Tab>("works");
+  const [editing, setEditing] = useState(false);
+  const [avatar, setAvatar] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [toast, setToast] = useState("");
+
+  const load = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const value = own ? await getMyProfile() : await getPublicProfile(Number(userId));
+      setProfile(value);
+      setCollections(own ? await listPortfolio() : await getUserCollections(value.id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "加载失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (own && !isAuthenticated) {
+      navigate("/login", { state: { from: location } });
+      return;
+    }
+    load();
+  }, [userId, isAuthenticated]);
+
+  useEffect(() => {
+    if (!profile) return;
+    (async () => {
+      try {
+        if (tab === "favorites" && own) {
+          const [savedWorks, savedInspirations] = await Promise.all([getFavorites(), getFavoriteInspirations()]);
+          setWorks(savedWorks);
+          setInspirationFavorites(savedInspirations);
+          setFavoriteFolder("root");
+        }
+        if (tab === "following") setPeople(await getFollowing(profile.id));
+        if (tab === "followers") setPeople(await getFollowers(profile.id));
+        if (tab === "preferences" && own) setPreference(await getMyPreferences().catch(() => null));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "加载失败");
+      }
+    })();
+  }, [tab, profile?.id]);
+
+  const flash = (message: string) => {
+    setToast(message);
+    window.setTimeout(() => setToast(""), 2500);
+  };
+
+  if (loading) {
+    return (
+      <main className="handwriting-page profile-page container-page">
+        <div className="profile-hero-skeleton" aria-hidden="true" />
+      </main>
+    );
+  }
+
+  if (error && !profile) {
+    return (
+      <main className="handwriting-page profile-page container-page">
+        <div className="card text-center">
+          <h1 className="page-title">无法打开个人主页</h1>
+          <p className="mt-3 text-muted">{error}</p>
+          <button type="button" className="hand-drawn-outline-button mt-6" onClick={load}>
+            重试
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  if (!profile) return null;
+
+  const initial = profile.username.slice(0, 1).toUpperCase();
+  const tabs = (Object.keys(tabNames) as Tab[]).filter((value) => own || !privateTabs.includes(value));
+
+  async function toggleFollow() {
+    if (!isAuthenticated) return navigate("/login", { state: { from: location } });
+    if (!profile) return;
+    if (profile.is_following) await unfollowUser(profile.id);
+    else await followUser(profile.id);
+    setProfile({
+      ...profile,
+      is_following: !profile.is_following,
+      follower_count: profile.follower_count + (profile.is_following ? -1 : 1),
+    });
+  }
+
+  async function startMessage() {
+    if (!profile) return;
+    if (!isAuthenticated) return navigate("/login", { state: { from: location } });
+    try {
+      const conversation = await createConversation(profile.id);
+      navigate(`/community/messages/${conversation.id}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "无法发起私信");
+    }
+  }
+
+  async function saveProfile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const updated = await updateProfile({
+      username: String(form.get("username")),
+      signature: String(form.get("signature")),
+      bio: String(form.get("bio")),
+      location: String(form.get("location")),
+      photography_level: String(form.get("photography_level")),
+      equipment: String(form.get("equipment")),
+      personality_tags: parsePersonalityTags(String(form.get("personality_tags") || "")),
+    });
+    setProfile(updated);
+    await refreshMe();
+    setEditing(false);
+    flash("资料已保存");
+  }
+
+  return (
+    <main className="handwriting-page profile-page container-page">
+      {toast && <div className="profile-toast">{toast}</div>}
+
+      <ProfileHero
+        profile={profile}
+        own={own}
+        initial={initial}
+        onAvatarClick={() => own && setAvatar(true)}
+        onEdit={() => setEditing(true)}
+        onFollow={toggleFollow}
+        onMessage={startMessage}
+        onSaveTags={async (tags) => {
+          const updated = await updateProfile({ personality_tags: tags });
+          setProfile(updated);
+        }}
+      />
+
+      <ProfileTabNav
+        tabs={tabs}
+        tabNames={tabNames}
+        tabCounts={{
+          works: profile.collection_count ?? 0,
+          favorites: profile.favorite_count ?? 0,
+          following: profile.following_count,
+          followers: profile.follower_count,
+        }}
+        active={tab}
+        onChange={setTab}
+      />
+
+      {tab === "works" && (
+        <section className="profile-tab-panel">
+          {collections.length ? (
+            <ProfileCollectionGrid collections={collections} userId={profile.id} own={own} />
+          ) : (
+            <div className="profile-empty">
+              <h2 className="text-xl">这里还没有内容</h2>
+              <p className="mt-2 text-sm text-muted">
+                {own ? "去作品集创建第一个作品集吧。" : "暂时没有可展示的作品集。"}
+              </p>
+              {own && (
+                <Link className="cta mt-5 inline-block" to="/portfolio">
+                  创建作品集
+                </Link>
+              )}
+            </div>
+          )}
+        </section>
+      )}
+
+      {tab === "favorites" && own && (
+        <section className="profile-tab-panel">
+          {favoriteFolder === "root" && (
+            <div className="grid gap-5 md:grid-cols-2">
+              <ProfileFavoriteFolderCard
+                title="首页灵感收藏夹"
+                description="你在首页个性化推荐中收藏的摄影作品。"
+                count={inspirationFavorites.length}
+                onClick={() => setFavoriteFolder("inspirations")}
+              />
+              <ProfileFavoriteFolderCard
+                title="作品收藏"
+                description="你收藏的 LensCoach 用户公开作品。"
+                count={works.length}
+                onClick={() => setFavoriteFolder("works")}
+              />
+            </div>
+          )}
+
+          {favoriteFolder !== "root" && (
+            <button type="button" className="community-back-link mb-5" onClick={() => setFavoriteFolder("root")}>
+              <img
+                src={arrow28Svg}
+                alt=""
+                aria-hidden="true"
+                draggable={false}
+                className="community-back-link__icon"
+              />
+              <span className="community-back-link__label">返回我的收藏</span>
+            </button>
+          )}
+
+          {favoriteFolder === "inspirations" &&
+            (inspirationFavorites.length ? (
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+                {inspirationFavorites.map((photo) => (
+                  <article key={photo.id} className="group overflow-hidden rounded-3xl bg-white/75 shadow-card">
+                    <a className="block aspect-square overflow-hidden" href={photo.source_page_url} target="_blank" rel="noreferrer">
+                      <img
+                        className="h-full w-full object-cover transition group-hover:scale-[1.02]"
+                        src={photo.thumbnail_url || photo.image_url}
+                        alt={photo.title}
+                      />
+                    </a>
+                    <div className="p-4">
+                      <h3 className="truncate">{photo.title}</h3>
+                      <p className="mt-1 truncate text-xs text-muted">
+                        摄影：{photo.photographer_name} · {photo.source_name}
+                      </p>
+                      <button
+                        type="button"
+                        className="mt-3 text-xs text-brand-deep"
+                        onClick={async () => {
+                          await unfavoriteInspiration(photo.id);
+                          setInspirationFavorites((items) => items.filter((item) => item.id !== photo.id));
+                          flash("已取消收藏");
+                        }}
+                      >
+                        取消收藏
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="profile-empty">
+                <img
+                  src={computerSvg}
+                  alt=""
+                  aria-hidden="true"
+                  draggable={false}
+                  className="profile-empty-illustration"
+                />
+                <p className="text-muted">首页灵感收藏夹还是空的</p>
+              </div>
+            ))}
+
+          {favoriteFolder === "works" &&
+            (works.length ? (
+              <ProfileWorkGrid works={works} own={false} isAuthenticated={isAuthenticated} setWorks={setWorks} />
+            ) : (
+              <div className="profile-empty">
+                <img
+                  src={hangerSvg}
+                  alt=""
+                  aria-hidden="true"
+                  draggable={false}
+                  className="profile-empty-illustration profile-empty-illustration--hanger"
+                />
+                <p className="text-muted">还没有收藏用户作品</p>
+              </div>
+            ))}
+        </section>
+      )}
+
+      {(tab === "following" || tab === "followers") && (
+        <section className="profile-tab-panel profile-people-list">
+          {people.length ? (
+            people.map((person) => (
+              <Link key={person.id} to={`/users/${person.id}`} className="profile-people-item">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blush">
+                  {person.avatar_url ? (
+                    <img src={getAssetUrl(person.avatar_url)} alt="" />
+                  ) : (
+                    person.username[0]
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <h3 className="truncate">{person.username}</h3>
+                  <p className="truncate text-sm text-muted">{person.signature || "LensCoach 摄影用户"}</p>
+                </div>
+              </Link>
+            ))
+          ) : (
+            <p className="profile-empty text-muted">暂无{tabNames[tab]}</p>
+          )}
+        </section>
+      )}
+
+      {tab === "preferences" && own && (
+        <section className="profile-tab-panel profile-preferences">
+          <h2 className="text-xl">个人偏好</h2>
+          <p className="mt-2 text-sm text-muted">仅你可见，用于优化首页推荐。</p>
+          <div className="mt-7">
+            <PreferenceForm
+              initial={preference}
+              submitText="保存偏好"
+              onSubmit={async (payload) => {
+                setPreference(await updateMyPreferences(payload));
+                flash("偏好已保存");
+              }}
+            />
+          </div>
+        </section>
+      )}
+
+      {editing && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/55 p-4">
+          <form className="profile-edit-modal" onSubmit={saveProfile}>
+            <div className="flex items-start justify-between gap-4">
+              <h2 className="text-2xl">编辑资料</h2>
+              <OutlineLiftButton type="button" variant="solid" onClick={() => setEditing(false)}>
+                取消
+              </OutlineLiftButton>
+            </div>
+
+            <div className="mt-6 grid gap-5 md:grid-cols-2">
+              <label>
+                <span className="label">用户名</span>
+                <input className="input ink-focus-frame" name="username" minLength={2} maxLength={80} required defaultValue={profile.username} />
+              </label>
+              <label>
+                <span className="label">个性签名（80字）</span>
+                <input className="input ink-focus-frame" name="signature" maxLength={80} defaultValue={profile.signature || ""} />
+              </label>
+              <label className="md:col-span-2">
+                <span className="label">个人简介（300字）</span>
+                <textarea className="input ink-focus-frame min-h-28" name="bio" maxLength={300} defaultValue={profile.bio || ""} />
+              </label>
+              <label>
+                <span className="label">地区</span>
+                <input className="input ink-focus-frame" name="location" defaultValue={profile.location || ""} />
+              </label>
+              <label>
+                <span className="label">摄影水平</span>
+                <select className="input ink-focus-frame" name="photography_level" defaultValue={profile.photography_level || ""}>
+                  <option value="">未选择</option>
+                  <option>初学者</option>
+                  <option>入门</option>
+                  <option>进阶</option>
+                  <option>专业</option>
+                </select>
+              </label>
+              <label className="md:col-span-2">
+                <span className="label">常用设备</span>
+                <input className="input ink-focus-frame" name="equipment" defaultValue={profile.equipment || ""} />
+              </label>
+              <label className="md:col-span-2">
+                <span className="label">个性标签</span>
+                <input
+                  className="input ink-focus-frame"
+                  name="personality_tags"
+                  defaultValue={(profile.personality_tags || []).join(" ")}
+                  placeholder="用空格分开，例如：街拍 夜色 生活观察"
+                  maxLength={80}
+                  autoComplete="off"
+                />
+              </label>
+            </div>
+
+            <OutlineLiftButton type="submit" variant="solid" className="mt-7">
+              保存资料
+            </OutlineLiftButton>
+          </form>
+        </div>
+      )}
+
+      {avatar && (
+        <AvatarUploader
+          onClose={() => setAvatar(false)}
+          onSave={async (blob) => {
+            setProfile(await uploadAvatar(blob));
+            await refreshMe();
+            flash("头像已更新");
+          }}
+          onReset={async () => {
+            setProfile(await resetAvatar());
+            await refreshMe();
+            flash("已恢复默认头像");
+          }}
+        />
+      )}
+    </main>
+  );
 }

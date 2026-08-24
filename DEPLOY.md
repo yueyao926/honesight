@@ -1,4 +1,4 @@
-# LensCoach 服务器部署指南
+# HoneSight 服务器部署指南
 
 ## 前置条件
 
@@ -33,7 +33,7 @@ sudo -u postgres psql -c "SHOW port;"
 sudo -u postgres psql -l
 ```
 
-> 看看有没有现成的 `lenscoach` 数据库，如果没有就需要创建一个。
+> 看看有没有现成的 `HoneSight` 数据库，如果没有就需要创建一个。
 
 ### 4. 查看 PostgreSQL 用户列表
 
@@ -50,13 +50,13 @@ sudo -u postgres psql
 
 ```sql
 -- 创建数据库
-CREATE DATABASE lenscoach;
+CREATE DATABASE HoneSight;
 
 -- 创建用户并设置密码（如果还没有的话）
-CREATE USER lenscoach WITH PASSWORD '你设置的密码';
+CREATE USER HoneSight WITH PASSWORD '你设置的密码';
 
 -- 授权
-GRANT ALL PRIVILEGES ON DATABASE lenscoach TO lenscoach;
+GRANT ALL PRIVILEGES ON DATABASE HoneSight TO HoneSight;
 
 -- 退出
 \q
@@ -73,10 +73,10 @@ postgresql://用户名:密码@主机地址:端口/数据库名
 例如：
 ```
 # 本机 PostgreSQL，用户 postgres，密码 mypass123
-postgresql://postgres:mypass123@localhost:5432/lenscoach
+postgresql://postgres:mypass123@localhost:5432/HoneSight
 
 # 或者用 Docker 部署的 PostgreSQL 通过内网 IP 访问
-postgresql://lenscoach:mypass123@172.17.0.1:5432/lenscoach
+postgresql://HoneSight:mypass123@172.17.0.1:5432/HoneSight
 ```
 
 > **注意**：如果后端用 Docker 跑，但是 PostgreSQL 在宿主机上，`localhost` 在容器里指向的是容器自己，不是宿主机。
@@ -92,15 +92,15 @@ postgresql://lenscoach:mypass123@172.17.0.1:5432/lenscoach
 
 ```bash
 # 把项目上传到服务器（替换成你的服务器地址和路径）
-scp -r C:\Users\31860\Desktop\lenscoach 用户名@你的服务器IP:/home/用户名/lenscoach
+scp -r C:\Users\31860\Desktop\HoneSight 用户名@你的服务器IP:/home/用户名/HoneSight
 ```
 
 或者用 Git：
 
 在服务器上：
 ```bash
-git clone <你的仓库地址> ~/lenscoach
-cd ~/lenscoach
+git clone <你的仓库地址> ~/HoneSight
+cd ~/HoneSight
 ```
 
 ---
@@ -110,7 +110,7 @@ cd ~/lenscoach
 在服务器上的项目目录里：
 
 ```bash
-cd ~/lenscoach
+cd ~/HoneSight
 
 # 复制环境变量模板
 cp server.env.example .env
@@ -126,7 +126,7 @@ nano .env
 
 ```env
 # 必填 - 用你第一步拼出来的数据库地址
-DATABASE_URL=postgresql://postgres:你的密码@localhost:5432/lenscoach
+DATABASE_URL=postgresql://postgres:你的密码@localhost:5432/HoneSight
 
 # 必填 - 用下面的命令生成一个随机密钥
 JWT_SECRET_KEY=你生成的随机密钥
@@ -144,7 +144,7 @@ SESSION_COOKIE_DOMAIN=
 # 前端端口
 PORT=80
 
-# 你的服务器 IP 或域名，比如 http://123.45.67.89 或 http://lenscoach.com
+# 你的服务器 IP 或域名，比如 http://123.45.67.89 或 http://HoneSight.com
 CORS_ORIGINS=http://你的服务器IP或域名
 
 # AI 分析（可选，不填也能用 mock 模式）
@@ -178,7 +178,7 @@ openssl rand -hex 32
 ## 第四步：启动服务
 
 ```bash
-cd ~/lenscoach
+cd ~/HoneSight
 
 # 构建镜像并启动
 docker compose -f docker-compose.server.yml up -d --build
@@ -187,7 +187,7 @@ docker compose -f docker-compose.server.yml up -d --build
 这个命令会：
 1. 构建后端 FastAPI 镜像
 2. 构建前端 Nginx 镜像（React 编译后由 Nginx 托管）
-3. 启动两个容器：`lenscoach-backend-1` + `lenscoach-frontend-1`
+3. 启动两个容器：`HoneSight-backend-1` + `HoneSight-frontend-1`
 
 ---
 
@@ -224,7 +224,7 @@ curl http://localhost:8000/health
 
 ### 测试前端
 
-在浏览器里打开 `http://你的服务器IP`，能看到 LensCoach 的登录页面就成功了。
+在浏览器里打开 `http://你的服务器IP`，能看到 HoneSight 的登录页面就成功了。
 
 ---
 
@@ -263,7 +263,7 @@ docker compose -f docker-compose.server.yml exec backend bash
 ### 2. 数据库不存在
 
 ```bash
-sudo -u postgres psql -c "CREATE DATABASE lenscoach;"
+sudo -u postgres psql -c "CREATE DATABASE HoneSight;"
 ```
 
 ### 3. 数据库密码不对

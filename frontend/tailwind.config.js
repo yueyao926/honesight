@@ -43,8 +43,12 @@ export default {
         },
       },
       fontFamily: {
-        display: ['"Cormorant Garamond"', "Georgia", "serif"],
-        sans: ['"Noto Sans SC"', "system-ui", "sans-serif"],
+        display: ['"JasonHandwriting"', '"Amatic SC"', "cursive"],
+        sans: ['"JasonHandwriting"', '"Amatic SC"', "cursive"],
+        serif: ['"JasonHandwriting"', '"Amatic SC"', "cursive"],
+        logo: ['"JasonHandwriting"', '"Amatic SC"', "cursive"],
+        handwrite: ['"JasonHandwriting"', '"Amatic SC"', "cursive"],
+        hand: ['"JasonHandwriting"', '"Amatic SC"', "cursive"],
       },
       boxShadow: {
         soft: "0 20px 60px rgba(113, 90, 74, 0.12)",
@@ -57,6 +61,7 @@ export default {
       animation: {
         "fade-up": "fadeUp 0.6s ease-out forwards",
         float: "float 6s ease-in-out infinite",
+        wobble: "wobble 4.5s ease-in-out infinite",
       },
       keyframes: {
         fadeUp: {
@@ -66,6 +71,12 @@ export default {
         float: {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-8px)" },
+        },
+        wobble: {
+          "0%, 100%": { transform: "rotate(0deg) translateY(0)" },
+          "25%": { transform: "rotate(-5deg) translateY(-4px)" },
+          "50%": { transform: "rotate(4deg) translateY(2px)" },
+          "75%": { transform: "rotate(-3deg) translateY(-2px)" },
         },
       },
     },

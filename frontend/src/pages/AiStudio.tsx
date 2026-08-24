@@ -19,6 +19,15 @@ import {
 } from "../components/analysis/AnalysisPanels";
 import PhotoUpload from "../components/PhotoUpload";
 import StyleReferenceUpload from "../components/StyleReferenceUpload";
+import StudioAdvicePager, { type StudioAdvicePage } from "../components/studio/StudioAdvicePager";
+import SquigglyText from "../components/ui/SquigglyText";
+import archerySvg from "../SVG/archery.svg?url";
+import peep5Svg from "../SVG/5.svg?url";
+import thumbsUpSvg from "../SVG/大拇指.svg?url";
+import misc14Svg from "../SVG/misc-14.svg?url";
+import misc22Svg from "../SVG/misc-22.svg?url";
+import puzzledSvg from "../SVG/emoji-puzzled.svg?url";
+import wrenchSvg from "../SVG/扳手.svg?url";
 import type { PhotoAnalysis, PhotoTag, PortfolioCollection } from "../types";
 
 const targetStyles = [
@@ -501,22 +510,259 @@ export default function AiStudio() {
     scrollToStep(stepOneRef);
   }
 
+  const advicePages: StudioAdvicePage[] = [];
+
+  if (quickAnalysis) {
+    advicePages.push({
+      id: "quick",
+      content: (
+        <>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="studio-section-heading">
+                <span className="studio-section-loader" aria-hidden="true" />
+                <p className="section-eyebrow">先看这一点</p>
+              </div>
+              <h2 className="mt-1 font-display text-2xl font-semibold">{quickAnalysis.priority_issue}</h2>
+            </div>
+            <span className="rounded-full bg-ink px-3 py-1 text-xs font-medium text-white">
+              {quickAnalysis.primary_ability}
+            </span>
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="快速四项评分">
+            {([
+              ["曝光", quickAnalysis.exposure_score],
+              ["对焦", quickAnalysis.focus_score],
+              ["构图", quickAnalysis.composition_score],
+              ["色彩", quickAnalysis.color_score],
+            ] as const).map(([label, score]) => (
+              <div key={label} className="studio-metric-chip">
+                <p className="text-xs text-muted">{label}</p>
+                <p className="mt-1 font-display text-2xl font-semibold text-ink">{score}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-4 text-sm leading-7 text-muted">{quickAnalysis.summary}</p>
+          <div className="studio-insight-panel studio-insight-panel--with-mark mt-4">
+            <img src={misc22Svg} alt="" aria-hidden="true" className="studio-insight-panel__mark" draggable={false} />
+            <div className="studio-insight-panel__copy">
+              <p className="text-xs font-medium text-ink">现在可以先这样拍</p>
+              <p className="mt-1 text-sm leading-7 text-ink">{quickAnalysis.suggestion}</p>
+            </div>
+          </div>
+          <p className="mt-3 text-xs text-muted">
+            {quickAnalysis.photo_type} · {quickAnalysis.detected_style || "风格识别中"}
+            {quickAnalysis.elapsed_ms > 0 ? ` · ${(quickAnalysis.elapsed_ms / 1000).toFixed(1)} 秒` : ""}
+          </p>
+        </>
+      ),
+    });
+  }
+
+  if (analysis) {
+    advicePages.push({
+      id: "benchmark",
+      content: <BenchmarkOverview analysis={analysis} targetPlatform={targetPlatform} />,
+    });
+    advicePages.push({
+      id: "dimensions",
+      content: <DimensionCards analysis={analysis} />,
+    });
+    advicePages.push({
+      id: "advice",
+      content: <AdvicePanel analysis={analysis} />,
+    });
+    if (Object.keys(analysis.editing_params || {}).length > 0) {
+      advicePages.push({
+        id: "params",
+        content: <ParamsPanel analysis={analysis} />,
+      });
+    } else {
+      advicePages.push({
+        id: "params-pending",
+        content: (
+          <>
+            <p className="section-eyebrow">异步补全</p>
+            <h2 className="mt-1 font-display text-2xl font-semibold">修图参数与发布建议</h2>
+            <p className="mt-4 text-sm leading-7 text-muted">
+              四维核心结果已完成；这部分在后台生成，不会阻塞你查看曝光、对焦、构图与色彩建议。
+            </p>
+            <button className="btn-secondary mt-5" type="button" onClick={handleLoadDetails} disabled={detailsLoading}>
+              {detailsLoading ? "正在生成参数…" : "重新生成详细参数"}
+            </button>
+            {detailsError && <p className="mt-3 text-sm text-red-500">{detailsError}</p>}
+          </>
+        ),
+      });
+    }
+  }
+
+  if (generatedImages.length > 0) {
+    advicePages.push({
+      id: "generated",
+      content: (
+        <>
+          <p className="section-eyebrow text-ink">生成结果</p>
+          <h2 className="mt-1 font-display text-2xl font-semibold">AI 精修版本</h2>
+          <p className="mt-2 text-sm text-ink/70">点击选择想要保存的版本。</p>
+          <div className="mt-5 flex flex-wrap gap-4">
+            {generatedImages.map((gen, index) => {
+              const isExpanded = expandedStrategies.has(gen.imageUrl);
+              return (
+                <div key={gen.imageUrl} className={`${isExpanded && gen.editingStrategy ? "flex w-full flex-col gap-4 md:flex-row" : "w-72"}`}>
+                  {isExpanded && gen.editingStrategy && (
+                    <div className="studio-insight-panel flex-1 p-5 text-sm leading-7 text-ink md:order-first">
+                      <p className="mb-2 text-xs font-medium text-ink">AI 修图思路</p>
+                      <div className="max-h-80 overflow-y-auto whitespace-pre-line">{gen.editingStrategy}</div>
+                    </div>
+                  )}
+                  <div className={isExpanded && gen.editingStrategy ? "w-full md:w-72 md:shrink-0" : ""}>
+                    <div className={`cursor-pointer overflow-hidden rounded-3xl ${selectedGeneratedImageUrl === gen.imageUrl ? "ring-2 ring-ink" : ""}`} onClick={() => setSelectedGeneratedImageUrl(gen.imageUrl)}>
+                      <img className="aspect-[4/5] w-full object-cover" src={getAssetUrl(gen.thumbnailUrl || gen.imageUrl)} alt={`AI 精修 ${index + 1}`} loading="lazy" decoding="async" />
+                    </div>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="text-xs text-muted">版本 {index + 1}</span>
+                      <div className="flex items-center gap-2">
+                        {gen.editingStrategy && (
+                          <button
+                            className="btn-ghost px-2 py-1 text-xs"
+                            type="button"
+                            onClick={() => setExpandedStrategies((prev) => {
+                              const next = new Set(prev);
+                              isExpanded ? next.delete(gen.imageUrl) : next.add(gen.imageUrl);
+                              return next;
+                            })}
+                          >
+                            {isExpanded ? "收起思路 ▲" : "查看修图思路 ▼"}
+                          </button>
+                        )}
+                        <button
+                          className="btn-secondary px-3 py-1 text-xs"
+                          type="button"
+                          onClick={() => openSaveCandidate({
+                            imageUrl: gen.imageUrl,
+                            source: "ai_refined",
+                            title: `AI 精修 ${index + 1}`,
+                          })}
+                        >
+                          保存
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      ),
+    });
+  }
+
+  advicePages.push({
+    id: "refine",
+    content: (
+      <>
+        <div className="studio-section-heading">
+          <img src={thumbsUpSvg} alt="" aria-hidden="true" className="studio-section-mark studio-section-mark--lg" draggable={false} />
+          <p className="section-eyebrow text-ink">AI 精修</p>
+        </div>
+        <h2 className="mt-1 font-display text-2xl font-semibold">
+          {generatedImages.length ? "继续告诉 AI 你想怎么改" : "让 AI 完成细节处理"}
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-ink/70">
+          {generatedImages.length
+            ? "新的要求会与之前的要求一起应用，并保留已有版本。"
+            : "AI 会结合目标风格、平台和分析建议完成第一次精修。"}
+        </p>
+        <div className="mt-4">
+          <label className="label text-ink">{generatedImages.length ? "新的修改要求" : "补充要求（可选）"}</label>
+          <textarea
+            className="input ink-focus-frame min-h-24"
+            value={editInstruction}
+            onChange={(event) => setEditInstruction(event.target.value)}
+            placeholder={generatedImages.length
+              ? "例如：再降低一点高光，让肤色更自然"
+              : "例如：降低高光，保留自然肤色，增加一点胶片颗粒"}
+            maxLength={600}
+          />
+        </div>
+        {refinementInstructions.length > 0 && (
+          <div className="studio-insight-panel mt-4">
+            <p className="text-xs font-medium text-ink">已应用的要求</p>
+            <ol className="mt-2 space-y-1 text-sm text-ink">
+              {refinementInstructions.map((instruction, index) => (
+                <li key={`${instruction}-${index}`}>{index + 1}. {instruction}</li>
+              ))}
+            </ol>
+          </div>
+        )}
+        <button
+          className="btn-primary btn-primary--ink mt-4"
+          type="button"
+          onClick={handleGenerateImage}
+          disabled={generatingImage || (generatedImages.length > 0 && !editInstruction.trim())}
+        >
+          {generatingImage
+            ? "AI 正在精修，可能需要 1–5 分钟…"
+            : generatedImages.length ? "生成新版本" : "开始 AI 精修"}
+        </button>
+        {generatedImages.length > 0 && !editInstruction.trim() && (
+          <p className="mt-2 text-xs text-ink/70">写下新的修改要求后即可继续精修。</p>
+        )}
+      </>
+    ),
+  });
+
+  advicePages.push({
+    id: "upload",
+    content: (
+      <>
+        <div className="studio-section-heading">
+          <img src={misc14Svg} alt="" aria-hidden="true" className="studio-section-mark studio-section-mark--lg" draggable={false} />
+          <p className="section-eyebrow text-ink">上传改进作品</p>
+        </div>
+        <h2 className="mt-1 font-display text-2xl font-semibold">把你根据建议调整后的照片加入作品集</h2>
+        <p className="mt-2 text-sm leading-6 text-ink/70">你可以在其他修图工具中实践这些建议，再把最终作品上传回来留档。</p>
+        <div className="mt-5 max-w-xl">
+          <PhotoUpload value={improvedPhotoUrl} onChange={handleImprovedPhotoChange} label="上传改进后的照片" purpose="portfolio" outlineOnly />
+        </div>
+        <button className="btn-ghost mt-5 text-ink hover:bg-transparent hover:text-ink" type="button" onClick={handleAnotherPhoto}>再来一张</button>
+      </>
+    ),
+  });
+
+  const advicePagerResetKey = `${photoUrl ?? ""}|${analysis?.id ?? "none"}|${quickAnalysis?.priority_issue ?? "none"}`;
+
   return (
-    <main className="container-page studio-page">
+    <main className="handwriting-page container-page studio-page">
       <header className="animate-fade-up max-w-3xl">
         <p className="section-eyebrow">AI Studio</p>
-        <h1 className="page-title mt-2">让照片更接近你想要的样子</h1>
-        <p className="mt-3 text-muted">上传一张照片，获得针对性的拍摄与调色建议。</p>
+        <h1 className="page-title messages-page-title mt-2">
+          让照片更接近你想要的样子
+          <img src={wrenchSvg} alt="" aria-hidden="true" className="studio-title-mark" />
+        </h1>
+        <p className="mt-3 text-muted">
+          <SquigglyText as="span" stepDuration={70} scale={[2, 3.5]} baseFrequency={0.018}>
+            上传一张照片，获得针对性的拍摄与调色建议。
+          </SquigglyText>
+        </p>
       </header>
 
       <div className="studio-flow">
         <StepSection number={1} title={steps[0]} state={step > 1 ? "done" : "active"} sectionRef={stepOneRef}>
-          <div className="card studio-step-card">
-            <h2 className="font-display text-2xl font-semibold">选择照片</h2>
-            <div className="mt-5">
-              <PhotoUpload value={photoUrl} onChange={handlePhotoChange} purpose="analysis" />
-              <p className="mt-3 text-xs text-muted">未保存的照片将在72小时后自动清理；需要长期保留可存入作品集。</p>
+          <div className="studio-step-card studio-step-card--with-peep">
+            <div className="studio-step-card-body">
+              <h2 className="studio-section-title font-display text-2xl font-semibold">
+                <img src={archerySvg} alt="" aria-hidden="true" className="studio-section-mark" />
+                选择照片
+              </h2>
+              <div className="mt-5">
+                <PhotoUpload value={photoUrl} onChange={handlePhotoChange} purpose="analysis" outlineOnly />
+                <p className="mt-3 text-xs text-muted">未保存的照片将在72小时后自动清理；需要长期保留可存入作品集。</p>
+              </div>
             </div>
+            <img src={peep5Svg} alt="" aria-hidden="true" draggable={false} className="studio-step-peep" />
           </div>
         </StepSection>
 
@@ -527,14 +773,17 @@ export default function AiStudio() {
           sectionRef={stepTwoRef}
         >
           {photoUrl ? (
-            <div className="card studio-step-card animate-fade-up">
+            <div className="studio-step-card animate-fade-up">
               <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <h2 className="font-display text-2xl font-semibold">你想把它调整成什么样？</h2>
+                  <h2 className="studio-section-title font-display text-2xl font-semibold">
+                    <img src={puzzledSvg} alt="" aria-hidden="true" className="studio-section-mark" />
+                    你想把它调整成什么样？
+                  </h2>
                   <p className="mt-2 text-sm text-muted">选择目标，AI 会据此分析照片。</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <img className="h-20 w-20 shrink-0 rounded-2xl object-cover ring-4 ring-white" src={getAssetUrl(photoUrl)} alt="已上传照片" />
+                  <img className="h-20 w-20 shrink-0 rounded-2xl object-cover" src={getAssetUrl(photoUrl)} alt="已上传照片" />
                   <button
                     className="btn-ghost text-xs"
                     type="button"
@@ -548,13 +797,13 @@ export default function AiStudio() {
               <div className="mt-7 grid gap-4 md:grid-cols-2">
                 <label>
                   <span className="label">目标风格</span>
-                  <select className="input" value={targetStyle} onChange={(event) => handleTargetStyleChange(event.target.value)}>
+                  <select className="input ink-focus-frame" value={targetStyle} onChange={(event) => handleTargetStyleChange(event.target.value)}>
                     {targetStyles.map((style) => <option key={style} value={style}>{style}</option>)}
                   </select>
                 </label>
                 <label>
                   <span className="label">发布平台</span>
-                  <select className="input" value={targetPlatform} onChange={(event) => handleTargetPlatformChange(event.target.value)}>
+                  <select className="input ink-focus-frame" value={targetPlatform} onChange={(event) => handleTargetPlatformChange(event.target.value)}>
                     {targetPlatforms.map((platform) => <option key={platform} value={platform}>{platform}</option>)}
                   </select>
                 </label>
@@ -562,24 +811,24 @@ export default function AiStudio() {
 
               <div className="mt-7 border-t border-sand/70 pt-6">
                 <div className="mb-4">
-                  <p className="label mb-1">参考图（可选）</p>
-                  <p className="text-xs text-muted">添加样片作为风格参考，AI 分析与精修会参考它们。</p>
+                  <p className="label mb-1 text-ink">参考图（可选）</p>
+                  <p className="text-xs text-ink/70">添加样片作为风格参考，AI 分析与精修会参考它们。</p>
                 </div>
                 <StyleReferenceUpload value={styleRefs} onChange={handleStyleRefsChange} maxFiles={3} />
               </div>
 
               <div className="mt-7 flex flex-wrap items-center gap-3">
-                <button className="btn-primary" type="button" onClick={handleAnalyze} disabled={loading || deepLoading}>
+                <button className="btn-primary btn-primary--ink" type="button" onClick={handleAnalyze} disabled={loading || deepLoading}>
                   {loading ? "正在快速分析…" : deepLoading ? "正在补充详细分析…" : analysis || quickAnalysis ? "重新分析" : "开始分析"}
                 </button>
-                <button className="btn-ghost" type="button" onClick={() => handlePhotoChange(null)}>更换照片</button>
+                <button className="btn-ghost text-ink hover:bg-transparent hover:text-ink" type="button" onClick={() => handlePhotoChange(null)}>更换照片</button>
               </div>
 
               {(loading || deepLoading) && (
-                <div className="mt-5 flex items-center gap-3 rounded-2xl bg-blush/35 px-4 py-3 text-sm text-brand-deep" role="status">
-                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-brand border-t-transparent" />
+                <div className="mt-5 flex items-center gap-3 rounded-2xl bg-blush/35 px-4 py-3 text-sm text-ink" role="status">
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-ink border-t-transparent" />
                   <span>{analysisStage}</span>
-                  <span className="ml-auto text-xs text-brand-deep/70">分析会在后台继续</span>
+                  <span className="ml-auto text-xs text-ink/70">分析会在后台继续</span>
                 </div>
               )}
               {error && step === 2 && <p className="mt-4 text-sm text-red-500">{error}</p>}
@@ -591,45 +840,9 @@ export default function AiStudio() {
 
         <StepSection number={3} title={steps[2]} state={step === 3 ? "active" : "pending"} sectionRef={stepThreeRef}>
           {(quickAnalysis || analysis) && photoUrl ? (
-            <div className="space-y-5 animate-fade-up">
-              {quickAnalysis && (
-                <div className="card border border-brand/20 bg-gradient-to-br from-white to-blush/25">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="section-eyebrow">先看这一点</p>
-                      <h2 className="mt-1 font-display text-2xl font-semibold">{quickAnalysis.priority_issue}</h2>
-                    </div>
-                    <span className="rounded-full bg-brand px-3 py-1 text-xs font-medium text-white">
-                      {quickAnalysis.primary_ability}
-                    </span>
-                  </div>
-                  <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="快速四项评分">
-                    {([
-                      ["曝光", quickAnalysis.exposure_score],
-                      ["对焦", quickAnalysis.focus_score],
-                      ["构图", quickAnalysis.composition_score],
-                      ["色彩", quickAnalysis.color_score],
-                    ] as const).map(([label, score]) => (
-                      <div key={label} className="rounded-2xl bg-white/80 px-3 py-3 text-center">
-                        <p className="text-xs text-muted">{label}</p>
-                        <p className="mt-1 font-display text-2xl font-semibold text-brand-deep">{score}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="mt-4 text-sm leading-7 text-muted">{quickAnalysis.summary}</p>
-                  <div className="mt-4 rounded-2xl bg-white/75 px-4 py-3">
-                    <p className="text-xs font-medium text-brand-deep">现在可以先这样拍</p>
-                    <p className="mt-1 text-sm leading-7 text-ink">{quickAnalysis.suggestion}</p>
-                  </div>
-                  <p className="mt-3 text-xs text-muted">
-                    {quickAnalysis.photo_type} · {quickAnalysis.detected_style || "风格识别中"}
-                    {quickAnalysis.elapsed_ms > 0 ? ` · ${(quickAnalysis.elapsed_ms / 1000).toFixed(1)} 秒` : ""}
-                  </p>
-                </div>
-              )}
-
+            <div className="animate-fade-up">
               {deepLoading && quickAnalysis && !analysis && (
-                <div className="flex items-center gap-3 rounded-2xl bg-blush/35 px-4 py-3 text-sm text-brand-deep" role="status">
+                <div className="mb-5 flex items-center gap-3 rounded-2xl bg-blush/35 px-4 py-3 text-sm text-brand-deep" role="status">
                   <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-brand border-t-transparent" />
                   <span>{analysisStage}</span>
                   <span className="ml-auto text-xs text-brand-deep/70">四项快速评分已可查看</span>
@@ -637,147 +850,16 @@ export default function AiStudio() {
               )}
 
               {detailsLoading && analysis && (
-                <div className="flex items-center gap-3 rounded-2xl bg-blush/35 px-4 py-3 text-sm text-brand-deep" role="status">
+                <div className="mb-5 flex items-center gap-3 rounded-2xl bg-blush/35 px-4 py-3 text-sm text-brand-deep" role="status">
                   <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-brand border-t-transparent" />
                   <span>正在后台补充修图参数与发布建议…</span>
                   <span className="ml-auto text-xs text-brand-deep/70">四维核心结果已可查看</span>
                 </div>
               )}
 
-              {analysis && (
-                <>
-                  <BenchmarkOverview analysis={analysis} targetPlatform={targetPlatform} />
-                  <DimensionCards analysis={analysis} />
-                  <AdvicePanel analysis={analysis} />
-                  {Object.keys(analysis.editing_params || {}).length > 0 ? (
-                    <ParamsPanel analysis={analysis} />
-                  ) : (
-                    <div className="card">
-                      <p className="section-eyebrow">异步补全</p>
-                      <h2 className="mt-1 font-display text-2xl font-semibold">修图参数与发布建议</h2>
-                      <p className="mt-2 text-sm leading-7 text-muted">
-                        四维核心结果已完成；这部分在后台生成，不会阻塞你查看曝光、对焦、构图与色彩建议。
-                      </p>
-                      <button className="btn-secondary mt-5" type="button" onClick={handleLoadDetails} disabled={detailsLoading}>
-                        {detailsLoading ? "正在生成参数…" : "重新生成详细参数"}
-                      </button>
-                      {detailsError && <p className="mt-3 text-sm text-red-500">{detailsError}</p>}
-                    </div>
-                  )}
-                </>
-              )}
-              {generatedImages.length > 0 && (
-                <div className="card-soft">
-                  <p className="section-eyebrow">生成结果</p>
-                  <h2 className="mt-1 font-display text-2xl font-semibold">AI 精修版本</h2>
-                  <p className="mt-2 text-sm text-muted">点击选择想要保存的版本。</p>
-                  <div className="mt-5 flex flex-wrap gap-4">
-                    {generatedImages.map((gen, index) => {
-                      const isExpanded = expandedStrategies.has(gen.imageUrl);
-                      return (
-                      <div key={gen.imageUrl} className={`${isExpanded && gen.editingStrategy ? "flex w-full flex-col gap-4 md:flex-row" : "w-72"}`}>
-                        {isExpanded && gen.editingStrategy && (
-                          <div className="flex-1 rounded-2xl bg-white/80 p-5 text-sm leading-7 text-ink md:order-first">
-                            <p className="mb-2 text-xs font-medium text-brand-deep">AI 修图思路</p>
-                            <div className="max-h-80 overflow-y-auto whitespace-pre-line">{gen.editingStrategy}</div>
-                          </div>
-                        )}
-                        <div className={isExpanded && gen.editingStrategy ? "w-full md:w-72 md:shrink-0" : ""}>
-                          <div className={`photo-frame cursor-pointer ${selectedGeneratedImageUrl === gen.imageUrl ? "ring-2 ring-brand" : ""}`} onClick={() => setSelectedGeneratedImageUrl(gen.imageUrl)}>
-                            <img className="aspect-[4/5] w-full object-cover" src={getAssetUrl(gen.thumbnailUrl || gen.imageUrl)} alt={`AI 精修 ${index + 1}`} loading="lazy" decoding="async" />
-                          </div>
-                          <div className="mt-2 flex items-center justify-between">
-                            <span className="text-xs text-muted">版本 {index + 1}</span>
-                            <div className="flex items-center gap-2">
-                              {gen.editingStrategy && (
-                                <button
-                                  className="btn-ghost px-2 py-1 text-xs"
-                                  type="button"
-                                  onClick={() => setExpandedStrategies((prev) => {
-                                    const next = new Set(prev);
-                                    isExpanded ? next.delete(gen.imageUrl) : next.add(gen.imageUrl);
-                                    return next;
-                                  })}
-                                >
-                                  {isExpanded ? "收起思路 ▲" : "查看修图思路 ▼"}
-                                </button>
-                              )}
-                              <button
-                                className="btn-secondary px-3 py-1 text-xs"
-                                type="button"
-                                onClick={() => openSaveCandidate({
-                                  imageUrl: gen.imageUrl,
-                                  source: "ai_refined",
-                                  title: `AI 精修 ${index + 1}`,
-                                })}
-                              >
-                                保存
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )})}
-                  </div>
-                </div>
-              )}
-              <div className="card-soft">
-                <p className="section-eyebrow">AI 精修</p>
-                <h2 className="mt-1 font-display text-2xl font-semibold">
-                  {generatedImages.length ? "继续告诉 AI 你想怎么改" : "让 AI 完成细节处理"}
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-muted">
-                  {generatedImages.length
-                    ? "新的要求会与之前的要求一起应用，并保留已有版本。"
-                    : "AI 会结合目标风格、平台和分析建议完成第一次精修。"}
-                </p>
-                <div className="mt-4">
-                  <label className="label">{generatedImages.length ? "新的修改要求" : "补充要求（可选）"}</label>
-                  <textarea
-                    className="input min-h-24"
-                    value={editInstruction}
-                    onChange={(event) => setEditInstruction(event.target.value)}
-                    placeholder={generatedImages.length
-                      ? "例如：再降低一点高光，让肤色更自然"
-                      : "例如：降低高光，保留自然肤色，增加一点胶片颗粒"}
-                    maxLength={600}
-                  />
-                </div>
-                {refinementInstructions.length > 0 && (
-                  <div className="mt-4 rounded-2xl bg-white/55 p-4">
-                    <p className="text-xs font-medium text-muted">已应用的要求</p>
-                    <ol className="mt-2 space-y-1 text-sm text-ink">
-                      {refinementInstructions.map((instruction, index) => (
-                        <li key={`${instruction}-${index}`}>{index + 1}. {instruction}</li>
-                      ))}
-                    </ol>
-                  </div>
-                )}
-                <button
-                  className="btn-primary mt-4"
-                  type="button"
-                  onClick={handleGenerateImage}
-                  disabled={generatingImage || (generatedImages.length > 0 && !editInstruction.trim())}
-                >
-                  {generatingImage
-                    ? "AI 正在精修，可能需要 1–5 分钟…"
-                    : generatedImages.length ? "生成新版本" : "开始 AI 精修"}
-                </button>
-                {generatedImages.length > 0 && !editInstruction.trim() && (
-                  <p className="mt-2 text-xs text-muted">写下新的修改要求后即可继续精修。</p>
-                )}
-              </div>
+              <StudioAdvicePager pages={advicePages} resetKey={advicePagerResetKey} />
 
-              <div className="card-soft">
-                <p className="section-eyebrow">上传改进作品</p>
-                <h2 className="mt-1 font-display text-2xl font-semibold">把你根据建议调整后的照片加入作品集</h2>
-                <p className="mt-2 text-sm leading-6 text-muted">你可以在其他修图工具中实践这些建议，再把最终作品上传回来留档。</p>
-                <div className="mt-5 max-w-xl">
-                  <PhotoUpload value={improvedPhotoUrl} onChange={handleImprovedPhotoChange} label="上传改进后的照片" purpose="portfolio" />
-                </div>
-                <button className="btn-ghost mt-5" type="button" onClick={handleAnotherPhoto}>再来一张</button>
-              </div>
-              {error && step === 3 && <p className="text-sm text-red-500">{error}</p>}
+              {error && step === 3 && <p className="mt-4 text-sm text-red-500">{error}</p>}
             </div>
           ) : (
             <div className="studio-step-placeholder">完成设置并开始分析后，结果会出现在这里。</div>
@@ -824,8 +906,8 @@ export default function AiStudio() {
             )}
             {saveError && <p className="text-sm text-red-500">{saveError}</p>}
             <div className="flex gap-3">
-              <button className="btn-primary" type="submit" disabled={saving}>{saving ? "保存中..." : "确认保存"}</button>
-              <button className="btn-secondary" type="button" onClick={closeSaveDialog} disabled={saving}>取消</button>
+              <button className="btn-primary btn-primary--ink" type="submit" disabled={saving}>{saving ? "保存中..." : "确认保存"}</button>
+              <button className="btn-secondary ink-focus-frame text-ink hover:border-ink" type="button" onClick={closeSaveDialog} disabled={saving}>取消</button>
             </div>
           </form>
         </div>

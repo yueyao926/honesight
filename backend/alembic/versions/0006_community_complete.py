@@ -1,4 +1,4 @@
-"""Add the LensCoach photography community domain.
+"""Add the HoneSight photography community domain.
 
 Revision ID: 0006_community_complete
 Revises: 0005_user_profiles

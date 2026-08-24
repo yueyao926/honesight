@@ -10,9 +10,11 @@ export type User = {
 export type Profile = {
   id: number; username: string; avatar_url?: string | null; signature?: string | null;
   bio?: string | null; location?: string | null; photography_level?: string | null;
-  equipment?: string | null; created_at: string; work_count: number; following_count: number;
-  follower_count: number; is_following: boolean; is_self: boolean; email?: string | null;
-  email_verified?: boolean | null; favorite_count?: number | null;
+  equipment?: string | null; created_at: string; work_count: number; collection_count?: number;
+  following_count: number; follower_count: number; is_following: boolean; is_self: boolean;
+  email?: string | null; email_verified?: boolean | null; favorite_count?: number | null;
+  photography_categories?: string[];
+  personality_tags?: string[];
 };
 
 export type PrivacySettings = {
@@ -139,6 +141,11 @@ export type PhotoAnalysis = {
 };
 
 export type Analysis = PhotoAnalysis;
+
+export type CompletionCriterion = {
+  text: string;
+  passed: boolean;
+};
 
 export type PracticeAttempt = {
   id: number;

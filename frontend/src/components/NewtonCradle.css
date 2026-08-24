@@ -1,0 +1,89 @@
+.newton-cradle-wrap {
+  width: min(920px, 100%);
+  margin: 0 auto;
+}
+
+.newton-cradle-wrap svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.newton-cradle-wrap svg #pendulum-1,
+.newton-cradle-wrap svg #pendulum-5 {
+  will-change: transform;
+}
+
+.newton-cradle-wrap svg #pendulum-2,
+.newton-cradle-wrap svg #pendulum-3,
+.newton-cradle-wrap svg #pendulum-4 {
+  animation: none;
+}
+
+.newton-cradle-wrap svg #rod,
+.newton-cradle-wrap svg #star-left,
+.newton-cradle-wrap svg #star-right,
+.newton-cradle-wrap svg #star-bottom {
+  animation: none !important;
+  transform: none !important;
+}
+
+.newton-cradle-wrap svg #pendulum-1 {
+  animation: swing-left 3s ease-in-out infinite;
+}
+
+.newton-cradle-wrap svg #pendulum-5 {
+  animation: swing-right 3s ease-in-out infinite;
+}
+
+.newton-cradle-wrap svg.hover-only #pendulum-1,
+.newton-cradle-wrap svg.hover-only #pendulum-5 {
+  animation-play-state: paused;
+}
+
+.newton-cradle-wrap:hover svg.hover-only #pendulum-1,
+.newton-cradle-wrap:hover svg.hover-only #pendulum-5 {
+  animation-play-state: running;
+}
+
+@keyframes swing-left {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  20% {
+    transform: rotate(-10.5deg);
+  }
+
+  68% {
+    transform: rotate(-10.5deg);
+  }
+
+  92% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes swing-right {
+  0%,
+  20% {
+    transform: rotate(0deg);
+  }
+
+  45% {
+    transform: rotate(-25deg);
+  }
+
+  68% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(0deg);
+  }
+}

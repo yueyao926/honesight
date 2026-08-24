@@ -7,3 +7,11 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+declare module "*.png";
+declare module "*.mp3";
+declare module "*.ogg";
+declare module "*.svg?raw" {
+  const src: string;
+  export default src;
+}

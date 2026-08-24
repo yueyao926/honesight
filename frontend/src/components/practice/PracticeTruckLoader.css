@@ -1,0 +1,111 @@
+.practice-truck-loader {
+  width: fit-content;
+  height: fit-content;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.practice-truck-loader__wrapper {
+  width: 140px;
+  height: 70px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  align-items: center;
+  justify-content: flex-end;
+  overflow-x: hidden;
+}
+
+.practice-truck-loader__body {
+  width: 91px;
+  height: fit-content;
+  margin-bottom: 4px;
+  animation: practice-truck-motion 1s linear infinite;
+}
+
+.practice-truck-loader__body svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+@keyframes practice-truck-motion {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(3px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.practice-truck-loader__tires {
+  width: 91px;
+  height: fit-content;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 7px 0 10px;
+  position: absolute;
+  bottom: 0;
+}
+
+.practice-truck-loader__tires svg {
+  width: 17px;
+}
+
+.practice-truck-loader__road {
+  width: 100%;
+  height: 1.5px;
+  background-color: #282828;
+  position: relative;
+  bottom: 0;
+  align-self: flex-end;
+  border-radius: 3px;
+}
+
+.practice-truck-loader__road::before {
+  content: "";
+  position: absolute;
+  width: 20px;
+  height: 100%;
+  background-color: #282828;
+  right: -50%;
+  border-radius: 3px;
+  animation: practice-truck-road 1.4s linear infinite;
+  border-left: 10px solid #f3f2ec;
+}
+
+.practice-truck-loader__road::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 100%;
+  background-color: #282828;
+  right: -65%;
+  border-radius: 3px;
+  animation: practice-truck-road 1.4s linear infinite;
+  border-left: 4px solid #f3f2ec;
+}
+
+.practice-truck-loader__lamp {
+  position: absolute;
+  bottom: 0;
+  right: -90%;
+  height: 63px;
+  width: auto;
+  animation: practice-truck-road 1.4s linear infinite;
+}
+
+@keyframes practice-truck-road {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-245px);
+  }
+}

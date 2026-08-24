@@ -1,0 +1,75 @@
+.clay-press-btn {
+  --primary: 176, 132, 84;
+  --secondary: 85, 66, 53;
+  width: 2.75rem;
+  height: 2.25rem;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  box-shadow: 0 0 0 0.35rem rgba(var(--primary), 0.38);
+  border-radius: 100%;
+  position: relative;
+  transition: 0.3s;
+  flex-shrink: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.clay-press-btn--sm {
+  width: 24px;
+  height: 24px;
+  box-shadow: 0 0 0 0.12rem rgba(var(--primary), 0.3);
+}
+
+.clay-press-btn--sm .clay-press-btn__front {
+  font-size: 0.5rem;
+  box-shadow: 0 0.25em 0.5em -0.2em rgba(var(--secondary), 0.38);
+}
+
+.clay-press-btn--active {
+  --primary: 196, 148, 96;
+  --secondary: 98, 74, 58;
+}
+
+.clay-press-btn__back {
+  background: rgb(var(--secondary));
+  border-radius: 100%;
+  position: absolute;
+  inset: 0;
+}
+
+.clay-press-btn__front {
+  background: linear-gradient(0deg, rgba(var(--primary), 0.62) 20%, rgb(var(--primary)) 50%);
+  box-shadow: 0 0.5em 1em -0.2em rgba(var(--secondary), 0.5);
+  border-radius: 100%;
+  position: absolute;
+  border: 1px solid rgb(var(--secondary));
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: inherit;
+  transform: translateY(-15%);
+  transition: 0.15s;
+  color: rgb(var(--secondary));
+  line-height: 1;
+}
+
+.clay-press-btn:active .clay-press-btn__front {
+  transform: translateY(0%);
+  box-shadow: none;
+}
+
+.clay-press-btn:focus-visible {
+  outline: 2px solid rgba(var(--secondary), 0.45);
+  outline-offset: 3px;
+}
+
+.clay-press-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}

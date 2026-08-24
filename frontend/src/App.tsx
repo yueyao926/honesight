@@ -1,4 +1,6 @@
 import { Route, Routes } from "react-router-dom";
+import BackgroundMusic from "./components/BackgroundMusic";
+import { HandDrawnPressFilters } from "./components/HandDrawnPressButton";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AiStudio from "./pages/AiStudio";
@@ -18,21 +20,32 @@ import Messages from "./pages/Messages";
 import ConversationView from "./pages/ConversationView";
 import Search from "./pages/Search";
 import Profile from "./pages/Profile";
+import ProfileCollectionDetail from "./pages/ProfileCollectionDetail";
 import Practice from "./pages/Practice";
+import PracticeAdd from "./pages/PracticeAdd";
+import PracticeReplace from "./pages/PracticeReplace";
+import PracticeSession from "./pages/PracticeSession";
 
 export default function App() {
   return (
-    <Routes>
+    <>
+      <HandDrawnPressFilters />
+      <BackgroundMusic />
+      <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/practice/add" element={<ProtectedRoute><PracticeAdd /></ProtectedRoute>} />
+        <Route path="/practice/:sessionId/replace" element={<ProtectedRoute><PracticeReplace /></ProtectedRoute>} />
+        <Route path="/practice/:sessionId" element={<ProtectedRoute><PracticeSession /></ProtectedRoute>} />
         <Route path="/practice" element={<ProtectedRoute><Practice /></ProtectedRoute>} />
         <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/users/:userId" element={<Profile />} />
+        <Route path="/users/:userId/collections/:collectionId" element={<ProfileCollectionDetail />} />
         <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
         <Route path="/portfolio/:id" element={<ProtectedRoute><PortfolioDetail /></ProtectedRoute>} />
         <Route path="/ai" element={<ProtectedRoute><AiStudio /></ProtectedRoute>} />
@@ -47,5 +60,6 @@ export default function App() {
         <Route path="/community/search" element={<Search />} />
       </Route>
     </Routes>
+    </>
   );
 }
