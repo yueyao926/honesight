@@ -41,7 +41,10 @@ export default function Login() {
             <input className="input ink-focus-frame" name="email" type="email" required placeholder="you@example.com" />
           </div>
           <div>
-            <label className="label">密码</label>
+            <div className="flex items-center justify-between">
+              <label className="label">密码</label>
+              <Link className="text-sm text-ink" to="/forgot-password">忘记密码？</Link>
+            </div>
             <input className="input ink-focus-frame" name="password" type="password" required placeholder="••••••••" />
           </div>
           {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-ink">{error}</p>}
@@ -51,6 +54,9 @@ export default function Login() {
         </form>
         <p className="mt-6 text-center text-sm text-muted">
           还没有账号？<Link className="ml-1 text-ink" to="/register">去注册</Link>
+        </p>
+        <p className="mt-3 text-center text-sm text-muted">
+          没收到验证邮件？<Link className="ml-1 text-ink" to="/resend-verification">重新发送验证邮件</Link>
         </p>
       </div>
     </main>

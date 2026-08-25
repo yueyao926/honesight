@@ -62,6 +62,14 @@ def hash_refresh_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
+def generate_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
 def refresh_token_session_id(token: str) -> str | None:
     session_id, separator, secret = token.partition(".")
     if not separator or not secret or len(session_id) != 32:

@@ -1,14 +1,12 @@
-﻿import { FormEvent, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { FormEvent, useState } from "react";
+import { Link } from "react-router-dom";
 import { register } from "../api/auth";
 import BackHomeLink from "../components/BackHomeLink";
-import { useAuth } from "../contexts/AuthContext";
 
 export default function Register() {
-  const navigate = useNavigate();
-  const { login } = useAuth();
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState("");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -16,21 +14,38 @@ export default function Register() {
     setSubmitting(true);
     const form = new FormData(event.currentTarget);
     const email = String(form.get("email"));
-    const password = String(form.get("password"));
     try {
       await register({
         username: String(form.get("username")),
         email,
-        password,
+        password: String(form.get("password")),
       });
-      // 注册成功后直接登录，避免用户再手动输一遍账号密码
-      await login(email, password);
-      navigate("/onboarding", { replace: true });
+      setRegisteredEmail(email);
     } catch (err) {
       setError(err instanceof Error ? err.message : "注册失败");
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (registeredEmail) {
+    return (
+      <main className="handwriting-page container-page flex min-h-[70vh] items-center justify-center">
+        <div className="card w-full max-w-md animate-fade-up text-center">
+          <BackHomeLink />
+          <p className="section-eyebrow mt-6">Verify your email</p>
+          <h1 className="mt-2 font-display text-4xl font-semibold">验证邮件已发送</h1>
+          <p className="mt-8 text-sm leading-7 text-muted">
+            我们已向 <span className="font-medium text-ink">{registeredEmail}</span> 发送验证邮件，
+            请查收并点击邮件中的链接完成验证后再登录。
+          </p>
+          <Link className="btn-primary btn-primary--ink mt-6 inline-block" to="/login">去登录</Link>
+          <p className="mt-4 text-center text-sm text-muted">
+            没收到？<Link className="ml-1 text-ink" to={`/resend-verification?email=${encodeURIComponent(registeredEmail)}`}>重新发送验证邮件</Link>
+          </p>
+        </div>
+      </main>
+    );
   }
 
   return (

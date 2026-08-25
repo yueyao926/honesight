@@ -2,9 +2,9 @@ from datetime import datetime, timedelta, timezone
 import hmac
 import uuid
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -13,15 +13,27 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_access_token,
+    generate_token,
     get_password_hash,
     hash_refresh_token,
+    hash_token,
     refresh_token_session_id,
     verify_password,
 )
 from app.database import get_db
-from app.models.auth import AuthSession
+from app.models.auth import AuthSession, EmailToken
 from app.models.user import User
-from app.schemas.user import TokenResponse, UserCreate, UserLogin, UserRead
+from app.schemas.user import (
+    PasswordResetConfirm,
+    PasswordResetRequest,
+    ResendVerificationRequest,
+    TokenResponse,
+    UserCreate,
+    UserLogin,
+    UserRead,
+    VerifyEmailRequest,
+)
+from app.services.email import send_password_reset_email, send_verification_email
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -69,6 +81,44 @@ def _require_session_header(value: str | None) -> None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid session request")
 
 
+EMAIL_VERIFICATION_PURPOSE = "email_verification"
+PASSWORD_RESET_PURPOSE = "password_reset"
+
+
+def _frontend_link(path: str, token: str) -> str:
+    settings = get_settings()
+    return f"{settings.frontend_base_url.rstrip('/')}/{path.lstrip('/')}?token={token}"
+
+
+def _issue_email_token(db: Session, user: User, purpose: str, expire_minutes: int) -> str:
+    token = generate_token()
+    db.add(
+        EmailToken(
+            user_id=user.id,
+            purpose=purpose,
+            token_hash=hash_token(token),
+            expires_at=_utc_now() + timedelta(minutes=expire_minutes),
+        )
+    )
+    return token
+
+
+def _consume_email_token(db: Session, token: str, purpose: str) -> EmailToken | None:
+    email_token = db.scalar(
+        select(EmailToken)
+        .where(
+            EmailToken.token_hash == hash_token(token),
+            EmailToken.purpose == purpose,
+        )
+        .with_for_update()
+    )
+    if not email_token or email_token.used_at is not None:
+        return None
+    if _as_utc(email_token.expires_at) <= _utc_now():
+        return None
+    return email_token
+
+
 def _session_response(user: User, auth_session: AuthSession) -> TokenResponse:
     settings = get_settings()
     return TokenResponse(
@@ -85,7 +135,11 @@ def _expired_or_invalid_session(settings: Settings, detail: str = "Session expir
 
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
-def register(payload: UserCreate, db: Session = Depends(get_db)) -> User:
+def register(
+    payload: UserCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+) -> User:
     existing = db.scalar(select(User).where(User.email == payload.email.lower()))
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -95,8 +149,16 @@ def register(payload: UserCreate, db: Session = Depends(get_db)) -> User:
         hashed_password=get_password_hash(payload.password),
     )
     db.add(user)
+    db.flush()
+    settings = get_settings()
+    token = _issue_email_token(db, user, EMAIL_VERIFICATION_PURPOSE, settings.email_verification_expire_minutes)
     db.commit()
     db.refresh(user)
+    background_tasks.add_task(
+        send_verification_email,
+        user.email,
+        _frontend_link("verify-email", token),
+    )
     return user
 
 
@@ -105,6 +167,8 @@ def login(payload: UserLogin, response: Response, db: Session = Depends(get_db))
     user = db.scalar(select(User).where(User.email == payload.email.lower()))
     if not user or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Invalid email or password")
+    if not user.email_verified:
+        raise HTTPException(status_code=403, detail="邮箱尚未验证，请先完成邮箱验证")
 
     settings = get_settings()
     session_id = uuid.uuid4().hex
@@ -219,6 +283,78 @@ def logout(
     response.status_code = status.HTTP_204_NO_CONTENT
     _clear_refresh_cookie(response, settings)
     return response
+
+
+@router.post("/verify-email")
+def verify_email(payload: VerifyEmailRequest, db: Session = Depends(get_db)) -> dict[str, str]:
+    email_token = _consume_email_token(db, payload.token, EMAIL_VERIFICATION_PURPOSE)
+    if not email_token:
+        raise HTTPException(status_code=400, detail="验证链接无效或已过期")
+    user = db.get(User, email_token.user_id)
+    if not user:
+        raise HTTPException(status_code=400, detail="用户不存在")
+    user.email_verified = True
+    email_token.used_at = _utc_now()
+    db.commit()
+    return {"detail": "邮箱验证成功"}
+
+
+@router.post("/resend-verification")
+def resend_verification(
+    payload: ResendVerificationRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+) -> dict[str, str]:
+    user = db.scalar(select(User).where(User.email == payload.email.lower()))
+    if user and not user.email_verified:
+        settings = get_settings()
+        token = _issue_email_token(db, user, EMAIL_VERIFICATION_PURPOSE, settings.email_verification_expire_minutes)
+        db.commit()
+        background_tasks.add_task(
+            send_verification_email,
+            user.email,
+            _frontend_link("verify-email", token),
+        )
+    return {"detail": "如果该邮箱尚未验证，我们已重新发送验证邮件"}
+
+
+@router.post("/password-reset/request")
+def request_password_reset(
+    payload: PasswordResetRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+) -> dict[str, str]:
+    user = db.scalar(select(User).where(User.email == payload.email.lower()))
+    if user:
+        settings = get_settings()
+        token = _issue_email_token(db, user, PASSWORD_RESET_PURPOSE, settings.password_reset_expire_minutes)
+        db.commit()
+        background_tasks.add_task(
+            send_password_reset_email,
+            user.email,
+            _frontend_link("reset-password", token),
+        )
+    return {"detail": "如果该邮箱已注册，我们已发送密码重置链接"}
+
+
+@router.post("/password-reset/confirm")
+def confirm_password_reset(payload: PasswordResetConfirm, db: Session = Depends(get_db)) -> dict[str, str]:
+    email_token = _consume_email_token(db, payload.token, PASSWORD_RESET_PURPOSE)
+    if not email_token:
+        raise HTTPException(status_code=400, detail="重置链接无效或已过期")
+    user = db.get(User, email_token.user_id)
+    if not user:
+        raise HTTPException(status_code=400, detail="用户不存在")
+    user.hashed_password = get_password_hash(payload.new_password)
+    email_token.used_at = _utc_now()
+    now = _utc_now()
+    db.execute(
+        update(AuthSession)
+        .where(AuthSession.user_id == user.id, AuthSession.revoked_at.is_(None))
+        .values(revoked_at=now)
+    )
+    db.commit()
+    return {"detail": "密码已重置，请使用新密码登录"}
 
 
 @router.get("/me", response_model=UserRead)

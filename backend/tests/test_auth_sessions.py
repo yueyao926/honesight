@@ -47,6 +47,7 @@ def auth_client(monkeypatch: pytest.MonkeyPatch):
             username="session-user",
             email="session@example.com",
             hashed_password=get_password_hash("correct-password"),
+            email_verified=True,
         )
     )
     db.commit()

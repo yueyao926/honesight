@@ -1,5 +1,5 @@
 from app.models.analysis import AnalysisCache, AnalysisJob, AnalysisResult, PhotoChatMessage
-from app.models.auth import AuthSession
+from app.models.auth import AuthSession, EmailToken
 from app.models.portfolio import PhotoTag, PortfolioCollection, PortfolioFavorite, PortfolioItem
 from app.models.profile import UserFollow, UserPrivacySetting
 from app.models.community import CommunityPost, PostImage, Tag, PostTag, PostLike, PostFavorite, FavoriteCollection, Comment, CommentLike, UserBlock, Notification, Report, PostView, ContentAction
@@ -16,6 +16,7 @@ __all__ = [
     "AnalysisJob",
     "AuthSession",
     "DailyInspirationRecommendation",
+    "EmailToken",
     "InspirationFavorite",
     "InspirationPhoto",
     "PhotoChatMessage",

@@ -27,3 +27,31 @@ export function logout() {
 export function getMe() {
   return apiRequest<User>("/auth/me");
 }
+
+export function verifyEmail(token: string) {
+  return apiRequest<{ detail: string }>("/auth/verify-email", {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  });
+}
+
+export function resendVerification(email: string) {
+  return apiRequest<{ detail: string }>("/auth/resend-verification", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export function requestPasswordReset(email: string) {
+  return apiRequest<{ detail: string }>("/auth/password-reset/request", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export function confirmPasswordReset(token: string, newPassword: string) {
+  return apiRequest<{ detail: string }>("/auth/password-reset/confirm", {
+    method: "POST",
+    body: JSON.stringify({ token, new_password: newPassword }),
+  });
+}
