@@ -5,7 +5,22 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f7f3ea;
+  padding-top: 10vh;
+  background:
+    radial-gradient(ellipse at 0% 0%, rgba(138, 143, 136, 0.14), transparent 50%),
+    radial-gradient(ellipse at 100% 20%, rgba(113, 90, 74, 0.08), transparent 42%),
+    linear-gradient(180deg, #f3f2ec 0%, #eae9e3 100%);
+}
+
+.page-loader-host--route {
+  position: relative;
+  inset: auto;
+  z-index: 0;
+  min-height: calc(100vh - 8rem);
+}
+
+.route-suspense-placeholder {
+  min-height: calc(100vh - 8rem);
 }
 
 .page-loader-host--pending {

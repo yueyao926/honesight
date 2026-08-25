@@ -6,7 +6,7 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
   if (isLoading) {
-    return <PageLoader />;
+    return <PageLoader variant="route" />;
   }
   if (!isAuthenticated) {
     // 记住用户原本想去的页面，登录后回跳，避免丢失操作意图

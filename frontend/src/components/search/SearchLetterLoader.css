@@ -2,7 +2,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 2.75rem auto 3.25rem;
+  margin: 5.5rem auto 3.25rem;
 }
 
 .search-cola-loader__bottle {
@@ -15,7 +15,7 @@
   stroke-width: 15px;
   stroke-dashoffset: var(--pathlength);
   stroke-dasharray: 0 var(--pathlength);
-  animation: search-cola-loader 8s cubic-bezier(0.5, 0.1, 0.5, 1) infinite both;
+  animation: search-cola-loader 2.4s cubic-bezier(0.5, 0.1, 0.5, 1) infinite both;
 }
 
 @keyframes search-cola-loader {

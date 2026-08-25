@@ -1,7 +1,7 @@
 import type { CommunityPost } from "../../api/community";
 import SearchLetterLoader from "../search/SearchLetterLoader";
 import CommunityFeedCard from "./CommunityFeedCard";
-import MasonryGrid from "./MasonryGrid";
+import MasonryGrid, { MasonryGridSkeleton } from "./MasonryGrid";
 
 type CommunityFeedProps = {
   posts: CommunityPost[];
@@ -19,7 +19,7 @@ export default function CommunityFeed({
   onPostChange,
 }: CommunityFeedProps) {
   if (loading && !posts.length) {
-    return <SearchLetterLoader label="加载中" />;
+    return <MasonryGridSkeleton />;
   }
 
   if (!posts.length) {

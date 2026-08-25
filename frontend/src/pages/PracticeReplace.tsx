@@ -67,7 +67,7 @@ export default function PracticeReplace() {
   }
 
   if (loading) {
-    return <PageLoader />;
+    return <PageLoader variant="route" />;
   }
 
   if (!replaceSession) {
