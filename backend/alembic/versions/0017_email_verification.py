@@ -1,7 +1,7 @@
 """Add email verification and password reset tokens.
 
-Revision ID: 0016_email_verification
-Revises: 0015_analysis_job_deduplication
+Revision ID: 0017_email_verification
+Revises: 0016_user_personality_tags
 """
 from collections.abc import Sequence
 
@@ -9,8 +9,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = "0016_email_verification"
-down_revision: str = "0015_analysis_job_deduplication"
+revision: str = "0017_email_verification"
+down_revision: str = "0016_user_personality_tags"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

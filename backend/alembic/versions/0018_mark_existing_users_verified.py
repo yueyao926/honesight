@@ -1,15 +1,15 @@
 """Mark existing users as email-verified.
 
-Revision ID: 0017_mark_existing_users_verified
-Revises: 0016_email_verification
+Revision ID: 0018_mark_existing_users_verified
+Revises: 0017_email_verification
 """
 from collections.abc import Sequence
 
 from alembic import op
 
 
-revision: str = "0017_mark_existing_users_verified"
-down_revision: str = "0016_email_verification"
+revision: str = "0018_mark_existing_users_verified"
+down_revision: str = "0017_email_verification"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
