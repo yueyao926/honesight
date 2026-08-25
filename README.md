@@ -248,7 +248,7 @@ HoneSight 的核心能力不是“判断照片好坏”，而是基于用户选�
 
 后端统一入口在 `backend/app/services/analyzer.py`。
 
-- API 模式：`vision_analyzer.py` 调用配置好的AI视觉服务。系统遵循 OpenAI-compatible 接口规范，您可自由接入任何满足该规范的模型服务商（例如火山方舟、阿里云百炼、腾讯混元、OpenAI、Anthoropic 等），具体配置见下文环境变量。
+- API 模式：`vision_analyzer.py` 调用配置好的AI视觉服务。系统遵循 OpenAI-compatible 接口规范，您可自由接入任何满足该规范的模型服务商（例如火山方舟、阿里云百炼、腾讯混元、OpenAI、Google 等），具体配置见下文环境变量。
 - Mock 模式：没有 API Key、`AI_ANALYSIS_MODE=mock`、图片不可读、API 调用失败或模型返回异常时，自动使用 `mock_analyzer.py`。
 
 Mock 模式也会完整返回 benchmark、风格判断、平台建议、修图参数和聊天回复，因此本地开发不会被第三方 API 阻断。
