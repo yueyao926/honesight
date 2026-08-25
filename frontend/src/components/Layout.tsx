@@ -2,8 +2,8 @@
 import { NavLink, Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { getAssetUrl } from "../api/client";
-import PageLoader from "./PageLoader";
-import { prefetchRoute, routePrefetchHandlers } from "../utils/routePrefetch";
+import DeferredPageLoader from "./DeferredPageLoader";
+import { prefetchCommonRoutes, prefetchRoute, routePrefetchHandlers } from "../utils/routePrefetch";
 
 function navClass({ isActive }: { isActive: boolean }) {
   return isActive ? "nav-link nav-link-active" : "nav-link";
@@ -34,6 +34,7 @@ export default function Layout() {
   useEffect(() => {
     if (isAuthenticated) {
       prefetchRoute("/profile");
+      prefetchCommonRoutes();
     }
   }, [isAuthenticated]);
 
@@ -143,7 +144,7 @@ export default function Layout() {
           </div>
         </div>
       </header>
-      <Suspense fallback={<PageLoader />}>
+      <Suspense fallback={<DeferredPageLoader variant="route" />}>
         <Outlet />
       </Suspense>
       <footer className={`px-4 py-7 text-center text-sm text-muted${isCommunitySurface ? " community-footer" : " border-t border-sand/50"}`}>

@@ -62,7 +62,7 @@ export default function PracticeAdd() {
   }
 
   if (loading) {
-    return <PageLoader />;
+    return <PageLoader variant="route" />;
   }
 
   const sessions = overview?.current_sessions || (overview?.current ? [overview.current] : []);

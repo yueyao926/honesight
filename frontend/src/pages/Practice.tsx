@@ -80,7 +80,7 @@ export default function Practice() {
     [overview?.week_key, sessionIdsKey],
   );
 
-  if (loading) return <PageLoader />;
+  if (loading) return <PageLoader variant="route" />;
 
   const completedCount = sessions.filter((item) => item.status === "completed").length;
   const hasPrimary = sessions.some((item) => item.plan_role === "primary");

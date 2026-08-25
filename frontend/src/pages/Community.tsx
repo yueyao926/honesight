@@ -1,6 +1,7 @@
 ﻿import {useEffect,useState} from "react";
 import {Link} from "react-router-dom";
 import {getFeed,type CommunityPost} from "../api/community";
+import {consumePrefetchedFeed} from "../utils/communityFeedPrefetch";
 import CommunityFeed from "../components/community/CommunityFeed";
 import CommunityFollowingList from "../components/community/CommunityFollowingList";
 import {CommunityFeedActions,CommunityFeedTabs} from "../components/community/CommunityToolbar";
@@ -20,7 +21,9 @@ export default function Community(){
   useEffect(()=>{
     if(kind==="following"){setPosts([]);setCursor(undefined);setLoading(false);setError("");return;}
     setPosts([]);setCursor(undefined);setLoading(true);
-    getFeed(kind).then(r=>{setPosts(r.items);setCursor(r.next_cursor)}).catch(e=>setError(e.message)).finally(()=>setLoading(false));
+    const prefetched=consumePrefetchedFeed(kind);
+    const request=prefetched??getFeed(kind);
+    request.then(r=>{setPosts(r.items);setCursor(r.next_cursor)}).catch(e=>setError(e instanceof Error?e.message:"加载失败")).finally(()=>setLoading(false));
   },[kind]);
   return <main className="handwriting-page community-page">
     <div className="community-container">

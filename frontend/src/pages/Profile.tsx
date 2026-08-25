@@ -136,7 +136,7 @@ export default function Profile() {
   };
 
   if (loading) {
-    return <PageLoader />;
+    return <PageLoader variant="route" />;
   }
 
   if (error && !profile) {

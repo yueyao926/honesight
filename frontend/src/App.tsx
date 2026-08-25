@@ -4,7 +4,12 @@ import BackgroundMusic from "./components/BackgroundMusic";
 import { HandDrawnPressFilters } from "./components/HandDrawnPressButton";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AiStudio from "./pages/AiStudio";
+import Community from "./pages/Community";
+import Dashboard from "./pages/Dashboard";
 import Home from "./pages/Home";
+import Portfolio from "./pages/Portfolio";
+import Practice from "./pages/Practice";
 import Profile from "./pages/Profile";
 import { prefetchCommonRoutes, prefetchRoute } from "./utils/routePrefetch";
 
@@ -14,13 +19,9 @@ const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const ResendVerification = lazy(() => import("./pages/ResendVerification"));
 const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const Settings = lazy(() => import("./pages/Settings"));
-const Portfolio = lazy(() => import("./pages/Portfolio"));
 const PortfolioDetail = lazy(() => import("./pages/PortfolioDetail"));
-const AiStudio = lazy(() => import("./pages/AiStudio"));
-const Community = lazy(() => import("./pages/Community"));
 const CommunityEditor = lazy(() => import("./pages/CommunityEditor"));
 const CommunityPostDetail = lazy(() => import("./pages/CommunityPostDetail"));
 const CommunityNotifications = lazy(() => import("./pages/CommunityNotifications"));
@@ -28,7 +29,6 @@ const Messages = lazy(() => import("./pages/Messages"));
 const ConversationView = lazy(() => import("./pages/ConversationView"));
 const Search = lazy(() => import("./pages/Search"));
 const ProfileCollectionDetail = lazy(() => import("./pages/ProfileCollectionDetail"));
-const Practice = lazy(() => import("./pages/Practice"));
 const PracticeAdd = lazy(() => import("./pages/PracticeAdd"));
 const PracticeReplace = lazy(() => import("./pages/PracticeReplace"));
 const PracticeSession = lazy(() => import("./pages/PracticeSession"));
@@ -36,12 +36,7 @@ const PracticeSession = lazy(() => import("./pages/PracticeSession"));
 export default function App() {
   useEffect(() => {
     prefetchRoute("/profile");
-    if (typeof window.requestIdleCallback === "function") {
-      const id = window.requestIdleCallback(() => prefetchCommonRoutes());
-      return () => window.cancelIdleCallback(id);
-    }
-    const timer = window.setTimeout(() => prefetchCommonRoutes(), 800);
-    return () => window.clearTimeout(timer);
+    prefetchCommonRoutes();
   }, []);
 
   return (

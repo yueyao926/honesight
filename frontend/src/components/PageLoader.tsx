@@ -42,9 +42,14 @@ function LoadingLetters() {
   );
 }
 
-export default function PageLoader() {
+export default function PageLoader({ variant = "fullscreen" }: { variant?: "fullscreen" | "route" }) {
   return (
-    <div className="page-loader-host" role="status" aria-live="polite" aria-busy="true">
+    <div
+      className={`page-loader-host${variant === "route" ? " page-loader-host--route" : ""}`}
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
       <LoadingLetters />
     </div>
   );
