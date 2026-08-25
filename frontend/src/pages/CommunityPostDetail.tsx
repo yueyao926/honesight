@@ -238,6 +238,8 @@ export default function CommunityPostDetail() {
                       className="h-11 w-11 rounded-full object-cover"
                       src={getAssetUrl(post.author.avatar_url)}
                       alt=""
+                      loading="lazy"
+                      decoding="async"
                     />
                   ) : (
                     <span className="flex h-11 w-11 items-center justify-center rounded-full bg-blush">

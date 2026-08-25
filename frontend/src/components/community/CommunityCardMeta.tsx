@@ -35,7 +35,13 @@ export default function CommunityCardMeta({ post, onChange, className = "" }: Co
           onClick={(event) => event.stopPropagation()}
         >
           {post.author.avatar_url ? (
-            <img className="community-card-meta__avatar" src={getAssetUrl(post.author.avatar_url)} alt="" />
+            <img
+              className="community-card-meta__avatar"
+              src={getAssetUrl(post.author.avatar_url)}
+              alt=""
+              loading="lazy"
+              decoding="async"
+            />
           ) : (
             <span className="community-card-meta__avatar community-card-meta__avatar--fallback">
               {post.author.username[0]}
