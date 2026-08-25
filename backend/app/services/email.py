@@ -40,9 +40,9 @@ def send_email(*, to_email: str, subject: str, html_body: str) -> None:
 
 
 def send_verification_email(to_email: str, link: str) -> None:
-    subject = "验证你的 LensCoach 邮箱 / Verify your email"
+    subject = "验证你的 HoneSight 邮箱 / Verify your email"
     html_body = (
-        "<p>你好，欢迎加入 LensCoach！</p>"
+        "<p>你好，欢迎加入 HoneSight！</p>"
         "<p>请点击下方链接完成邮箱验证（24 小时内有效）：</p>"
         f'<p><a href="{link}">验证邮箱</a></p>'
         f'<p>如果按钮无法点击，请复制以下链接到浏览器打开：<br>{link}</p>'
@@ -52,7 +52,7 @@ def send_verification_email(to_email: str, link: str) -> None:
 
 
 def send_password_reset_email(to_email: str, link: str) -> None:
-    subject = "重置你的 LensCoach 密码 / Reset your password"
+    subject = "重置你的 HoneSight 密码 / Reset your password"
     html_body = (
         "<p>你好，我们收到了你的密码重置请求。</p>"
         "<p>请点击下方链接设置新密码（30 分钟内有效）：</p>"
