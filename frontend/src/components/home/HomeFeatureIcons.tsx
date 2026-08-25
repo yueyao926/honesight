@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { routePrefetchHandlers } from "../../utils/routePrefetch";
 import misc27Svg from "../../SVG/misc-27.svg?url";
 import misc17Svg from "../../SVG/misc-17.svg?url";
 import misc31Svg from "../../SVG/misc-31.svg?url";
@@ -60,6 +61,7 @@ export default function HomeFeatureIcons() {
           to={icon.to}
           className="home-icon-chip"
           aria-label={icon.label}
+          {...routePrefetchHandlers(icon.to)}
         >
           <span className="home-icon-chip-label">{icon.label}</span>
           <span

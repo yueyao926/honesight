@@ -1,7 +1,9 @@
-﻿import { useEffect, useState } from "react";
+﻿import { Suspense, useEffect, useState } from "react";
 import { NavLink, Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { getAssetUrl } from "../api/client";
+import PageLoader from "./PageLoader";
+import { routePrefetchHandlers } from "../utils/routePrefetch";
 
 function navClass({ isActive }: { isActive: boolean }) {
   return isActive ? "nav-link nav-link-active" : "nav-link";
@@ -57,15 +59,15 @@ export default function Layout() {
               HoneSight
             </Link>
             {isAuthenticated && authenticatedNavItems.map((item) => (
-              <NavLink key={item.to} to={item.to} className={navClass}>{item.label}</NavLink>
+              <NavLink key={item.to} to={item.to} className={navClass} {...routePrefetchHandlers(item.to)}>{item.label}</NavLink>
             ))}
             {!isAuthenticated ? (
               <>
-                <NavLink to="/login" className={navClass}>登录</NavLink>
-                <Link to="/register" className="btn-primary btn-primary--ink ml-1 py-2 text-xs md:text-sm">注册</Link>
+                <NavLink to="/login" className={navClass} {...routePrefetchHandlers("/login")}>登录</NavLink>
+                <Link to="/register" className="btn-primary btn-primary--ink ml-1 py-2 text-xs md:text-sm" {...routePrefetchHandlers("/register")}>注册</Link>
               </>
             ) : (
-              <Link className="ml-1 flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-blush text-sm font-medium text-ink" to="/profile" aria-label="个人主页">
+              <Link className="ml-1 flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-blush text-sm font-medium text-ink" to="/profile" aria-label="个人主页" {...routePrefetchHandlers("/profile")}>
                 {user?.avatar_url ? <img className="h-full w-full object-cover" src={getAssetUrl(user.avatar_url)} alt="" /> : user?.username?.slice(0, 1).toUpperCase()}
               </Link>
             )}
@@ -113,6 +115,7 @@ export default function Layout() {
                       key={item.to}
                       to={item.to}
                       className={({ isActive }) => `rounded-2xl px-4 py-3 text-sm font-medium transition ${isActive ? "bg-brand text-white" : "bg-white/65 text-ink hover:bg-blush"}`}
+                      {...routePrefetchHandlers(item.to)}
                     >
                       {item.label}
                     </NavLink>
@@ -124,9 +127,9 @@ export default function Layout() {
               </>
             ) : (
               <div className="grid grid-cols-2 gap-3">
-                <Link to="/login" className="btn-secondary w-full">登录</Link>
-                <Link to="/register" className="btn-primary btn-primary--ink w-full">免费注册</Link>
-                <Link to="/community" className="col-span-2 rounded-2xl bg-white/65 px-4 py-3 text-center text-sm font-medium text-ink">
+                <Link to="/login" className="btn-secondary w-full" {...routePrefetchHandlers("/login")}>登录</Link>
+                <Link to="/register" className="btn-primary btn-primary--ink w-full" {...routePrefetchHandlers("/register")}>免费注册</Link>
+                <Link to="/community" className="col-span-2 rounded-2xl bg-white/65 px-4 py-3 text-center text-sm font-medium text-ink" {...routePrefetchHandlers("/community")}>
                   先逛逛摄影社区
                 </Link>
               </div>
@@ -134,7 +137,9 @@ export default function Layout() {
           </div>
         </div>
       </header>
-      <Outlet />
+      <Suspense fallback={<PageLoader />}>
+        <Outlet />
+      </Suspense>
       <footer className={`px-4 py-7 text-center text-sm text-muted${isCommunitySurface ? " community-footer" : " border-t border-sand/50"}`}>
         <a
           className="transition hover:text-ink hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose/50"
