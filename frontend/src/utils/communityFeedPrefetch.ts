@@ -1,23 +1,53 @@
 import { getFeed, type CommunityPost } from "../api/community";
 
-type FeedCache = {
+export type FeedCache = {
   items: CommunityPost[];
   next_cursor?: number | null;
 };
 
-const cache = new Map<string, Promise<FeedCache>>();
+const pending = new Map<string, Promise<FeedCache>>();
+const resolved = new Map<string, FeedCache>();
+
+export function readCachedFeed(kind: string): FeedCache | null {
+  return resolved.get(kind) ?? null;
+}
+
+export function writeCachedFeed(kind: string, data: FeedCache) {
+  resolved.set(kind, data);
+}
 
 export function prefetchCommunityFeed(kind = "recommended") {
-  if (cache.has(kind)) return cache.get(kind)!;
-  const request = getFeed(kind);
-  cache.set(kind, request);
-  request.catch(() => cache.delete(kind));
+  if (resolved.has(kind)) {
+    return Promise.resolve(resolved.get(kind)!);
+  }
+  if (pending.has(kind)) {
+    return pending.get(kind)!;
+  }
+
+  const request = getFeed(kind)
+    .then((result) => {
+      resolved.set(kind, result);
+      pending.delete(kind);
+      return result;
+    })
+    .catch((error) => {
+      pending.delete(kind);
+      throw error;
+    });
+
+  pending.set(kind, request);
   return request;
 }
 
 export function consumePrefetchedFeed(kind: string): Promise<FeedCache> | null {
-  const pending = cache.get(kind);
-  if (!pending) return null;
-  cache.delete(kind);
-  return pending;
+  const inflight = pending.get(kind);
+  if (inflight) {
+    pending.delete(kind);
+    return inflight;
+  }
+  const cached = resolved.get(kind);
+  if (cached) {
+    return Promise.resolve(cached);
+  }
+  return null;
 }

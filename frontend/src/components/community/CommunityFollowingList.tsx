@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getFollowingPeople, type FollowingPerson } from "../../api/community";
 import { getAssetUrl } from "../../api/client";
-import SearchLetterLoader from "../search/SearchLetterLoader";
 import animalSvg from "../../SVG/动物.svg?url";
 import "./CommunityFollowingList.css";
+
+let followingCache: FollowingPerson[] | null = null;
+let followingError: string | null = null;
 
 function workCover(person: FollowingPerson, postId: number) {
   const post = person.posts.find((item) => item.id === postId);
@@ -14,19 +16,28 @@ function workCover(person: FollowingPerson, postId: number) {
 }
 
 export default function CommunityFollowingList() {
-  const [people, setPeople] = useState<FollowingPerson[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [people, setPeople] = useState<FollowingPerson[]>(followingCache ?? []);
+  const [loading, setLoading] = useState(followingCache === null);
+  const [error, setError] = useState(followingError ?? "");
 
   useEffect(() => {
+    if (followingCache !== null) return;
+
     let active = true;
     setLoading(true);
     getFollowingPeople()
       .then((result) => {
-        if (active) setPeople(result.items);
+        if (!active) return;
+        followingCache = result.items;
+        followingError = null;
+        setPeople(result.items);
+        setError("");
       })
       .catch((err) => {
-        if (active) setError(err instanceof Error ? err.message : "加载失败");
+        if (!active) return;
+        const message = err instanceof Error ? err.message : "加载失败";
+        followingError = message;
+        setError(message);
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -36,8 +47,8 @@ export default function CommunityFollowingList() {
     };
   }, []);
 
-  if (loading) {
-    return <SearchLetterLoader label="加载中" />;
+  if (loading && !people.length) {
+    return null;
   }
 
   if (error) {
