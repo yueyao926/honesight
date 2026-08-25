@@ -1,0 +1,80 @@
+.page-loader-host {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f7f3ea;
+}
+
+.page-loader-host--pending {
+  pointer-events: none;
+}
+
+.page-loader {
+  --animation-delay-multiplier: 70ms;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  color: #272522;
+}
+
+.page-loader span {
+  padding: 0;
+  margin: 0;
+  letter-spacing: -5rem;
+  animation-delay: 0s;
+  transform: translateY(4rem);
+  animation: page-loader-hide-and-seek 1s alternate infinite cubic-bezier(0.86, 0, 0.07, 1);
+}
+
+.page-loader .l {
+  animation-delay: calc(var(--animation-delay-multiplier) * 0);
+}
+
+.page-loader .o {
+  animation-delay: calc(var(--animation-delay-multiplier) * 1);
+}
+
+.page-loader .a {
+  animation-delay: calc(var(--animation-delay-multiplier) * 2);
+}
+
+.page-loader .d {
+  animation-delay: calc(var(--animation-delay-multiplier) * 3);
+}
+
+.page-loader .ispan {
+  animation-delay: calc(var(--animation-delay-multiplier) * 4);
+}
+
+.page-loader .n {
+  animation-delay: calc(var(--animation-delay-multiplier) * 5);
+}
+
+.page-loader .g {
+  animation-delay: calc(var(--animation-delay-multiplier) * 6);
+}
+
+.page-loader .letter {
+  width: fit-content;
+  height: 3rem;
+}
+
+.page-loader .i {
+  margin-inline: 5px;
+}
+
+@keyframes page-loader-hide-and-seek {
+  0% {
+    transform: translateY(4rem);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
