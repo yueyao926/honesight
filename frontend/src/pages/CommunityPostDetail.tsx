@@ -13,6 +13,7 @@ import {
 } from "../api/community";
 import { followUser, unfollowUser } from "../api/profile";
 import { getAssetUrl } from "../api/client";
+import { invalidateCommunityFeedCache } from "../utils/communityFeedPrefetch";
 import CommentSection from "../components/community/CommentSection";
 import CommunityCameraNotes from "../components/community/CommunityCameraNotes";
 import CommunityPostDetailActions from "../components/community/CommunityPostDetailActions";
@@ -280,6 +281,7 @@ export default function CommunityPostDetail() {
                     onClick={async () => {
                       if (confirm("确定删除这篇帖子吗？")) {
                         await deletePost(post.id);
+                        invalidateCommunityFeedCache();
                         nav("/community");
                       }
                     }}

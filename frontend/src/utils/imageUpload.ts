@@ -12,6 +12,24 @@ type CompressionProfile = {
 };
 
 const SUPPORTED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const EXTENSION_MIME: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+};
+
+function normalizeImageFile(file: File): File {
+  if (SUPPORTED_IMAGE_TYPES.has(file.type)) {
+    return file;
+  }
+  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+  const mime = EXTENSION_MIME[extension];
+  if (!mime) {
+    throw new Error("请选择 JPG、PNG 或 WebP 图片");
+  }
+  return new File([file], file.name, { type: mime, lastModified: file.lastModified });
+}
 const PROFILES: Record<ImageUploadPurpose, CompressionProfile> = {
   standard: { maxDimension: 2560, targetBytes: 1.5 * 1024 * 1024, initialQuality: 0.85 },
   reference: { maxDimension: 1920, targetBytes: 800 * 1024, initialQuality: 0.82 },
@@ -69,9 +87,7 @@ export async function optimizeImageForUpload(
   file: File,
   purpose: ImageUploadPurpose,
 ): Promise<File> {
-  if (!SUPPORTED_IMAGE_TYPES.has(file.type)) {
-    throw new Error("请选择 JPG、PNG 或 WebP 图片");
-  }
+  file = normalizeImageFile(file);
   if (file.size > MAX_IMAGE_SOURCE_BYTES) {
     throw new Error("单张图片不能超过 10MB");
   }

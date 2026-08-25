@@ -55,7 +55,7 @@ async def upload_image(
     if purpose not in UPLOAD_PURPOSES:
         raise HTTPException(status_code=400, detail="Unsupported image upload purpose")
     suffix = Path(file.filename or "").suffix.lower()
-    if suffix not in ALLOWED_EXTENSIONS:
+    if suffix and suffix not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Only jpg, jpeg, png and webp files are allowed")
 
     read_started_at = time.perf_counter()
@@ -64,8 +64,7 @@ async def upload_image(
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(status_code=400, detail="File size must be less than 10MB")
     detected = _detected_image_type(content)
-    extension_matches = detected == suffix or (detected == ".jpg" and suffix == ".jpeg")
-    if detected is None or not extension_matches:
+    if detected is None:
         raise HTTPException(status_code=400, detail="文件内容不是有效的 JPG、PNG 或 WEBP 图片")
 
     settings = get_settings()

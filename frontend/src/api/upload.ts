@@ -12,6 +12,8 @@ export type UploadedImage = {
   height: number;
 };
 
+const UPLOAD_TIMEOUT_MS = 120_000;
+
 export async function uploadImage(
   file: File,
   purpose: ImageUploadPurpose = "standard",
@@ -20,33 +22,35 @@ export async function uploadImage(
   onStage?.("optimizing");
   const optimized = await optimizeImageForUpload(file, purpose);
   onStage?.("uploading");
-
-  const formData = new FormData();
-  formData.append("file", optimized);
-  formData.append("purpose", purpose);
-  return uploadRequest(formData, onStage);
+  return sendUpload(optimized, purpose, onStage);
 }
 
-
-function uploadRequest(
-  formData: FormData,
+function sendUpload(
+  file: File,
+  purpose: ImageUploadPurpose,
   onStage?: (stage: ImageUploadStage) => void,
   allowRefresh = true,
 ): Promise<UploadedImage> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("purpose", purpose);
+
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
     request.open("POST", `${getApiBaseUrl()}/upload/image`);
     request.withCredentials = true;
+    request.timeout = UPLOAD_TIMEOUT_MS;
     const token = getAccessToken();
     if (token) request.setRequestHeader("Authorization", `Bearer ${token}`);
     request.upload.onload = () => onStage?.("processing");
     request.onerror = () => reject(new Error("图片上传失败，请检查网络后重试"));
+    request.ontimeout = () => reject(new Error("图片上传超时，请检查网络后重试"));
     request.onload = async () => {
       if (request.status === 401) {
         if (token && allowRefresh) {
           try {
             await refreshAuthSession();
-            resolve(uploadRequest(formData, onStage, false));
+            resolve(sendUpload(file, purpose, onStage, false));
           } catch {
             reject(new Error("登录已过期，请重新登录"));
           }
