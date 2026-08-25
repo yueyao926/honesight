@@ -86,7 +86,7 @@ export default function Layout() {
 
           <button
             type="button"
-            className="absolute right-4 flex h-11 w-11 items-center justify-center rounded-full border border-sand bg-white/75 text-ink transition hover:border-brand sm:right-6 md:hidden"
+            className="absolute right-4 flex h-11 w-11 items-center justify-center rounded-full border border-sand bg-white/75 text-ink transition hover:border-ink sm:right-6 md:hidden"
             aria-label={mobileMenuOpen ? "关闭导航菜单" : "打开导航菜单"}
             aria-expanded={mobileMenuOpen}
             aria-controls="mobile-navigation"
@@ -121,7 +121,7 @@ export default function Layout() {
                     <NavLink
                       key={item.to}
                       to={item.to}
-                      className={({ isActive }) => `rounded-2xl px-4 py-3 text-sm font-medium transition ${isActive ? "bg-brand text-white" : "bg-white/65 text-ink hover:bg-blush"}`}
+                      className={({ isActive }) => `rounded-2xl px-4 py-3 text-sm font-medium transition ${isActive ? "bg-ink text-white" : "bg-white/65 text-ink hover:bg-blush"}`}
                       {...routePrefetchHandlers(item.to)}
                     >
                       {item.label}

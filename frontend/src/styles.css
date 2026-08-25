@@ -3171,6 +3171,18 @@ body,
     letter-spacing: inherit;
   }
 
+  @media (max-width: 767px) {
+    .home-practice-card-border {
+      display: none;
+    }
+
+    .home-practice-card-inner {
+      border: 1px solid rgba(39, 37, 34, 0.3);
+      border-radius: 1rem;
+      padding: 1.5rem 1.25rem;
+    }
+  }
+
   .interactive-camera-person {
     width: clamp(7rem, 16vw, 10.5rem);
     height: clamp(9rem, 20vw, 13rem);
@@ -3528,22 +3540,42 @@ body,
   }
 
   @media (max-width: 767px) {
+    .daily-inspiration-card-border {
+      display: none;
+    }
+
     .daily-inspiration-card-frame--stage {
       aspect-ratio: auto;
     }
 
     .daily-inspiration-card-frame--stage .daily-inspiration-stage-inner {
       @apply relative inset-auto flex items-center justify-center;
-      padding: clamp(3rem, 7.5vw, 4rem) clamp(1.65rem, 4.2vw, 2.35rem) clamp(3rem, 7.5vw, 4rem) clamp(1.85rem, 4.8vw, 2.65rem);
+      padding: 0;
     }
 
     .daily-inspiration-card-frame--stage .daily-inspiration-stage-content {
-      @apply h-auto;
+      @apply h-auto w-full;
     }
 
     .daily-inspiration-stage-panel {
       @apply relative inset-auto h-auto;
       grid-template-rows: auto auto;
+      border: 1px solid rgba(39, 37, 34, 0.3);
+      border-radius: 1rem;
+    }
+
+    .daily-inspiration-card-inner {
+      border: 1px solid rgba(39, 37, 34, 0.3);
+      border-radius: 1rem;
+      padding: 2rem 1.25rem;
+    }
+
+    .carousel-arrow--stage-left {
+      left: 0.35rem;
+    }
+
+    .carousel-arrow--stage-right {
+      right: 0.35rem;
     }
   }
 
