@@ -1,15 +1,12 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import PageLoader from "./PageLoader";
 
 export default function ProtectedRoute({ children }: { children: JSX.Element }) {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
   if (isLoading) {
-    return (
-      <main className="container-page flex min-h-[50vh] items-center justify-center">
-        <p className="text-sm text-muted">正在恢复登录状态…</p>
-      </main>
-    );
+    return <PageLoader />;
   }
   if (!isAuthenticated) {
     // 记住用户原本想去的页面，登录后回跳，避免丢失操作意图

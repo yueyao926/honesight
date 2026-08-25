@@ -11,6 +11,7 @@ import PracticeStarter from "../components/practice/PracticeStarter";
 import { formatWeekLabel, getOverviewSessions } from "../components/practice/practiceConstants";
 import { assignPracticeThemeIcons } from "../components/practice/practiceThemeIcons";
 import PortfolioStarButton from "../components/portfolio/PortfolioStarButton";
+import PageLoader from "../components/PageLoader";
 import StudioProgressBar from "../components/studio/StudioProgressBar";
 import SquigglyText from "../components/ui/SquigglyText";
 import type { PracticeOverview } from "../types";
@@ -79,7 +80,7 @@ export default function Practice() {
     [overview?.week_key, sessionIdsKey],
   );
 
-  if (loading) return <main className="handwriting-page practice-page container-page"><div className="card animate-pulse text-sm text-muted">正在准备每周训练计划…</div></main>;
+  if (loading) return <PageLoader />;
 
   const completedCount = sessions.filter((item) => item.status === "completed").length;
   const hasPrimary = sessions.some((item) => item.plan_role === "primary");

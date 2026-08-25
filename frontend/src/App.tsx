@@ -5,7 +5,8 @@ import { HandDrawnPressFilters } from "./components/HandDrawnPressButton";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Home from "./pages/Home";
-import { prefetchCommonRoutes } from "./utils/routePrefetch";
+import Profile from "./pages/Profile";
+import { prefetchCommonRoutes, prefetchRoute } from "./utils/routePrefetch";
 
 const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
@@ -26,7 +27,6 @@ const CommunityNotifications = lazy(() => import("./pages/CommunityNotifications
 const Messages = lazy(() => import("./pages/Messages"));
 const ConversationView = lazy(() => import("./pages/ConversationView"));
 const Search = lazy(() => import("./pages/Search"));
-const Profile = lazy(() => import("./pages/Profile"));
 const ProfileCollectionDetail = lazy(() => import("./pages/ProfileCollectionDetail"));
 const Practice = lazy(() => import("./pages/Practice"));
 const PracticeAdd = lazy(() => import("./pages/PracticeAdd"));
@@ -35,6 +35,7 @@ const PracticeSession = lazy(() => import("./pages/PracticeSession"));
 
 export default function App() {
   useEffect(() => {
+    prefetchRoute("/profile");
     if (typeof window.requestIdleCallback === "function") {
       const id = window.requestIdleCallback(() => prefetchCommonRoutes());
       return () => window.cancelIdleCallback(id);

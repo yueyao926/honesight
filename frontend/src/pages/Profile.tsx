@@ -27,6 +27,7 @@ import ProfileTabNav from "../components/profile/ProfileTabNav";
 import ProfileWorkGrid from "../components/profile/ProfileWorkGrid";
 import OutlineLiftButton from "../components/ui/OutlineLiftButton";
 import { useAuth } from "../contexts/AuthContext";
+import PageLoader from "../components/PageLoader";
 import arrow28Svg from "../SVG/arrow-28.svg?url";
 import computerSvg from "../SVG/电脑.svg?url";
 import hangerSvg from "../SVG/衣架.svg?url";
@@ -62,27 +63,43 @@ export default function Profile() {
   const [editing, setEditing] = useState(false);
   const [avatar, setAvatar] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [collectionsLoading, setCollectionsLoading] = useState(true);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
 
   const load = async () => {
     setLoading(true);
+    setCollectionsLoading(true);
     setError("");
     try {
       if (own) {
-        const [value, cols] = await Promise.all([getMyProfile(), listPortfolio()]);
+        const value = await getMyProfile();
         setProfile(value);
-        setCollections(cols);
+        setLoading(false);
+        try {
+          setCollections(await listPortfolio());
+        } catch (e) {
+          setError(e instanceof Error ? e.message : "作品集加载失败");
+        } finally {
+          setCollectionsLoading(false);
+        }
       } else {
         const id = Number(userId);
-        const [value, cols] = await Promise.all([getPublicProfile(id), getUserCollections(id)]);
+        const value = await getPublicProfile(id);
         setProfile(value);
-        setCollections(cols);
+        setLoading(false);
+        try {
+          setCollections(await getUserCollections(id));
+        } catch (e) {
+          setError(e instanceof Error ? e.message : "作品集加载失败");
+        } finally {
+          setCollectionsLoading(false);
+        }
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "加载失败");
-    } finally {
       setLoading(false);
+      setCollectionsLoading(false);
     }
   };
 
@@ -119,11 +136,7 @@ export default function Profile() {
   };
 
   if (loading) {
-    return (
-      <main className="handwriting-page profile-page container-page">
-        <div className="profile-hero-skeleton" aria-hidden="true" />
-      </main>
-    );
+    return <PageLoader />;
   }
 
   if (error && !profile) {
@@ -219,7 +232,13 @@ export default function Profile() {
 
       {tab === "works" && (
         <section className="profile-tab-panel">
-          {collections.length ? (
+          {collectionsLoading ? (
+            <div className="profile-collections-skeleton" aria-hidden="true">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="profile-collections-skeleton__card" />
+              ))}
+            </div>
+          ) : collections.length ? (
             <ProfileCollectionGrid collections={collections} userId={profile.id} own={own} />
           ) : (
             <div className="profile-empty">

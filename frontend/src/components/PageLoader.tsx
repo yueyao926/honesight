@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import "./PageLoader.css";
 
 function LoadingLetters() {
@@ -44,21 +43,9 @@ function LoadingLetters() {
 }
 
 export default function PageLoader() {
-  const [showAnimation, setShowAnimation] = useState(false);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setShowAnimation(true), 120);
-    return () => window.clearTimeout(timer);
-  }, []);
-
   return (
-    <div
-      className={`page-loader-host${showAnimation ? "" : " page-loader-host--pending"}`}
-      role="status"
-      aria-live="polite"
-      aria-busy="true"
-    >
-      {showAnimation ? <LoadingLetters /> : null}
+    <div className="page-loader-host" role="status" aria-live="polite" aria-busy="true">
+      <LoadingLetters />
     </div>
   );
 }

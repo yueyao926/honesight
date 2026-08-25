@@ -7,6 +7,7 @@ import {
   type StartPracticePayload,
 } from "../api/practice";
 import PracticeStarter from "../components/practice/PracticeStarter";
+import PageLoader from "../components/PageLoader";
 import { formatWeekLabel } from "../components/practice/practiceConstants";
 import type { PracticeOverview } from "../types";
 import arrow28Svg from "../SVG/arrow-28.svg?url";
@@ -61,11 +62,7 @@ export default function PracticeAdd() {
   }
 
   if (loading) {
-    return (
-      <main className="handwriting-page practice-page container-page max-w-5xl">
-        <div className="card animate-pulse text-sm text-muted">正在准备…</div>
-      </main>
-    );
+    return <PageLoader />;
   }
 
   const sessions = overview?.current_sessions || (overview?.current ? [overview.current] : []);
