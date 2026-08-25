@@ -9,7 +9,8 @@ import "./CommunityFollowingList.css";
 function workCover(person: FollowingPerson, postId: number) {
   const post = person.posts.find((item) => item.id === postId);
   if (!post) return "";
-  return post.cover_image_url || post.images[0]?.thumbnail_url || post.images[0]?.image_url || "";
+  // 列表优先缩略图，减少首屏带宽
+  return post.images[0]?.thumbnail_url || post.cover_image_url || post.images[0]?.image_url || "";
 }
 
 export default function CommunityFollowingList() {
@@ -61,7 +62,13 @@ export default function CommunityFollowingList() {
         <article key={person.author.id} className="community-following-person">
           <Link to={`/users/${person.author.id}`} className="community-following-identity">
             {person.author.avatar_url ? (
-              <img src={getAssetUrl(person.author.avatar_url)} alt="" className="community-following-avatar" />
+              <img
+                src={getAssetUrl(person.author.avatar_url)}
+                alt=""
+                className="community-following-avatar"
+                loading="lazy"
+                decoding="async"
+              />
             ) : (
               <span className="community-following-avatar community-following-avatar--fallback">
                 {person.author.username.slice(0, 1)}
@@ -87,7 +94,7 @@ export default function CommunityFollowingList() {
                     title={post.title}
                   >
                     {cover ? (
-                      <img src={getAssetUrl(cover)} alt={post.title} />
+                      <img src={getAssetUrl(cover)} alt={post.title} loading="lazy" decoding="async" />
                     ) : (
                       <span className="community-following-work-note">{post.title || "随记"}</span>
                     )}

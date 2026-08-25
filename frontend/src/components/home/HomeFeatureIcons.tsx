@@ -15,39 +15,39 @@ type HomeIcon = {
 
 const icons: HomeIcon[] = [
   {
+    id: "progress",
+    label: "progress",
+    to: "/practice",
+    delay: "0s",
+    iconSrc: arrow31Svg,
+  },
+  {
     id: "camera",
     label: "camera",
     to: "/ai",
-    delay: "0s",
+    delay: "0.5s",
     iconSrc: misc27Svg,
   },
   {
     id: "film",
     label: "film",
     to: "/portfolio",
-    delay: "0.5s",
-    iconSrc: misc17Svg,
-  },
-  {
-    id: "ai",
-    label: "AI",
-    to: "/profile",
     delay: "1s",
-    iconSrc: misc31Svg,
-  },
-  {
-    id: "progress",
-    label: "progress",
-    to: "/practice",
-    delay: "1.5s",
-    iconSrc: arrow31Svg,
+    iconSrc: misc17Svg,
   },
   {
     id: "community",
     label: "community",
     to: "/community",
-    delay: "2s",
+    delay: "1.5s",
     iconSrc: misc58Svg,
+  },
+  {
+    id: "myself",
+    label: "myself",
+    to: "/profile",
+    delay: "2s",
+    iconSrc: misc31Svg,
   },
 ];
 

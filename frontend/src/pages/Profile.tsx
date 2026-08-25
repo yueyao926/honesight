@@ -69,9 +69,16 @@ export default function Profile() {
     setLoading(true);
     setError("");
     try {
-      const value = own ? await getMyProfile() : await getPublicProfile(Number(userId));
-      setProfile(value);
-      setCollections(own ? await listPortfolio() : await getUserCollections(value.id));
+      if (own) {
+        const [value, cols] = await Promise.all([getMyProfile(), listPortfolio()]);
+        setProfile(value);
+        setCollections(cols);
+      } else {
+        const id = Number(userId);
+        const [value, cols] = await Promise.all([getPublicProfile(id), getUserCollections(id)]);
+        setProfile(value);
+        setCollections(cols);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "加载失败");
     } finally {
@@ -272,6 +279,8 @@ export default function Profile() {
                         className="h-full w-full object-cover transition group-hover:scale-[1.02]"
                         src={photo.thumbnail_url || photo.image_url}
                         alt={photo.title}
+                        loading="lazy"
+                        decoding="async"
                       />
                     </a>
                     <div className="p-4">
@@ -332,7 +341,7 @@ export default function Profile() {
               <Link key={person.id} to={`/users/${person.id}`} className="profile-people-item">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blush">
                   {person.avatar_url ? (
-                    <img src={getAssetUrl(person.avatar_url)} alt="" />
+                    <img src={getAssetUrl(person.avatar_url)} alt="" loading="lazy" decoding="async" />
                   ) : (
                     person.username[0]
                   )}
