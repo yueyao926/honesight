@@ -33,11 +33,11 @@ export default function ResetPassword() {
 
   if (!token) {
     return (
-      <main className="container-page flex min-h-[70vh] items-center justify-center">
+      <main className="handwriting-page container-page flex min-h-[70vh] items-center justify-center">
         <div className="card w-full max-w-md animate-fade-up text-center">
           <BackHomeLink />
           <h1 className="mt-2 font-display text-4xl font-semibold">重置密码</h1>
-          <p className="mt-8 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">缺少重置令牌，请从邮件中的链接重新进入。</p>
+          <p className="mt-8 rounded-xl bg-red-50 px-4 py-3 text-sm text-ink">缺少重置令牌，请从邮件中的链接重新进入。</p>
           <Link className="btn-secondary mt-6 inline-block" to="/forgot-password">重新获取重置链接</Link>
         </div>
       </main>
@@ -45,7 +45,7 @@ export default function ResetPassword() {
   }
 
   return (
-    <main className="container-page flex min-h-[70vh] items-center justify-center">
+    <main className="handwriting-page container-page flex min-h-[70vh] items-center justify-center">
       <div className="card w-full max-w-md animate-fade-up">
         <BackHomeLink />
         <p className="section-eyebrow mt-6">Reset password</p>
@@ -53,14 +53,14 @@ export default function ResetPassword() {
         <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
           <div>
             <label className="label">新密码</label>
-            <input className="input" name="password" type="password" minLength={6} required placeholder="••••••••" />
+            <input className="input ink-focus-frame" name="password" type="password" minLength={6} required placeholder="••••••••" />
           </div>
           <div>
             <label className="label">确认密码</label>
-            <input className="input" name="confirm" type="password" minLength={6} required placeholder="••••••••" />
+            <input className="input ink-focus-frame" name="confirm" type="password" minLength={6} required placeholder="••••••••" />
           </div>
-          {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>}
-          <button className="btn-primary w-full" type="submit" disabled={submitting}>
+          {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-ink">{error}</p>}
+          <button className="btn-primary btn-primary--ink w-full" type="submit" disabled={submitting}>
             {submitting ? "提交中..." : "重置密码"}
           </button>
         </form>

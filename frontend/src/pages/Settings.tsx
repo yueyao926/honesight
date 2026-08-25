@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getMyProfile, getPrivacy, updatePrivacy } from "../api/profile";
+import { resendVerification } from "../api/auth";
 import OutlineLiftButton from "../components/ui/OutlineLiftButton";
 import { useAuth } from "../contexts/AuthContext";
 import type { PrivacySettings, Profile } from "../types";
@@ -65,8 +66,25 @@ export default function Settings() {
         <h2>绑定邮箱</h2>
         <p className="settings-block__value">{maskEmail(profile?.email)}</p>
         <p className="settings-block__hint">
-          {profile?.email_verified ? "已验证" : "尚未验证 · 重新验证暂未开放"}
+          {profile?.email_verified ? "已验证" : "尚未验证"}
         </p>
+        {profile && !profile.email_verified && (
+          <button
+            type="button"
+            className="btn-secondary mt-3"
+            onClick={async () => {
+              if (!profile.email) return;
+              try {
+                await resendVerification(profile.email);
+                flash("验证邮件已发送，请查收邮箱");
+              } catch (e) {
+                setError(e instanceof Error ? e.message : "发送失败");
+              }
+            }}
+          >
+            重新发送验证邮件
+          </button>
+        )}
       </section>
 
       <section className="settings-block">

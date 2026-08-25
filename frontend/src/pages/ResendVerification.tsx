@@ -25,29 +25,29 @@ export default function ResendVerification() {
   }
 
   return (
-    <main className="container-page flex min-h-[70vh] items-center justify-center">
+    <main className="handwriting-page container-page flex min-h-[70vh] items-center justify-center">
       <div className="card w-full max-w-md animate-fade-up">
         <BackHomeLink />
         <p className="section-eyebrow mt-6">Resend verification</p>
         <h1 className="mt-2 font-display text-4xl font-semibold">重新发送验证邮件</h1>
         {sent ? (
-          <p className="mt-8 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-600">
+          <p className="mt-8 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700">
             如果该邮箱尚未验证，我们已发送验证邮件，请查收。
           </p>
         ) : (
           <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
             <div>
               <label className="label">邮箱</label>
-              <input className="input" name="email" type="email" required defaultValue={searchParams.get("email") || ""} placeholder="you@example.com" />
+              <input className="input ink-focus-frame" name="email" type="email" required defaultValue={searchParams.get("email") || ""} placeholder="you@example.com" />
             </div>
-            {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>}
-            <button className="btn-primary w-full" type="submit" disabled={submitting}>
+            {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-ink">{error}</p>}
+            <button className="btn-primary btn-primary--ink w-full" type="submit" disabled={submitting}>
               {submitting ? "发送中..." : "发送验证邮件"}
             </button>
           </form>
         )}
         <p className="mt-6 text-center text-sm text-muted">
-          记起来了？<Link className="ml-1 text-brand-deep" to="/login">去登录</Link>
+          记起来了？<Link className="ml-1 text-ink" to="/login">去登录</Link>
         </p>
       </div>
     </main>

@@ -32,7 +32,7 @@ export default function VerifyEmail() {
   }, [token]);
 
   return (
-    <main className="container-page flex min-h-[70vh] items-center justify-center">
+    <main className="handwriting-page container-page flex min-h-[70vh] items-center justify-center">
       <div className="card w-full max-w-md animate-fade-up text-center">
         <BackHomeLink />
         <p className="section-eyebrow mt-6">Email verification</p>
@@ -40,13 +40,13 @@ export default function VerifyEmail() {
         {status === "loading" && <p className="mt-8 text-muted">正在验证，请稍候…</p>}
         {status === "success" && (
           <>
-            <p className="mt-8 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-600">验证成功，现在可以登录了。</p>
-            <Link className="btn-primary mt-6 inline-block" to="/login">去登录</Link>
+            <p className="mt-8 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700">验证成功，现在可以登录了。</p>
+            <Link className="btn-primary btn-primary--ink mt-6 inline-block" to="/login">去登录</Link>
           </>
         )}
         {status === "error" && (
           <>
-            <p className="mt-8 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{message}</p>
+            <p className="mt-8 rounded-xl bg-red-50 px-4 py-3 text-sm text-ink">{message}</p>
             <Link className="btn-secondary mt-6 inline-block" to="/resend-verification">重新发送验证邮件</Link>
           </>
         )}
