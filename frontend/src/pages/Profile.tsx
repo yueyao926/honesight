@@ -4,7 +4,7 @@ import { getAssetUrl } from "../api/client";
 import { getFavoriteInspirations, unfavoriteInspiration } from "../api/inspirations";
 import { getMyPreferences, updateMyPreferences } from "../api/preferences";
 import { createConversation } from "../api/messages";
-import { listPortfolio } from "../api/portfolio";
+import { fetchPortfolioList } from "../utils/portfolioListCache";
 import {
   followUser,
   getFavorites,
@@ -77,7 +77,8 @@ export default function Profile() {
         setProfile(value);
         setLoading(false);
         try {
-          setCollections(await listPortfolio());
+          const items = await fetchPortfolioList();
+          setCollections(items);
         } catch (e) {
           setError(e instanceof Error ? e.message : "作品集加载失败");
         } finally {

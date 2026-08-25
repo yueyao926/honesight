@@ -1,6 +1,11 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { createPortfolio, listPortfolio } from "../api/portfolio";
+import { createPortfolio } from "../api/portfolio";
+import {
+  fetchPortfolioList,
+  readCachedPortfolioList,
+  writeCachedPortfolioList,
+} from "../utils/portfolioListCache";
 import HandDrawnPressButton from "../components/HandDrawnPressButton";
 import PortfolioCollectionCard from "../components/portfolio/PortfolioCollectionCard";
 import PortfolioCollectionLoader from "../components/portfolio/PortfolioCollectionLoader";
@@ -11,14 +16,36 @@ import photoSvg from "../SVG/photo.svg?url";
 import type { PortfolioCollection } from "../types";
 
 export default function Portfolio() {
-  const [collections, setCollections] = useState<PortfolioCollection[]>([]);
+  const [collections, setCollections] = useState<PortfolioCollection[]>(
+    () => readCachedPortfolioList() ?? [],
+  );
+  const [loading, setLoading] = useState(() => readCachedPortfolioList() === null);
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    listPortfolio().then(setCollections).catch((err) => setError(err instanceof Error ? err.message : "加载失败"));
+    if (readCachedPortfolioList()) {
+      setLoading(false);
+      return;
+    }
+
+    let active = true;
+    fetchPortfolioList()
+      .then((items) => {
+        if (active) setCollections(items);
+      })
+      .catch((err) => {
+        if (active) setError(err instanceof Error ? err.message : "加载失败");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
@@ -28,7 +55,9 @@ export default function Portfolio() {
     setError("");
     try {
       const collection = await createPortfolio(name.trim());
-      setCollections((current) => [collection, ...current]);
+      const nextCollections = [collection, ...collections];
+      setCollections(nextCollections);
+      writeCachedPortfolioList(nextCollections);
       setName("");
       setShowCreate(false);
     } catch (err) {
@@ -89,7 +118,15 @@ export default function Portfolio() {
 
       {error && <p className="mt-5 text-sm text-ink">{error}</p>}
 
-      {collections.length === 0 ? (
+      {loading ? (
+        <div className="portfolio-collection-grid mt-10" aria-hidden="true">
+          <div className="profile-collections-skeleton">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="profile-collections-skeleton__card" />
+            ))}
+          </div>
+        </div>
+      ) : collections.length === 0 ? (
         <div className="portfolio-empty mt-10">
           <img className="portfolio-empty-art" src={photoSvg} alt="" />
           <div>

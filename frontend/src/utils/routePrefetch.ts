@@ -1,4 +1,5 @@
 import { prefetchCommunityFeed } from "./communityFeedPrefetch";
+import { prefetchPortfolioList } from "./portfolioListCache";
 
 const routeLoaders: Record<string, () => Promise<unknown>> = {
   "/login": () => import("../pages/Login"),
@@ -41,6 +42,10 @@ export function prefetchRoute(path: string) {
 
   if (normalized === "/community" || normalized.startsWith("/community")) {
     prefetchCommunityFeed("recommended");
+  }
+
+  if (normalized === "/portfolio" || normalized.startsWith("/portfolio/")) {
+    prefetchPortfolioList();
   }
 
   return promise;
