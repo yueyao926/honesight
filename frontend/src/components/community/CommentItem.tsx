@@ -79,6 +79,8 @@ export default function CommentItem({ comment, replies, onReply, onChanged, onDe
             className="h-9 w-9 rounded-full object-cover"
             src={getAssetUrl(comment.author.avatar_url)}
             alt=""
+            loading="lazy"
+            decoding="async"
           />
         ) : (
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blush text-sm">
@@ -150,6 +152,8 @@ export default function CommentItem({ comment, replies, onReply, onChanged, onDe
                       className="h-8 w-8 shrink-0 rounded-full object-cover"
                       src={getAssetUrl(reply.author.avatar_url)}
                       alt=""
+                      loading="lazy"
+                      decoding="async"
                     />
                   ) : (
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blush text-xs">

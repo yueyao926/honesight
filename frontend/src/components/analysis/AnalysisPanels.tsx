@@ -289,23 +289,23 @@ export function EditingDetailsPanel({
   const hasDetails = hasAnyParams || Boolean(publishingAdvice);
 
   return (
-    <section className="studio-result-section">
+    <section className="studio-result-section studio-details-panel">
       <div className="studio-section-heading">
         <img src={notebookSvg} alt="" aria-hidden="true" className="studio-section-mark" draggable={false} />
-        <p className="section-eyebrow">修图参数与发布建议</p>
+        <p className="section-eyebrow text-ink">修图参数与发布建议</p>
       </div>
-      <h2 className="mt-1 font-display text-2xl font-semibold">后期调整 & 平台发布</h2>
+      <h2 className="mt-1 font-display text-2xl font-semibold text-ink">后期调整 & 平台发布</h2>
 
       {detailsLoading && (
-        <p className="mt-4 text-sm leading-7 text-muted">正在后台生成修图参数与发布建议，请稍候…</p>
+        <p className="mt-4 text-sm leading-7 text-ink">正在后台生成修图参数与发布建议，请稍候…</p>
       )}
 
       {!detailsLoading && !hasDetails && (
         <>
-          <p className="mt-4 text-sm leading-7 text-muted">
+          <p className="mt-4 text-sm leading-7 text-ink">
             四维核心结果已完成；这部分在后台生成，不会阻塞你查看曝光、对焦、构图与色彩建议。
           </p>
-          <button className="btn-secondary mt-5" type="button" onClick={onLoadDetails}>
+          <button className="btn-secondary ink-focus-frame mt-5 text-ink hover:border-ink" type="button" onClick={onLoadDetails}>
             生成详细参数
           </button>
         </>

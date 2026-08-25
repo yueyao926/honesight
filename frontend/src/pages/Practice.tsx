@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   getPracticeOverview,
@@ -6,7 +6,6 @@ import {
   waitForPracticeSessionJob,
   type StartPracticePayload,
 } from "../api/practice";
-import InteractiveCameraPerson from "../components/practice/InteractiveCameraPerson";
 import PracticePlanCard from "../components/practice/PracticePlanCard";
 import PracticeStarter from "../components/practice/PracticeStarter";
 import { formatWeekLabel, getOverviewSessions } from "../components/practice/practiceConstants";
@@ -16,6 +15,8 @@ import StudioProgressBar from "../components/studio/StudioProgressBar";
 import SquigglyText from "../components/ui/SquigglyText";
 import type { PracticeOverview } from "../types";
 import noSvg from "../SVG/no.svg?url";
+
+const InteractiveCameraPerson = lazy(() => import("../components/practice/InteractiveCameraPerson"));
 
 export default function Practice() {
   const navigate = useNavigate();
@@ -119,7 +120,9 @@ export default function Practice() {
             <p className="practice-add-btn-hint mt-1.5 text-center text-xs text-muted">一周最多练习三个</p>
           </div>
         )}
-        <InteractiveCameraPerson className="interactive-camera-person--practice-header absolute hidden shrink-0 md:block" />
+        <Suspense fallback={null}>
+          <InteractiveCameraPerson className="interactive-camera-person--practice-header absolute hidden shrink-0 md:block" />
+        </Suspense>
       </header>
 
       {sessions.length > 0 && (

@@ -831,18 +831,18 @@ export default function AiStudio() {
           {(quickAnalysis || analysis) && photoUrl ? (
             <div className="animate-fade-up">
               {deepLoading && quickAnalysis && !analysis && (
-                <div className="mb-5 flex items-center gap-3 rounded-2xl bg-blush/35 px-4 py-3 text-sm text-brand-deep" role="status">
-                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-brand border-t-transparent" />
+                <div className="mb-5 flex items-center gap-3 rounded-2xl bg-blush/35 px-4 py-3 text-sm text-ink" role="status">
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-ink border-t-transparent" />
                   <span>{analysisStage}</span>
-                  <span className="ml-auto text-xs text-brand-deep/70">四项快速评分已可查看</span>
+                  <span className="ml-auto text-xs text-ink/70">四项快速评分已可查看</span>
                 </div>
               )}
 
               {detailsLoading && analysis && (
-                <div className="mb-5 flex items-center gap-3 rounded-2xl bg-blush/35 px-4 py-3 text-sm text-brand-deep" role="status">
-                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-brand border-t-transparent" />
+                <div className="mb-5 flex items-center gap-3 rounded-2xl bg-blush/35 px-4 py-3 text-sm text-ink" role="status">
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-ink border-t-transparent" />
                   <span>正在后台补充修图参数与发布建议…</span>
-                  <span className="ml-auto text-xs text-brand-deep/70">四维核心结果已可查看</span>
+                  <span className="ml-auto text-xs text-ink/70">四维核心结果已可查看</span>
                 </div>
               )}
 
