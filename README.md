@@ -248,7 +248,7 @@ HoneSight 的核心能力不是“判断照片好坏”，而是基于用户选�
 
 后端统一入口在 `backend/app/services/analyzer.py`。
 
-- API 模式：`vision_analyzer.py` 调用火山方舟 OpenAI-compatible Responses API。
+- API 模式：`vision_analyzer.py` 调用配置好的AI视觉服务。系统遵循 OpenAI-compatible 接口规范，您可自由接入任何满足该规范的模型服务商（例如火山方舟、阿里云百炼、腾讯混元、OpenAI、Anthoropic 等），具体配置见下文环境变量。
 - Mock 模式：没有 API Key、`AI_ANALYSIS_MODE=mock`、图片不可读、API 调用失败或模型返回异常时，自动使用 `mock_analyzer.py`。
 
 Mock 模式也会完整返回 benchmark、风格判断、平台建议、修图参数和聊天回复，因此本地开发不会被第三方 API 阻断。
@@ -258,11 +258,22 @@ Mock 模式也会完整返回 benchmark、风格判断、平台建议、修图�
 在 `backend/.env` 中配置：
 
 ```env
+# 运行模式：api 或 mock
 AI_ANALYSIS_MODE=api
+
+# 服务商 API 密钥（请替换为您实际使用的服务商密钥）
 AI_API_KEY=replace-with-your-own-api-key
+
+# 接口 Base URL（此处为火山方舟示例，您可换为其他服务商地址）
 AI_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+
+# 视觉模型（示例：豆包视觉，您可按需替换为 GPT-4o、Qwen-VL 等）
 AI_MODEL=doubao-seed-1-6-vision-250815
+
+# 轻量级模型（用于简单分类或快速响应，可按需替换）
 AI_FAST_MODEL=doubao-seed-2-0-lite-260215
+
+# 超时控制（秒）
 AI_FAST_TIMEOUT_SECONDS=8
 AI_TIMEOUT_SECONDS=45
 ```
