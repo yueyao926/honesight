@@ -3,7 +3,7 @@ import { NavLink, Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { getAssetUrl } from "../api/client";
 import PageLoader from "./PageLoader";
-import { routePrefetchHandlers } from "../utils/routePrefetch";
+import { prefetchRoute, routePrefetchHandlers } from "../utils/routePrefetch";
 
 function navClass({ isActive }: { isActive: boolean }) {
   return isActive ? "nav-link nav-link-active" : "nav-link";
@@ -30,6 +30,12 @@ export default function Layout() {
       document.documentElement.classList.remove("community-surface");
     };
   }, [isCommunitySurface]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      prefetchRoute("/profile");
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     setMobileMenuOpen(false);
