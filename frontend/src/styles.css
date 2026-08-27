@@ -249,6 +249,11 @@ body,
     max-width: 100%;
     max-height: calc(100dvh - 8.25rem);
     object-fit: contain;
+    transition: filter 0.2s ease;
+  }
+
+  .community-post-detail__image--loading {
+    filter: blur(2px);
   }
 
   .community-post-detail__nav {

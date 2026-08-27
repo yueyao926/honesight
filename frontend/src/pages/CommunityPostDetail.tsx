@@ -18,6 +18,7 @@ import CommentSection from "../components/community/CommentSection";
 import CommunityCameraNotes from "../components/community/CommunityCameraNotes";
 import CommunityPostDetailActions from "../components/community/CommunityPostDetailActions";
 import CommunityBackLink from "../components/community/CommunityBackLink";
+import PostDetailImage from "../components/community/PostDetailImage";
 import OutlineLiftButton from "../components/ui/OutlineLiftButton";
 import { useAuth } from "../contexts/AuthContext";
 import arrow20Svg from "../SVG/arrow-20.svg?url";
@@ -195,10 +196,9 @@ export default function CommunityPostDetail() {
               )}
 
               {currentImage && (
-                <img
+                <PostDetailImage
                   key={currentImage.id ?? activeImage}
-                  className="community-post-detail__image"
-                  src={getAssetUrl(currentImage.image_url)}
+                  image={currentImage}
                   alt={currentImage.alt_text || post.title}
                 />
               )}
