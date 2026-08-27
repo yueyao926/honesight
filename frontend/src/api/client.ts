@@ -201,6 +201,8 @@ export function refreshAuthSession(): Promise<AuthSession> {
 export function getAssetUrl(path: string) {
   if (!path) return "";
   if (path.startsWith("http")) return path;
+  // Static uploads are served directly (nginx /uploads/ with long cache), not via /api proxy.
+  if (path.startsWith("/uploads/")) return path;
   return `${API_BASE_URL}${path}`;
 }
 
