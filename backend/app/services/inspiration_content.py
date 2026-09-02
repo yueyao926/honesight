@@ -9,6 +9,7 @@ from app.services.photo_providers import ProviderPhoto
 
 GENERIC_CAPTION = "光线经过的地方，日常也有了新的轮廓。"
 GENERIC_SUMMARY = "从主体与环境的关系进入画面，感受摄影师如何组织观看。"
+CONTENT_VERSION = 2
 
 
 @dataclass(frozen=True)

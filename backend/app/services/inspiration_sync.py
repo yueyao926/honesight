@@ -1,13 +1,15 @@
 import logging
 from dataclasses import asdict, dataclass
+from datetime import date
 
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.models.inspiration import InspirationPhoto
+from app.models.inspiration import DailyInspirationRecommendation, InspirationPhoto
 from app.services.photo_providers import ProviderPhoto, UnsplashProvider
-from app.services.inspiration_content import GENERIC_CAPTION, GENERIC_SUMMARY, build_content
+from app.services.inspiration_content import CONTENT_VERSION, build_content
 
 
 logger = logging.getLogger(__name__)
@@ -31,6 +33,13 @@ class InspirationSyncResult:
         return {"received": self.received, "created": self.created, "topics": [asdict(item) for item in self.topics]}
 
 
+@dataclass(frozen=True)
+class ContentBackfillResult:
+    pending: int
+    updated: int
+    cleared_recommendations: int
+
+
 def add_provider_photos(db: Session, photos: list[ProviderPhoto]) -> int:
     created = 0
     for data in photos:
@@ -41,6 +50,7 @@ def add_provider_photos(db: Session, photos: list[ProviderPhoto]) -> int:
                     **asdict(data),
                     poetic_caption=content.poetic_caption,
                     appreciation_summary=content.appreciation_summary,
+                    content_version=CONTENT_VERSION,
                 ))
                 db.flush()
             created += 1
@@ -51,17 +61,50 @@ def add_provider_photos(db: Session, photos: list[ProviderPhoto]) -> int:
     return created
 
 
-def backfill_generic_content(db: Session) -> int:
-    photos = list(db.query(InspirationPhoto).filter(
-        (InspirationPhoto.poetic_caption == GENERIC_CAPTION) | (InspirationPhoto.appreciation_summary == GENERIC_SUMMARY)
-    ))
-    for photo in photos:
-        content = build_content(photo)
-        photo.poetic_caption = content.poetic_caption
-        photo.appreciation_summary = content.appreciation_summary
-    if photos:
+def count_outdated_content(db: Session) -> int:
+    return db.scalar(select(func.count()).select_from(InspirationPhoto).where(
+        InspirationPhoto.source_type.in_(("unsplash", "openverse")),
+        InspirationPhoto.content_version < CONTENT_VERSION,
+    )) or 0
+
+
+def backfill_outdated_content(
+    db: Session,
+    *,
+    batch_size: int = 200,
+    reset_date: date | None = None,
+) -> ContentBackfillResult:
+    """Regenerate outdated provider copy in bounded, restart-safe batches."""
+    if batch_size < 1:
+        raise ValueError("batch_size must be at least 1")
+
+    pending = count_outdated_content(db)
+    updated = 0
+    while True:
+        photos = list(db.scalars(select(InspirationPhoto).where(
+            InspirationPhoto.source_type.in_(("unsplash", "openverse")),
+            InspirationPhoto.content_version < CONTENT_VERSION,
+        ).order_by(InspirationPhoto.id).limit(batch_size)))
+        if not photos:
+            break
+        for photo in photos:
+            content = build_content(photo)
+            photo.poetic_caption = content.poetic_caption
+            photo.appreciation_summary = content.appreciation_summary
+            photo.content_version = CONTENT_VERSION
         db.commit()
-    return len(photos)
+        updated += len(photos)
+
+    target_date = reset_date or date.today()
+    result = db.execute(delete(DailyInspirationRecommendation).where(
+        DailyInspirationRecommendation.recommendation_date == target_date
+    ))
+    db.commit()
+    return ContentBackfillResult(
+        pending=pending,
+        updated=updated,
+        cleared_recommendations=result.rowcount or 0,
+    )
 
 
 async def sync_unsplash_topics(db: Session, topics: list[str] | None = None, per_topic: int | None = None) -> InspirationSyncResult:
@@ -70,8 +113,6 @@ async def sync_unsplash_topics(db: Session, topics: list[str] | None = None, per
     selected_count = min(max(per_topic or settings.inspiration_sync_per_topic, 1), 200)
     provider = UnsplashProvider()
     results: list[TopicSyncResult] = []
-    backfill_generic_content(db)
-
     for topic in selected_topics:
         item = TopicSyncResult(topic=topic)
         try:
