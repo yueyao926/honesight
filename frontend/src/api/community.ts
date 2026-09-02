@@ -8,6 +8,7 @@ export type CommunityComment={id:number;content:string;parent_id?:number|null;re
 
 export type FollowingPerson={author:{id:number;username:string;avatar_url?:string|null;signature?:string|null};work_count:number;posts:CommunityPost[]};
 export const getFeed=(kind="recommended",cursor?:number)=>apiRequest<{items:CommunityPost[];next_cursor?:number|null}>(`/community/feed/${kind}${cursor?`?cursor=${cursor}`:""}`);
+export const getUserPosts=(userId:string|number,cursor?:number)=>apiRequest<{items:CommunityPost[];next_cursor?:number|null;total:number}>(`/community/users/${userId}/posts${cursor?`?cursor=${cursor}`:""}`);
 export const getFollowingPeople=()=>apiRequest<{items:FollowingPerson[]}>("/community/following-people");
 export const getPost=(id:number)=>apiRequest<CommunityPost>(`/community/posts/${id}`);
 export const createPost=(data:PostInput)=>apiRequest<CommunityPost>("/community/posts",{method:"POST",body:JSON.stringify(data)});
