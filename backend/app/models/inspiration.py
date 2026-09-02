@@ -17,6 +17,7 @@ class InspirationPhoto(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     poetic_caption: Mapped[str] = mapped_column(Text, default="在光影停驻的地方，重新学习观看。")
     appreciation_summary: Mapped[str] = mapped_column(Text, default="留意画面中的秩序、节奏与情绪。")
+    content_version: Mapped[int] = mapped_column(Integer, default=2)
     composition_analysis: Mapped[str] = mapped_column(Text, default="观察主体、留白与视觉动线的关系。")
     light_analysis: Mapped[str] = mapped_column(Text, default="感受光线方向如何塑造空间层次。")
     color_analysis: Mapped[str] = mapped_column(Text, default="比较主色、辅色与明暗之间的平衡。")

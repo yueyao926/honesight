@@ -333,6 +333,15 @@ cd backend
 alembic upgrade head
 ```
 
+升级摄影灵感文案规则后，先预览需要回填的外部图库记录，再显式执行回填：
+
+```bash
+python -m app.scripts.backfill_inspiration_content --dry-run
+python -m app.scripts.backfill_inspiration_content --batch-size 200
+```
+
+回填命令只更新旧版本的 Unsplash 和 Openverse 文案，不修改社区投稿；完成后会清除当天推荐缓存，使下一次首页请求按新版规则重新生成推荐理由。命令按版本执行，可安全重复运行。
+
 使用 `INSPIRATION_ADMIN_EMAILS` 中的账号登录，在 Swagger (`/docs`) 为请求填写 Bearer Token 后调用：
 
 - `POST /inspirations/admin/sync/unsplash`：同步 Unsplash，来源信息完整的作品直接合规入池。
