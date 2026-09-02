@@ -1,7 +1,7 @@
 # HoneSight 技术文档
 
 > 文档版本：2026-08-25  
-> 代码仓库：[yueyao926/lenscoach](https://github.com/yueyao926/lenscoach)  
+> 代码仓库：[yueyao926/honesight](https://github.com/yueyao926/honesight)  
 > 演示环境：[http://101.43.72.205](http://101.43.72.205)
 
 ## 1. 项目概述
