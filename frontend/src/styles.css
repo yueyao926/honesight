@@ -941,6 +941,16 @@ body,
     margin-bottom: 3.25rem;
   }
 
+  .profile-page .profile-empty-illustration--film {
+    height: clamp(7rem, 18vw, 9rem);
+    margin-top: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .profile-page .profile-posts .community-wall-end {
+    margin-bottom: 0;
+  }
+
   .profile-page .profile-empty .cta {
     margin-right: 10px;
     color: #1a1a1a;

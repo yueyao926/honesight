@@ -1,9 +1,10 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { getAssetUrl } from "../api/client";
 import { getFavoriteInspirations, unfavoriteInspiration } from "../api/inspirations";
 import { getMyPreferences, updateMyPreferences } from "../api/preferences";
 import { createConversation } from "../api/messages";
+import { getUserPosts, type CommunityPost } from "../api/community";
 import { fetchPortfolioList } from "../utils/portfolioListCache";
 import {
   followUser,
@@ -25,20 +26,23 @@ import ProfileFavoriteFolderCard from "../components/profile/ProfileFavoriteFold
 import ProfileHero, { parsePersonalityTags } from "../components/profile/ProfileHero";
 import ProfileTabNav from "../components/profile/ProfileTabNav";
 import ProfileWorkGrid from "../components/profile/ProfileWorkGrid";
+import CommunityFeed from "../components/community/CommunityFeed";
 import OutlineLiftButton from "../components/ui/OutlineLiftButton";
 import { useAuth } from "../contexts/AuthContext";
 import PageLoader from "../components/PageLoader";
 import arrow28Svg from "../SVG/arrow-28.svg?url";
 import computerSvg from "../SVG/电脑.svg?url";
 import hangerSvg from "../SVG/衣架.svg?url";
+import filmRollSvg from "../SVG/胶卷.svg?url";
 import type { Inspiration, PortfolioCollection, PortfolioPhoto, Preference, Profile as ProfileType } from "../types";
 
-type Tab = "works" | "favorites" | "following" | "followers" | "preferences";
+type Tab = "works" | "posts" | "favorites" | "following" | "followers" | "preferences";
 
 const privateTabs: Tab[] = ["favorites", "preferences"];
 
 const tabNames: Record<Tab, string> = {
   works: "作品集",
+  posts: "帖子",
   favorites: "收藏",
   following: "关注",
   followers: "粉丝",
@@ -55,6 +59,10 @@ export default function Profile() {
   const [profile, setProfile] = useState<ProfileType | null>(null);
   const [collections, setCollections] = useState<PortfolioCollection[]>([]);
   const [works, setWorks] = useState<PortfolioPhoto[]>([]);
+  const [posts, setPosts] = useState<CommunityPost[]>([]);
+  const [postCount, setPostCount] = useState<number>();
+  const [postsCursor, setPostsCursor] = useState<number | null | undefined>();
+  const [postsLoading, setPostsLoading] = useState(false);
   const [people, setPeople] = useState<ProfileType[]>([]);
   const [preference, setPreference] = useState<Preference | null>(null);
   const [inspirationFavorites, setInspirationFavorites] = useState<Inspiration[]>([]);
@@ -116,6 +124,14 @@ export default function Profile() {
     if (!profile) return;
     (async () => {
       try {
+        if (tab === "posts") {
+          setError("");
+          setPostsLoading(true);
+          const result = await getUserPosts(profile.id);
+          setPosts(result.items);
+          setPostsCursor(result.next_cursor);
+          setPostCount(result.total);
+        }
         if (tab === "favorites" && own) {
           const [savedWorks, savedInspirations] = await Promise.all([getFavorites(), getFavoriteInspirations()]);
           setWorks(savedWorks);
@@ -127,9 +143,32 @@ export default function Profile() {
         if (tab === "preferences" && own) setPreference(await getMyPreferences().catch(() => null));
       } catch (e) {
         setError(e instanceof Error ? e.message : "加载失败");
+      } finally {
+        if (tab === "posts") setPostsLoading(false);
       }
     })();
   }, [tab, profile?.id]);
+
+  const loadMorePosts = useCallback(async () => {
+    if (!profile || !postsCursor || postsLoading) return;
+    setPostsLoading(true);
+    try {
+      const result = await getUserPosts(profile.id, postsCursor);
+      setPosts((current) => [
+        ...current,
+        ...result.items.filter((post) => !current.some((item) => item.id === post.id)),
+      ]);
+      setPostsCursor(result.next_cursor);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "帖子加载失败");
+    } finally {
+      setPostsLoading(false);
+    }
+  }, [profile?.id, postsCursor, postsLoading]);
+
+  const updateCommunityPost = useCallback((next: CommunityPost) => {
+    setPosts((current) => current.map((post) => (post.id === next.id ? next : post)));
+  }, []);
 
   const flash = (message: string) => {
     setToast(message);
@@ -223,6 +262,7 @@ export default function Profile() {
         tabNames={tabNames}
         tabCounts={{
           works: profile.collection_count ?? 0,
+          posts: postCount,
           favorites: profile.favorite_count ?? 0,
           following: profile.following_count,
           followers: profile.follower_count,
@@ -250,6 +290,40 @@ export default function Profile() {
               {own && (
                 <Link className="cta mt-5 inline-block" to="/portfolio">
                   创建作品集
+                </Link>
+              )}
+            </div>
+          )}
+        </section>
+      )}
+
+      {tab === "posts" && (
+        <section className="profile-tab-panel profile-posts">
+          {error && <p className="mb-5 rounded-2xl bg-red-50 p-4 text-sm text-ink">{error}</p>}
+          {posts.length || postsLoading ? (
+            <CommunityFeed
+              posts={posts}
+              loading={postsLoading}
+              cursor={postsCursor}
+              onLoadMore={loadMorePosts}
+              onPostChange={updateCommunityPost}
+            />
+          ) : (
+            <div className="profile-empty">
+              <img
+                src={filmRollSvg}
+                alt=""
+                aria-hidden="true"
+                draggable={false}
+                className="profile-empty-illustration profile-empty-illustration--film"
+              />
+              <h2 className="text-xl">这里还没有帖子</h2>
+              <p className="mt-2 text-sm text-muted">
+                {own ? "去社区分享你的第一篇帖子吧。" : "暂时没有可展示的帖子。"}
+              </p>
+              {own && (
+                <Link className="cta mt-5 inline-block" to="/community/post/create">
+                  发布帖子
                 </Link>
               )}
             </div>

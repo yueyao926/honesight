@@ -6,6 +6,7 @@ Revises: 0017_email_verification
 from collections.abc import Sequence
 
 from alembic import op
+import sqlalchemy as sa
 
 
 revision: str = "0018_mark_existing_users_verified"
@@ -15,6 +16,15 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    # This revision identifier is longer than Alembic's default VARCHAR(32).
+    # Widen the marker column before Alembic records this migration as current.
+    op.alter_column(
+        "alembic_version",
+        "version_num",
+        existing_type=sa.String(length=32),
+        type_=sa.String(length=64),
+        existing_nullable=False,
+    )
     # Accounts created before email verification shipped were never asked to
     # verify. Trust them by default so hard verification doesn't lock them out.
     op.execute("UPDATE users SET email_verified = true WHERE email_verified = false")

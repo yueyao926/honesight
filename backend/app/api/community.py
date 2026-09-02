@@ -92,6 +92,28 @@ def feed(kind:str,limit:int=Query(20,ge=1,le=50),cursor:int|None=None,tag:str|No
     rows=db.scalars(q.order_by(order,CommunityPost.id.desc()).limit(limit+1)).unique().all(); items=rows[:limit]
     return {"items":[post_dict(p,viewer,db) for p in items],"next_cursor":items[-1].id if len(rows)>limit else None}
 
+@router.get("/users/{user_id}/posts")
+def user_posts(user_id:int,limit:int=Query(20,ge=1,le=50),cursor:int|None=None,viewer:User|None=Depends(get_optional_user),db:Session=Depends(get_db)):
+    author=db.scalar(select(User).where(User.id==user_id,User.is_deleted.is_(False)))
+    if not author:
+        raise HTTPException(404,"用户不存在")
+    q=select(CommunityPost).options(selectinload(CommunityPost.images),selectinload(CommunityPost.tags),selectinload(CommunityPost.author)).where(
+        CommunityPost.author_id==user_id,
+        CommunityPost.status=="published",
+        CommunityPost.deleted_at.is_(None),
+    )
+    if not viewer or viewer.id!=user_id:
+        if viewer and blocked(db,viewer.id,user_id):
+            return {"items":[],"next_cursor":None,"total":0}
+        follows=bool(viewer and db.scalar(select(UserFollow.id).where(UserFollow.follower_id==viewer.id,UserFollow.following_id==user_id)))
+        q=q.where(CommunityPost.visibility.in_(["public","followers"] if follows else ["public"]))
+    total=db.scalar(select(func.count()).select_from(q.subquery())) or 0
+    if cursor:
+        q=q.where(CommunityPost.id<cursor)
+    rows=db.scalars(q.order_by(CommunityPost.published_at.desc(),CommunityPost.id.desc()).limit(limit+1)).unique().all()
+    items=rows[:limit]
+    return {"items":[post_dict(post,viewer,db) for post in items],"next_cursor":items[-1].id if len(rows)>limit else None,"total":total}
+
 @router.get("/following-people")
 def following_people(works_limit:int=Query(4,ge=1,le=8),user:User=Depends(get_current_user),db:Session=Depends(get_db)):
     follows=db.scalars(select(UserFollow).where(UserFollow.follower_id==user.id).order_by(UserFollow.created_at.desc())).all()
