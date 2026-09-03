@@ -3697,11 +3697,14 @@ body,
     border: none;
   }
 
-  /* 单线框：紧凑尺寸，字与线仍留一点空隙 */
+  /* 单线框：统一最小宽高，短文案（如「登录」）也与四字按钮同框并居中 */
   .home-drawn-btn--box1 {
-    min-height: 2rem;
-    padding-inline: 0.85rem 0.95rem;
-    padding-block: 0.32rem;
+    min-width: 6.15rem;
+    min-height: 1.85rem;
+    padding-inline: 0.7rem 0.8rem;
+    padding-block: 0.26rem;
+    justify-content: center;
+    text-align: center;
   }
 
   .home-drawn-btn--box1 .home-drawn-btn-label {
@@ -3709,10 +3712,10 @@ body,
   }
 
   .home-drawn-btn--box1 .home-drawn-btn-border {
-    top: -0.36rem;
-    right: -0.04rem;
-    bottom: 0.44rem;
-    left: -0.04rem;
+    top: -0.32rem;
+    right: -0.02rem;
+    bottom: 0.4rem;
+    left: -0.02rem;
     width: auto;
     height: auto;
     max-width: none;
@@ -3721,16 +3724,17 @@ body,
 
   @media (min-width: 640px) {
     .home-drawn-btn--box1 {
-      min-height: 2.15rem;
-      padding-inline: 0.95rem 1.05rem;
-      padding-block: 0.36rem;
+      min-width: 6.85rem;
+      min-height: 2rem;
+      padding-inline: 0.8rem 0.9rem;
+      padding-block: 0.3rem;
     }
 
     .home-drawn-btn--box1 .home-drawn-btn-border {
-      top: -0.38rem;
-      right: -0.06rem;
-      bottom: 0.46rem;
-      left: -0.06rem;
+      top: -0.34rem;
+      right: -0.04rem;
+      bottom: 0.42rem;
+      left: -0.04rem;
     }
   }
 
