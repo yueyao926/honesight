@@ -15,3 +15,7 @@ dist/
 .DS_Store
 .idea/
 .vscode/
+
+# Docker image archives
+*.tar
+*.tar.gz
