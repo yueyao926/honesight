@@ -57,8 +57,19 @@ body,
 }
 
 @layer components {
-  .inspiration-image { @apply block min-h-[220px] w-full overflow-hidden bg-ink text-left sm:min-h-[260px] md:min-h-0 md:h-full; }
-  .inspiration-image img { @apply h-full w-full object-cover transition duration-500 hover:scale-[1.01]; }
+  .inspiration-image { @apply relative block min-h-[220px] w-full overflow-hidden bg-ink text-left sm:min-h-[260px] md:min-h-0 md:h-full; }
+  .inspiration-image-artwork { @apply relative z-10 block h-full w-full; }
+  .inspiration-image-backdrop {
+    @apply pointer-events-none absolute inset-0 h-full w-full object-cover;
+    filter: blur(22px) saturate(0.82);
+    opacity: 0.62;
+    transform: scale(1.12);
+  }
+  .inspiration-image--portrait::after {
+    content: "";
+    @apply pointer-events-none absolute inset-0 z-[1];
+    background: rgba(39, 37, 34, 0.18);
+  }
   .inspiration-copy { @apply flex min-h-0 flex-col justify-center bg-cream p-3 text-ink sm:p-4 md:p-5; }
   .carousel-arrow { @apply absolute top-1/2 z-20 flex h-14 w-14 -translate-y-1/2 items-center justify-center transition hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40; }
   .carousel-arrow-icon { @apply h-12 w-12 object-contain sm:h-14 sm:w-14; }

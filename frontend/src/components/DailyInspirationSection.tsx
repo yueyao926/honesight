@@ -103,6 +103,11 @@ function InspirationArtwork({
   );
 }
 
+function isPortraitPhoto(photo: Inspiration) {
+  if (photo.width && photo.height) return photo.height > photo.width;
+  return photo.orientation?.toLowerCase() === "portrait";
+}
+
 export default function DailyInspirationSection({ embedded = false }: { embedded?: boolean }) {
   const { isAuthenticated } = useAuth();
   const [items, setItems] = useState<Inspiration[]>([]);
@@ -214,6 +219,7 @@ export default function DailyInspirationSection({ embedded = false }: { embedded
   }
 
   const current = items[index];
+  const currentIsPortrait = isPortraitPhoto(current);
 
   return (
     <>
@@ -256,8 +262,27 @@ export default function DailyInspirationSection({ embedded = false }: { embedded
             <div className="daily-inspiration-stage-inner">
               <div className="daily-inspiration-stage-content">
                 <div className="daily-inspiration-stage-panel">
-                  <button className="inspiration-image" type="button" onClick={() => setDetail(current)} aria-label={`查看${current.title}大图与摄影赏析`}>
-                    <InspirationArtwork key={current.id} photo={current} className="h-full w-full object-cover transition duration-500 hover:scale-[1.01]" eager={index === 0} />
+                  <button
+                    className={`inspiration-image${currentIsPortrait ? " inspiration-image--portrait" : ""}`}
+                    type="button"
+                    onClick={() => setDetail(current)}
+                    aria-label={`查看${current.title}大图与摄影赏析`}
+                  >
+                    {currentIsPortrait ? (
+                      <img
+                        src={getAssetUrl(current.thumbnail_url || current.image_url)}
+                        alt=""
+                        aria-hidden="true"
+                        draggable={false}
+                        className="inspiration-image-backdrop"
+                      />
+                    ) : null}
+                    <InspirationArtwork
+                      key={current.id}
+                      photo={current}
+                      className={`inspiration-image-artwork h-full w-full transition duration-500 hover:scale-[1.01] ${currentIsPortrait ? "object-contain" : "object-cover"}`}
+                      eager={index === 0}
+                    />
                   </button>
                   <div className="inspiration-copy">
                     <p className="daily-inspiration-quote">“{current.poetic_caption}”</p>
