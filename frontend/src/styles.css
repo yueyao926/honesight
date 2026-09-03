@@ -3682,11 +3682,13 @@ body,
   .home-drawn-btn-group {
     @apply flex flex-wrap items-center;
     gap: 0.75rem;
+    overflow: visible;
   }
 
   .home-drawn-btn {
-    @apply relative inline-flex shrink-0 items-center justify-center overflow-hidden text-base text-ink no-underline transition hover:opacity-75 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose/50 sm:text-lg;
+    @apply relative inline-flex shrink-0 items-center justify-center text-base text-ink no-underline transition hover:opacity-75 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose/50 sm:text-lg;
     width: fit-content;
+    overflow: visible;
     font-family: inherit;
     font-weight: inherit;
     letter-spacing: inherit;
@@ -3695,16 +3697,40 @@ body,
     border: none;
   }
 
+  /* 单线框：紧凑尺寸，字与线仍留一点空隙 */
   .home-drawn-btn--box1 {
-    min-height: 2.35rem;
-    padding-inline: 2.05rem 2.15rem;
-    padding-block: 0.5rem;
+    min-height: 2rem;
+    padding-inline: 0.85rem 0.95rem;
+    padding-block: 0.32rem;
+  }
+
+  .home-drawn-btn--box1 .home-drawn-btn-label {
+    transform: translateY(0.06em);
+  }
+
+  .home-drawn-btn--box1 .home-drawn-btn-border {
+    top: -0.36rem;
+    right: -0.04rem;
+    bottom: 0.44rem;
+    left: -0.04rem;
+    width: auto;
+    height: auto;
+    max-width: none;
+    overflow: visible;
   }
 
   @media (min-width: 640px) {
     .home-drawn-btn--box1 {
-      padding-inline: 2.3rem 2.4rem;
-      padding-block: 0.55rem;
+      min-height: 2.15rem;
+      padding-inline: 0.95rem 1.05rem;
+      padding-block: 0.36rem;
+    }
+
+    .home-drawn-btn--box1 .home-drawn-btn-border {
+      top: -0.38rem;
+      right: -0.06rem;
+      bottom: 0.46rem;
+      left: -0.06rem;
     }
   }
 
