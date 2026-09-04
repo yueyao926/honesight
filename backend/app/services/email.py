@@ -61,6 +61,20 @@ def send_verification_email(to_email: str, link: str) -> None:
     send_email(to_email=to_email, subject=subject, html_body=html_body)
 
 
+def send_verified_account_email(to_email: str, frontend_base_url: str) -> None:
+    base_url = frontend_base_url.rstrip("/")
+    login_link = f"{base_url}/login"
+    reset_link = f"{base_url}/forgot-password"
+    subject = "你的 HoneSight 邮箱已完成验证 / Email already verified"
+    html_body = (
+        "<p>你好，这个邮箱对应的 HoneSight 账号已经完成验证，无需再次验证。</p>"
+        f'<p><a href="{login_link}">直接登录</a></p>'
+        f'<p>如果忘记了密码，请前往 <a href="{reset_link}">找回密码</a>。</p>'
+        "<p>如果不是你本人操作，请忽略此邮件。</p>"
+    )
+    send_email(to_email=to_email, subject=subject, html_body=html_body)
+
+
 def send_password_reset_email(to_email: str, link: str) -> None:
     subject = "重置你的 HoneSight 密码 / Reset your password"
     html_body = (

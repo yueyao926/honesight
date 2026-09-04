@@ -2,6 +2,7 @@ from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 import hmac
 import logging
+import math
 import uuid
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
@@ -35,7 +36,7 @@ from app.schemas.user import (
     UserRead,
     VerifyEmailRequest,
 )
-from app.services.email import send_password_reset_email, send_verification_email
+from app.services.email import send_password_reset_email, send_verification_email, send_verified_account_email
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -86,6 +87,8 @@ def _require_session_header(value: str | None) -> None:
 
 EMAIL_VERIFICATION_PURPOSE = "email_verification"
 PASSWORD_RESET_PURPOSE = "password_reset"
+ACCOUNT_STATUS_PURPOSE = "account_status_notice"
+EMAIL_SEND_COOLDOWN_SECONDS = 60
 
 
 def _frontend_link(path: str, token: str) -> str:
@@ -94,16 +97,60 @@ def _frontend_link(path: str, token: str) -> str:
 
 
 def _issue_email_token(db: Session, user: User, purpose: str, expire_minutes: int) -> str:
+    now = _utc_now()
+    db.execute(
+        update(EmailToken)
+        .where(
+            EmailToken.user_id == user.id,
+            EmailToken.purpose == purpose,
+            EmailToken.used_at.is_(None),
+        )
+        .values(used_at=now)
+    )
     token = generate_token()
     db.add(
         EmailToken(
             user_id=user.id,
             purpose=purpose,
             token_hash=hash_token(token),
-            expires_at=_utc_now() + timedelta(minutes=expire_minutes),
+            expires_at=now + timedelta(minutes=expire_minutes),
         )
     )
     return token
+
+
+def _email_cooldown_remaining(db: Session, user: User, purpose: str) -> int:
+    latest_created_at = db.scalar(
+        select(EmailToken.created_at)
+        .where(EmailToken.user_id == user.id, EmailToken.purpose == purpose)
+        .order_by(EmailToken.created_at.desc(), EmailToken.id.desc())
+        .limit(1)
+    )
+    if latest_created_at is None:
+        return 0
+    elapsed = (_utc_now() - _as_utc(latest_created_at)).total_seconds()
+    return max(0, math.ceil(EMAIL_SEND_COOLDOWN_SECONDS - elapsed))
+
+
+def _enforce_email_cooldown(db: Session, user: User, purpose: str) -> None:
+    remaining = _email_cooldown_remaining(db, user, purpose)
+    if remaining > 0:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"请求过于频繁，请 {remaining} 秒后重试",
+        )
+
+
+def _consume_all_email_tokens(db: Session, email_token: EmailToken) -> None:
+    db.execute(
+        update(EmailToken)
+        .where(
+            EmailToken.user_id == email_token.user_id,
+            EmailToken.purpose == email_token.purpose,
+            EmailToken.used_at.is_(None),
+        )
+        .values(used_at=_utc_now())
+    )
 
 
 def _deliver_account_email(
@@ -161,15 +208,26 @@ def register(
     payload: UserCreate,
     db: Session = Depends(get_db),
 ) -> User:
-    existing = db.scalar(select(User).where(User.email == payload.email.lower()))
+    existing = db.scalar(select(User).where(User.email == payload.email.lower()).with_for_update())
+    if existing and existing.email_verified:
+        raise HTTPException(
+            status_code=400,
+            detail="该邮箱已注册并完成验证，请直接登录；如忘记密码，请找回密码",
+        )
+    recovering_unverified_account = existing is not None
     if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    user = User(
-        username=payload.username.strip(),
-        email=payload.email.lower(),
-        hashed_password=get_password_hash(payload.password),
-    )
-    db.add(user)
+        # Never replace credentials based only on knowledge of an email address.
+        # Recovery proves mailbox ownership first; password reset remains the
+        # safe path when the original password is no longer known.
+        user = existing
+        _enforce_email_cooldown(db, user, EMAIL_VERIFICATION_PURPOSE)
+    else:
+        user = User(
+            username=payload.username.strip(),
+            email=payload.email.lower(),
+            hashed_password=get_password_hash(payload.password),
+        )
+        db.add(user)
     db.flush()
     settings = get_settings()
     token = _issue_email_token(db, user, EMAIL_VERIFICATION_PURPOSE, settings.email_verification_expire_minutes)
@@ -180,6 +238,14 @@ def register(
         link=_frontend_link("verify-email", token),
     )
     db.commit()
+    if recovering_unverified_account:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "该邮箱已有未验证账号，新的验证邮件已发送；"
+                "验证后请使用第一次注册的密码登录，如忘记密码请使用找回密码"
+            ),
+        )
     db.refresh(user)
     return user
 
@@ -316,7 +382,7 @@ def verify_email(payload: VerifyEmailRequest, db: Session = Depends(get_db)) -> 
     if not user:
         raise HTTPException(status_code=400, detail="用户不存在")
     user.email_verified = True
-    email_token.used_at = _utc_now()
+    _consume_all_email_tokens(db, email_token)
     db.commit()
     return {"detail": "邮箱验证成功"}
 
@@ -326,18 +392,31 @@ def resend_verification(
     payload: ResendVerificationRequest,
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
-    user = db.scalar(select(User).where(User.email == payload.email.lower()))
-    if user and not user.email_verified:
+    user = db.scalar(select(User).where(User.email == payload.email.lower()).with_for_update())
+    if user:
         settings = get_settings()
-        token = _issue_email_token(db, user, EMAIL_VERIFICATION_PURPOSE, settings.email_verification_expire_minutes)
-        _deliver_account_email(
-            db,
-            sender=send_verification_email,
-            to_email=user.email,
-            link=_frontend_link("verify-email", token),
-        )
+        if user.email_verified:
+            if _email_cooldown_remaining(db, user, ACCOUNT_STATUS_PURPOSE):
+                return {"detail": "如果该邮箱存在，我们已发送验证邮件或账号状态说明"}
+            _issue_email_token(db, user, ACCOUNT_STATUS_PURPOSE, 1)
+            _deliver_account_email(
+                db,
+                sender=send_verified_account_email,
+                to_email=user.email,
+                link=settings.frontend_base_url,
+            )
+        else:
+            if _email_cooldown_remaining(db, user, EMAIL_VERIFICATION_PURPOSE):
+                return {"detail": "如果该邮箱存在，我们已发送验证邮件或账号状态说明"}
+            token = _issue_email_token(db, user, EMAIL_VERIFICATION_PURPOSE, settings.email_verification_expire_minutes)
+            _deliver_account_email(
+                db,
+                sender=send_verification_email,
+                to_email=user.email,
+                link=_frontend_link("verify-email", token),
+            )
         db.commit()
-    return {"detail": "如果该邮箱尚未验证，我们已重新发送验证邮件"}
+    return {"detail": "如果该邮箱存在，我们已发送验证邮件或账号状态说明"}
 
 
 @router.post("/password-reset/request")
@@ -345,9 +424,11 @@ def request_password_reset(
     payload: PasswordResetRequest,
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
-    user = db.scalar(select(User).where(User.email == payload.email.lower()))
+    user = db.scalar(select(User).where(User.email == payload.email.lower()).with_for_update())
     if user:
         settings = get_settings()
+        if _email_cooldown_remaining(db, user, PASSWORD_RESET_PURPOSE):
+            return {"detail": "如果该邮箱已注册，我们已发送密码重置链接"}
         token = _issue_email_token(db, user, PASSWORD_RESET_PURPOSE, settings.password_reset_expire_minutes)
         _deliver_account_email(
             db,
@@ -368,7 +449,7 @@ def confirm_password_reset(payload: PasswordResetConfirm, db: Session = Depends(
     if not user:
         raise HTTPException(status_code=400, detail="用户不存在")
     user.hashed_password = get_password_hash(payload.new_password)
-    email_token.used_at = _utc_now()
+    _consume_all_email_tokens(db, email_token)
     now = _utc_now()
     db.execute(
         update(AuthSession)
