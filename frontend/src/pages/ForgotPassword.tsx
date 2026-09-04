@@ -31,7 +31,8 @@ export default function ForgotPassword() {
         <h1 className="mt-2 font-display text-4xl font-semibold">找回密码</h1>
         {sent ? (
           <p className="mt-8 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700">
-            如果该邮箱已注册，我们已发送密码重置链接，请查收邮件。
+            如果该邮箱已注册，我们会发送密码重置链接。为避免重复邮件，同一邮箱 60 秒内只发送一次；
+            若刚操作过，请等待一分钟再试，并检查垃圾邮件。
           </p>
         ) : (
           <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
