@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import mimetypes
 from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI, Request
@@ -18,6 +19,16 @@ settings = get_settings()
 settings.upload_path.mkdir(parents=True, exist_ok=True)
 logger = logging.getLogger("uvicorn.error")
 
+# Python's minimal Linux images do not always register WebP. Starlette's
+# StaticFiles then serves generated/uploaded photos as text/plain, which some
+# browsers refuse to render as images.
+def register_image_mime_types() -> None:
+    mimetypes.add_type("image/webp", ".webp", strict=True)
+    mimetypes.add_type("image/webp", ".webp", strict=False)
+
+
+register_image_mime_types()
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     get_settings.cache_clear()
@@ -27,6 +38,12 @@ async def lifespan(_app: FastAPI):
         runtime.ai_analysis_mode,
         runtime.resolved_ai_model,
         runtime.ai_analysis_enabled,
+    )
+    logger.info(
+        "Image generation model=%s enabled=%s configured=%s",
+        runtime.image_model,
+        runtime.image_generation_enabled,
+        bool(runtime.resolved_image_api_key),
     )
     analyze.fail_stale_analysis_jobs()
     inspiration_sync_task = asyncio.create_task(run_inspiration_sync_loop())
@@ -75,10 +92,13 @@ app.include_router(search.router)
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
+def health() -> dict[str, str | bool]:
     runtime = get_settings()
     return {
         "status": "ok",
         "ai_analysis_mode": runtime.ai_analysis_mode,
         "ai_model": runtime.resolved_ai_model,
+        "image_generation_enabled": runtime.image_generation_enabled,
+        "image_generation_configured": bool(runtime.resolved_image_api_key),
+        "image_model": runtime.image_model,
     }

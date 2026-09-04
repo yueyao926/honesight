@@ -65,6 +65,8 @@ const targetPlatforms = [
   "商业约拍",
 ];
 const steps = ["上传照片", "设置目标", "查看建议"];
+const ANALYSIS_GUIDANCE_MAX_LENGTH = 8000;
+const EDIT_INSTRUCTION_MAX_LENGTH = 600;
 
 type SaveCandidate = {
   imageUrl: string;
@@ -90,6 +92,21 @@ function scrollToStep(ref: RefObject<HTMLElement>) {
       ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   });
+}
+
+function joinLatestInstructions(instructions: string[], maxLength: number): string {
+  const selected: string[] = [];
+  let remaining = maxLength;
+  for (let index = instructions.length - 1; index >= 0 && remaining > 0; index -= 1) {
+    const separatorLength = selected.length ? 1 : 0;
+    const available = remaining - separatorLength;
+    if (available <= 0) break;
+    const instruction = instructions[index].trim();
+    if (!instruction) continue;
+    selected.unshift(instruction.length <= available ? instruction : instruction.slice(-available));
+    remaining -= Math.min(instruction.length, available) + separatorLength;
+  }
+  return selected.join("；");
 }
 
 function StepSection({
@@ -131,6 +148,7 @@ export default function AiStudio() {
   const [saveSuccess, setSaveSuccess] = useState("");
   const [saveError, setSaveError] = useState("");
   const [error, setError] = useState("");
+  const [generationError, setGenerationError] = useState("");
   const [loading, setLoading] = useState(false);
   const [deepLoading, setDeepLoading] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(false);
@@ -182,6 +200,7 @@ export default function AiStudio() {
     cancelAnalysis();
     setPhotoUrl(url);
     setError("");
+    setGenerationError("");
     if (!url) {
       setStep(1);
       setAnalysis(null);
@@ -225,6 +244,7 @@ export default function AiStudio() {
     setRefinementInstructions([]);
     setEditInstruction("");
     setError("");
+    setGenerationError("");
   }
 
   async function handleAnalyze() {
@@ -269,7 +289,7 @@ export default function AiStudio() {
               completed: current.cache_hit ? "已找到相同照片的快速评分" : "四项快速评分完成",
             };
             setAnalysisStage(labels[current.stage] || "正在快速分析…");
-          }, { maxWaitMs: 25_000 });
+          }, { maxWaitMs: 60_000 });
           if (requestId !== analysisRequestIdRef.current) return null;
           setQuickAnalysis(quick);
           setSaveSuccess("");
@@ -299,7 +319,7 @@ export default function AiStudio() {
               completed: current.cache_hit ? "已读取详细分析" : "详细分析完成",
             };
             setAnalysisStage(labels[current.stage] || "正在补充详细分析…");
-          }, { maxWaitMs: 90_000 });
+          }, { maxWaitMs: 330_000 });
           if (requestId !== analysisRequestIdRef.current) return null;
           setAnalysis(data);
           showResultStep();
@@ -353,7 +373,7 @@ export default function AiStudio() {
           next_step: coreAnalysis.next_step,
         }),
       }, controller.signal);
-      const details = await waitForAnalysisJob(job, controller.signal, () => undefined, { maxWaitMs: 25_000 });
+      const details = await waitForAnalysisJob(job, controller.signal, () => undefined, { maxWaitMs: 60_000 });
       if (requestId !== analysisRequestIdRef.current) return;
       setAnalysis((current) => current ? {
         ...current,
@@ -455,27 +475,33 @@ export default function AiStudio() {
     const currentInstruction = editInstruction.trim();
     if (generatedImages.length > 0 && !currentInstruction) return;
     setGeneratingImage(true);
-    setError("");
+    setGenerationError("");
     try {
+      const analysisGuidance = [
+        analysis?.summary,
+        analysis?.composition_advice,
+        analysis?.lighting_advice,
+        analysis?.color_advice,
+        analysis?.editing_params
+          ? `Editing parameters: ${JSON.stringify(analysis.editing_params)}`
+          : "",
+        analysis?.platform_suggestions
+          ? `Platform suggestions: ${JSON.stringify(analysis.platform_suggestions)}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n")
+        .slice(0, ANALYSIS_GUIDANCE_MAX_LENGTH);
+      const combinedInstruction = joinLatestInstructions(
+        [...refinementInstructions, currentInstruction],
+        EDIT_INSTRUCTION_MAX_LENGTH,
+      );
       const result = await generateProcessedImage({
         image_url: photoUrl,
         target_style: targetStyle,
         target_platform: targetPlatform,
-        analysis_guidance: [
-          analysis?.summary,
-          analysis?.composition_advice,
-          analysis?.lighting_advice,
-          analysis?.color_advice,
-          analysis?.editing_params
-            ? `Editing parameters: ${JSON.stringify(analysis.editing_params)}`
-            : "",
-          analysis?.platform_suggestions
-            ? `Platform suggestions: ${JSON.stringify(analysis.platform_suggestions)}`
-            : "",
-        ]
-          .filter(Boolean)
-          .join("\n"),
-        edit_instruction: [...refinementInstructions, currentInstruction].filter(Boolean).join("；") || undefined,
+        analysis_guidance: analysisGuidance,
+        edit_instruction: combinedInstruction || undefined,
         reference_image_urls: styleRefs,
       });
       setGeneratedImages((current) => [...current, { imageUrl: result.image_url, thumbnailUrl: result.thumbnail_url, editingStrategy: result.editing_strategy }]);
@@ -485,7 +511,7 @@ export default function AiStudio() {
       }
       setEditInstruction("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "图片生成失败，请稍后重试");
+      setGenerationError(err instanceof Error ? err.message : "图片生成失败，请稍后重试");
     } finally {
       setGeneratingImage(false);
     }
@@ -507,6 +533,7 @@ export default function AiStudio() {
     setSaveError("");
     setImprovedPhotoUrl(null);
     setError("");
+    setGenerationError("");
     scrollToStep(stepOneRef);
   }
 
@@ -698,6 +725,9 @@ export default function AiStudio() {
         </button>
         {generatedImages.length > 0 && !editInstruction.trim() && (
           <p className="mt-2 text-xs text-ink/70">写下新的修改要求后即可继续精修。</p>
+        )}
+        {generationError && (
+          <p className="mt-3 text-sm text-red-500" role="alert">{generationError}</p>
         )}
       </>
     ),

@@ -10,20 +10,44 @@ type WorkerRequest = {
   file: File;
   profile: CompressionProfile;
   maxPixels: number;
+  metadata: { width: number; height: number; orientation: number } | null;
 };
 
 self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
-  const { file, profile, maxPixels } = event.data;
+  const { file, profile, maxPixels, metadata } = event.data;
   let bitmap: ImageBitmap | null = null;
   try {
-    bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
-    const pixels = bitmap.width * bitmap.height;
-    if (!bitmap.width || !bitmap.height || pixels > maxPixels) {
-      throw new Error("图片像素过高，请缩小到 4000 万像素以内");
+    const sourceWidth = metadata?.width || 0;
+    const sourceHeight = metadata?.height || 0;
+    const sourcePixels = sourceWidth * sourceHeight;
+    if (sourcePixels > maxPixels) {
+      throw new Error(`图片像素过高，请缩小到 ${Math.round(maxPixels / 10_000_000) / 10} 亿像素以内`);
     }
-    if (file.size <= profile.targetBytes && Math.max(bitmap.width, bitmap.height) <= profile.maxDimension) {
+    if (sourceWidth && sourceHeight && file.size <= profile.targetBytes && Math.max(sourceWidth, sourceHeight) <= profile.maxDimension) {
       self.postMessage({ ok: true, unchanged: true });
       return;
+    }
+
+    const orientationSwapsAxes = Boolean(metadata && metadata.orientation >= 5 && metadata.orientation <= 8);
+    const orientedWidth = orientationSwapsAxes ? sourceHeight : sourceWidth;
+    const orientedHeight = orientationSwapsAxes ? sourceWidth : sourceHeight;
+    const resizeScale = orientedWidth && orientedHeight
+      ? Math.min(1, profile.maxDimension / Math.max(orientedWidth, orientedHeight))
+      : 1;
+    const resizeWidth = Math.max(1, Math.round(orientedWidth * resizeScale));
+    const resizeHeight = Math.max(1, Math.round(orientedHeight * resizeScale));
+    bitmap = orientedWidth && orientedHeight
+      ? await createImageBitmap(file, {
+          imageOrientation: "from-image",
+          resizeWidth,
+          resizeHeight,
+          resizeQuality: "high",
+        })
+      : await createImageBitmap(file, { imageOrientation: "from-image" });
+
+    const decodedPixels = bitmap.width * bitmap.height;
+    if (!bitmap.width || !bitmap.height || (!sourcePixels && decodedPixels > maxPixels)) {
+      throw new Error(`图片像素过高，请缩小到 ${Math.round(maxPixels / 10_000_000) / 10} 亿像素以内`);
     }
 
     const initialScale = Math.min(1, profile.maxDimension / Math.max(bitmap.width, bitmap.height));
