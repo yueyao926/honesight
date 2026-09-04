@@ -166,6 +166,18 @@ ANALYSIS_IMAGE_RETENTION_HOURS=72
 GENERATED_IMAGE_RETENTION_HOURS=168
 PRACTICE_IMAGE_RETENTION_DAYS=30
 ORPHAN_IMAGE_RETENTION_HOURS=72
+
+# 邮箱验证（以下以 163 邮箱的 465 隐式 TLS 为例）
+FRONTEND_BASE_URL=https://www.honesight.top
+SMTP_HOST=smtp.163.com
+SMTP_PORT=465
+SMTP_USERNAME=你的完整163邮箱
+# 填邮箱后台生成的客户端授权码，不是网页登录密码
+SMTP_PASSWORD=你的客户端授权码
+# 发件地址应使用 SMTP_USERNAME 对应的真实邮箱
+SMTP_FROM=HoneSight <你的完整163邮箱>
+SMTP_USE_TLS=false
+SMTP_USE_SSL=true
 ```
 
 生成 JWT 密钥：
@@ -221,6 +233,18 @@ curl http://localhost:8000/health
 ```
 
 返回 `{"status":"ok"}` 表示后端正常运行。
+
+### 测试注册邮件
+
+先直接向自己的邮箱发送一封测试邮件：
+
+```bash
+docker compose -f docker-compose.server.yml exec backend \
+  python -m app.scripts.test_email --to 你的收件邮箱
+```
+
+命令成功且收到邮件后，再通过注册页面测试完整的邮箱验证流程。若失败，查看后端日志中的
+`SMTP test failed` 或 `Account email delivery failed`；日志会保留 SMTP 服务端返回的错误码。
 
 ### 测试前端
 

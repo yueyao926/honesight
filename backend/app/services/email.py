@@ -1,19 +1,15 @@
-import logging
+import ssl
 import smtplib
 from email.message import EmailMessage
 
 from app.core.config import get_settings
 
-logger = logging.getLogger("lenscoach.email")
+class EmailDeliveryError(RuntimeError):
+    """Raised when an email cannot be handed to the configured SMTP server."""
 
 
 def send_email(*, to_email: str, subject: str, html_body: str) -> None:
-    """Send an email via SMTP, falling back to the log when SMTP is unconfigured.
-
-    The console fallback keeps the full flow working in local development without
-    any SMTP credentials: the email (including any verification/reset link) is
-    printed to the backend log instead.
-    """
+    """Send an email via SMTP or raise when delivery cannot be attempted."""
     settings = get_settings()
     message = EmailMessage()
     message["Subject"] = subject
@@ -23,20 +19,34 @@ def send_email(*, to_email: str, subject: str, html_body: str) -> None:
     message.add_alternative(html_body, subtype="html")
 
     if not settings.smtp_host:
-        logger.info("EMAIL (no SMTP configured) to=%s subject=%s\n%s", to_email, subject, html_body)
-        return
+        raise EmailDeliveryError("SMTP_HOST is not configured")
 
-    if settings.smtp_use_tls:
-        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=15) as server:
-            server.starttls()
-            if settings.smtp_username:
-                server.login(settings.smtp_username, settings.smtp_password or "")
-            server.send_message(message)
-    else:
-        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=15) as server:
-            if settings.smtp_username:
-                server.login(settings.smtp_username, settings.smtp_password or "")
-            server.send_message(message)
+    tls_context = ssl.create_default_context()
+    envelope_from = settings.smtp_username or None
+    try:
+        if settings.smtp_use_ssl:
+            with smtplib.SMTP_SSL(
+                settings.smtp_host,
+                settings.smtp_port,
+                timeout=15,
+                context=tls_context,
+            ) as server:
+                if settings.smtp_username:
+                    server.login(settings.smtp_username, settings.smtp_password or "")
+                server.send_message(message, from_addr=envelope_from, to_addrs=[to_email])
+        elif settings.smtp_use_tls:
+            with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=15) as server:
+                server.starttls(context=tls_context)
+                if settings.smtp_username:
+                    server.login(settings.smtp_username, settings.smtp_password or "")
+                server.send_message(message, from_addr=envelope_from, to_addrs=[to_email])
+        else:
+            with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=15) as server:
+                if settings.smtp_username:
+                    server.login(settings.smtp_username, settings.smtp_password or "")
+                server.send_message(message, from_addr=envelope_from, to_addrs=[to_email])
+    except (OSError, smtplib.SMTPException) as exc:
+        raise EmailDeliveryError(f"SMTP delivery failed: {exc}") from exc
 
 
 def send_verification_email(to_email: str, link: str) -> None:

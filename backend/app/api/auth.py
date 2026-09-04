@@ -1,8 +1,10 @@
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 import hmac
+import logging
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
@@ -38,6 +40,7 @@ from app.services.email import send_password_reset_email, send_verification_emai
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 SESSION_REQUEST_HEADER = "LensCoach"
+logger = logging.getLogger("uvicorn.error")
 
 
 def _utc_now() -> datetime:
@@ -103,6 +106,25 @@ def _issue_email_token(db: Session, user: User, purpose: str, expire_minutes: in
     return token
 
 
+def _deliver_account_email(
+    db: Session,
+    *,
+    sender: Callable[[str, str], None],
+    to_email: str,
+    link: str,
+) -> None:
+    """Deliver before commit so a failed SMTP attempt cannot strand an account."""
+    try:
+        sender(to_email, link)
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Account email delivery failed for %s", to_email)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="邮件发送失败，请稍后重试；如果持续失败，请联系管理员",
+        ) from exc
+
+
 def _consume_email_token(db: Session, token: str, purpose: str) -> EmailToken | None:
     email_token = db.scalar(
         select(EmailToken)
@@ -137,7 +159,6 @@ def _expired_or_invalid_session(settings: Settings, detail: str = "Session expir
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 def register(
     payload: UserCreate,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ) -> User:
     existing = db.scalar(select(User).where(User.email == payload.email.lower()))
@@ -152,13 +173,14 @@ def register(
     db.flush()
     settings = get_settings()
     token = _issue_email_token(db, user, EMAIL_VERIFICATION_PURPOSE, settings.email_verification_expire_minutes)
+    _deliver_account_email(
+        db,
+        sender=send_verification_email,
+        to_email=user.email,
+        link=_frontend_link("verify-email", token),
+    )
     db.commit()
     db.refresh(user)
-    background_tasks.add_task(
-        send_verification_email,
-        user.email,
-        _frontend_link("verify-email", token),
-    )
     return user
 
 
@@ -302,38 +324,38 @@ def verify_email(payload: VerifyEmailRequest, db: Session = Depends(get_db)) -> 
 @router.post("/resend-verification")
 def resend_verification(
     payload: ResendVerificationRequest,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
     user = db.scalar(select(User).where(User.email == payload.email.lower()))
     if user and not user.email_verified:
         settings = get_settings()
         token = _issue_email_token(db, user, EMAIL_VERIFICATION_PURPOSE, settings.email_verification_expire_minutes)
-        db.commit()
-        background_tasks.add_task(
-            send_verification_email,
-            user.email,
-            _frontend_link("verify-email", token),
+        _deliver_account_email(
+            db,
+            sender=send_verification_email,
+            to_email=user.email,
+            link=_frontend_link("verify-email", token),
         )
+        db.commit()
     return {"detail": "如果该邮箱尚未验证，我们已重新发送验证邮件"}
 
 
 @router.post("/password-reset/request")
 def request_password_reset(
     payload: PasswordResetRequest,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
     user = db.scalar(select(User).where(User.email == payload.email.lower()))
     if user:
         settings = get_settings()
         token = _issue_email_token(db, user, PASSWORD_RESET_PURPOSE, settings.password_reset_expire_minutes)
-        db.commit()
-        background_tasks.add_task(
-            send_password_reset_email,
-            user.email,
-            _frontend_link("reset-password", token),
+        _deliver_account_email(
+            db,
+            sender=send_password_reset_email,
+            to_email=user.email,
+            link=_frontend_link("reset-password", token),
         )
+        db.commit()
     return {"detail": "如果该邮箱已注册，我们已发送密码重置链接"}
 
 

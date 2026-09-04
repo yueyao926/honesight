@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     smtp_password: str | None = Field(default=None, alias="SMTP_PASSWORD")
     smtp_from: str = Field(default="HoneSight <noreply@honesight.app>", alias="SMTP_FROM")
     smtp_use_tls: bool = Field(default=True, alias="SMTP_USE_TLS")
+    smtp_use_ssl: bool = Field(default=False, alias="SMTP_USE_SSL")
     email_verification_expire_minutes: int = Field(default=1440, ge=1, le=10080, alias="EMAIL_VERIFICATION_EXPIRE_MINUTES")
     password_reset_expire_minutes: int = Field(default=30, ge=1, le=1440, alias="PASSWORD_RESET_EXPIRE_MINUTES")
     backend_cors_origins: str = Field(default="http://localhost:5173", alias="BACKEND_CORS_ORIGINS")
