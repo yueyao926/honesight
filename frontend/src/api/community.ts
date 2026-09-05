@@ -18,6 +18,7 @@ export const likePost=(id:number)=>apiRequest<{liked:boolean;like_count:number}>
 export const unlikePost=(id:number)=>apiRequest<{liked:boolean;like_count:number}>(`/community/posts/${id}/like`,{method:"DELETE"});
 export const favoritePost=(id:number)=>apiRequest<{favorited:boolean;favorite_count:number}>(`/community/posts/${id}/favorite`,{method:"POST",body:"{}"});
 export const unfavoritePost=(id:number)=>apiRequest<{favorited:boolean;favorite_count:number}>(`/community/posts/${id}/favorite`,{method:"DELETE"});
+export const getFavoritePosts=()=>apiRequest<CommunityPost[]>("/community/me/favorite-posts");
 export const getComments=(id:number)=>apiRequest<CommunityComment[]>(`/community/posts/${id}/comments`);
 export const addComment=(id:number,content:string,parent_id?:number)=>apiRequest<{id:number}>(`/community/posts/${id}/comments`,{method:"POST",body:JSON.stringify({content,parent_id})});
 export const likeComment=(id:number)=>apiRequest<{liked:boolean;like_count:number}>(`/community/comments/${id}/like`,{method:"POST"});

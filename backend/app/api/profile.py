@@ -12,7 +12,7 @@ from app.database import get_db
 from app.models.portfolio import PortfolioCollection, PortfolioFavorite, PortfolioItem
 from app.models.preference import Preference
 from app.models.profile import UserFollow, UserPrivacySetting
-from app.models.community import Notification, UserBlock
+from app.models.community import Notification, PostFavorite, UserBlock
 from app.models.inspiration import InspirationFavorite
 from app.models.user import User
 from app.schemas.portfolio import PortfolioCollectionDetail, PortfolioCollectionRead, PortfolioPhotoRead, PortfolioPhotoUpdate
@@ -67,12 +67,12 @@ def _profile(user: User, viewer: User | None, db: Session) -> dict:
         "photography_categories": list(preference.photography_categories or [])[:6] if preference else [],
     }
     if is_self:
-        work_favorites = db.scalar(select(func.count()).select_from(PortfolioFavorite).where(PortfolioFavorite.user_id == user.id)) or 0
         inspiration_favorites = db.scalar(select(func.count()).select_from(InspirationFavorite).where(InspirationFavorite.user_id == user.id)) or 0
+        community_favorites = db.scalar(select(func.count()).select_from(PostFavorite).where(PostFavorite.user_id == user.id)) or 0
         result.update(
             email=user.email,
             email_verified=user.email_verified,
-            favorite_count=work_favorites + inspiration_favorites,
+            favorite_count=inspiration_favorites + community_favorites,
         )
     return result
 

@@ -256,6 +256,21 @@ def delete_comment(comment_id:int,user:User=Depends(get_current_user),db:Session
 def collections(user:User=Depends(get_current_user),db:Session=Depends(get_db)):
     default_collection(db,user.id); db.commit(); return db.scalars(select(FavoriteCollection).where(FavoriteCollection.user_id==user.id).order_by(FavoriteCollection.is_default.desc(),FavoriteCollection.created_at)).all()
 
+@router.get("/me/favorite-posts")
+def favorite_posts(user:User=Depends(get_current_user),db:Session=Depends(get_db)):
+    rows=db.scalars(
+        select(CommunityPost)
+        .join(PostFavorite, PostFavorite.post_id==CommunityPost.id)
+        .options(selectinload(CommunityPost.images),selectinload(CommunityPost.tags),selectinload(CommunityPost.author))
+        .where(
+            PostFavorite.user_id==user.id,
+            CommunityPost.deleted_at.is_(None),
+            CommunityPost.status=="published",
+        )
+        .order_by(PostFavorite.created_at.desc())
+    ).unique().all()
+    return [post_dict(post,user,db) for post in rows if visible(post,user,db)]
+
 @router.post("/me/favorite-collections",status_code=201)
 def create_collection(payload:CollectionPayload,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
     row=FavoriteCollection(user_id=user.id,**payload.model_dump()); db.add(row); db.commit(); db.refresh(row); return row

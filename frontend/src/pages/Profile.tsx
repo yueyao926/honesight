@@ -4,11 +4,10 @@ import { getAssetUrl } from "../api/client";
 import { getFavoriteInspirations, unfavoriteInspiration } from "../api/inspirations";
 import { getMyPreferences, updateMyPreferences } from "../api/preferences";
 import { createConversation } from "../api/messages";
-import { getUserPosts, type CommunityPost } from "../api/community";
+import { getFavoritePosts, getUserPosts, type CommunityPost } from "../api/community";
 import { fetchPortfolioList } from "../utils/portfolioListCache";
 import {
   followUser,
-  getFavorites,
   getFollowers,
   getFollowing,
   getMyProfile,
@@ -25,16 +24,14 @@ import ProfileCollectionGrid from "../components/profile/ProfileCollectionGrid";
 import ProfileFavoriteFolderCard from "../components/profile/ProfileFavoriteFolderCard";
 import ProfileHero, { parsePersonalityTags } from "../components/profile/ProfileHero";
 import ProfileTabNav from "../components/profile/ProfileTabNav";
-import ProfileWorkGrid from "../components/profile/ProfileWorkGrid";
 import CommunityFeed from "../components/community/CommunityFeed";
 import OutlineLiftButton from "../components/ui/OutlineLiftButton";
 import { useAuth } from "../contexts/AuthContext";
 import PageLoader from "../components/PageLoader";
 import arrow28Svg from "../SVG/arrow-28.svg?url";
 import computerSvg from "../SVG/电脑.svg?url";
-import hangerSvg from "../SVG/衣架.svg?url";
 import filmRollSvg from "../SVG/胶卷.svg?url";
-import type { Inspiration, PortfolioCollection, PortfolioPhoto, Preference, Profile as ProfileType } from "../types";
+import type { Inspiration, PortfolioCollection, Preference, Profile as ProfileType } from "../types";
 
 type Tab = "works" | "posts" | "favorites" | "following" | "followers" | "preferences";
 
@@ -58,7 +55,6 @@ export default function Profile() {
   const own = !userId;
   const [profile, setProfile] = useState<ProfileType | null>(null);
   const [collections, setCollections] = useState<PortfolioCollection[]>([]);
-  const [works, setWorks] = useState<PortfolioPhoto[]>([]);
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [postCount, setPostCount] = useState<number>();
   const [postsCursor, setPostsCursor] = useState<number | null | undefined>();
@@ -66,7 +62,8 @@ export default function Profile() {
   const [people, setPeople] = useState<ProfileType[]>([]);
   const [preference, setPreference] = useState<Preference | null>(null);
   const [inspirationFavorites, setInspirationFavorites] = useState<Inspiration[]>([]);
-  const [favoriteFolder, setFavoriteFolder] = useState<"root" | "inspirations" | "works">("root");
+  const [communityFavorites, setCommunityFavorites] = useState<CommunityPost[]>([]);
+  const [favoriteFolder, setFavoriteFolder] = useState<"root" | "inspirations" | "community">("root");
   const [tab, setTab] = useState<Tab>("works");
   const [editing, setEditing] = useState(false);
   const [avatar, setAvatar] = useState(false);
@@ -133,9 +130,12 @@ export default function Profile() {
           setPostCount(result.total);
         }
         if (tab === "favorites" && own) {
-          const [savedWorks, savedInspirations] = await Promise.all([getFavorites(), getFavoriteInspirations()]);
-          setWorks(savedWorks);
+          const [savedInspirations, savedPosts] = await Promise.all([
+            getFavoriteInspirations(),
+            getFavoritePosts(),
+          ]);
           setInspirationFavorites(savedInspirations);
+          setCommunityFavorites(savedPosts);
           setFavoriteFolder("root");
         }
         if (tab === "following") setPeople(await getFollowing(profile.id));
@@ -168,6 +168,10 @@ export default function Profile() {
 
   const updateCommunityPost = useCallback((next: CommunityPost) => {
     setPosts((current) => current.map((post) => (post.id === next.id ? next : post)));
+    setCommunityFavorites((current) => {
+      if (!next.is_favorited) return current.filter((post) => post.id !== next.id);
+      return current.map((post) => (post.id === next.id ? next : post));
+    });
   }, []);
 
   const flash = (message: string) => {
@@ -336,16 +340,16 @@ export default function Profile() {
           {favoriteFolder === "root" && (
             <div className="grid gap-5 md:grid-cols-2">
               <ProfileFavoriteFolderCard
+                title="社区收藏"
+                description="你在社区里收藏的帖子与作品。"
+                count={communityFavorites.length}
+                onClick={() => setFavoriteFolder("community")}
+              />
+              <ProfileFavoriteFolderCard
                 title="首页灵感收藏夹"
                 description="你在首页个性化推荐中收藏的摄影作品。"
                 count={inspirationFavorites.length}
                 onClick={() => setFavoriteFolder("inspirations")}
-              />
-              <ProfileFavoriteFolderCard
-                title="作品收藏"
-                description="你收藏的 LensCoach 用户公开作品。"
-                count={works.length}
-                onClick={() => setFavoriteFolder("works")}
               />
             </div>
           )}
@@ -362,6 +366,31 @@ export default function Profile() {
               <span className="community-back-link__label">返回我的收藏</span>
             </button>
           )}
+
+          {favoriteFolder === "community" &&
+            (communityFavorites.length ? (
+              <CommunityFeed
+                posts={communityFavorites}
+                loading={false}
+                cursor={null}
+                onLoadMore={async () => undefined}
+                onPostChange={updateCommunityPost}
+              />
+            ) : (
+              <div className="profile-empty">
+                <img
+                  src={filmRollSvg}
+                  alt=""
+                  aria-hidden="true"
+                  draggable={false}
+                  className="profile-empty-illustration profile-empty-illustration--film"
+                />
+                <p className="text-muted">还没有收藏社区作品</p>
+                <Link className="cta mt-5 inline-block" to="/community">
+                  去社区逛逛
+                </Link>
+              </div>
+            ))}
 
           {favoriteFolder === "inspirations" &&
             (inspirationFavorites.length ? (
@@ -407,22 +436,6 @@ export default function Profile() {
                   className="profile-empty-illustration"
                 />
                 <p className="text-muted">首页灵感收藏夹还是空的</p>
-              </div>
-            ))}
-
-          {favoriteFolder === "works" &&
-            (works.length ? (
-              <ProfileWorkGrid works={works} own={false} isAuthenticated={isAuthenticated} setWorks={setWorks} />
-            ) : (
-              <div className="profile-empty">
-                <img
-                  src={hangerSvg}
-                  alt=""
-                  aria-hidden="true"
-                  draggable={false}
-                  className="profile-empty-illustration profile-empty-illustration--hanger"
-                />
-                <p className="text-muted">还没有收藏用户作品</p>
               </div>
             ))}
         </section>

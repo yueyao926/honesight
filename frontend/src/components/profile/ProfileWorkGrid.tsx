@@ -1,6 +1,5 @@
-import { useLocation, useNavigate } from "react-router-dom";
 import { getAssetUrl } from "../../api/client";
-import { favoriteWork, unfavoriteWork, updateWork } from "../../api/profile";
+import { updateWork } from "../../api/profile";
 import type { PortfolioPhoto } from "../../types";
 
 type ProfileWorkGridProps = {
@@ -10,10 +9,7 @@ type ProfileWorkGridProps = {
   setWorks: React.Dispatch<React.SetStateAction<PortfolioPhoto[]>>;
 };
 
-export default function ProfileWorkGrid({ works, own, isAuthenticated, setWorks }: ProfileWorkGridProps) {
-  const navigate = useNavigate();
-  const location = useLocation();
-
+export default function ProfileWorkGrid({ works, own, setWorks }: ProfileWorkGridProps) {
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
       {works.map((work) => (
@@ -49,26 +45,6 @@ export default function ProfileWorkGrid({ works, own, isAuthenticated, setWorks 
                 </button>
               )}
             </div>
-            {!own && (
-              <button
-                type="button"
-                className="mt-3 text-xs text-brand-deep"
-                onClick={async () => {
-                  if (!isAuthenticated) return navigate("/login", { state: { from: location } });
-                  if (work.is_favorited) {
-                    await unfavoriteWork(work.id);
-                    setWorks((items) => items.filter((item) => item.id !== work.id));
-                  } else {
-                    await favoriteWork(work.id);
-                    setWorks((items) =>
-                      items.map((item) => (item.id === work.id ? { ...item, is_favorited: true } : item)),
-                    );
-                  }
-                }}
-              >
-                {work.is_favorited ? "取消收藏" : "收藏"} · {work.favorite_count}
-              </button>
-            )}
           </div>
         </article>
       ))}
