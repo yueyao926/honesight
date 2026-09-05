@@ -3,6 +3,8 @@ from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
 
+import httpx
+import pytest
 from PIL import Image
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -235,11 +237,12 @@ def test_quick_analysis_uses_compact_fast_request(monkeypatch) -> None:
     assert payloads[0]["thinking"] == {"type": "disabled"}
 
 
-def test_details_request_is_text_only_with_bounded_fallback(monkeypatch) -> None:
+@pytest.mark.parametrize("fast_model", ["fast-vision", "full-vision"])
+def test_details_request_uses_full_model_with_its_own_timeout(monkeypatch, fast_model) -> None:
     settings = SimpleNamespace(
         ai_analysis_enabled=True,
         resolved_ai_api_key="test-key",
-        resolved_ai_fast_model="fast-vision",
+        resolved_ai_fast_model=fast_model,
         resolved_ai_model="full-vision",
         ai_fast_timeout_seconds=8,
     )
@@ -281,7 +284,7 @@ def test_details_request_is_text_only_with_bounded_fallback(monkeypatch) -> None
             )
         }
 
-    monkeypatch.setattr(vision_analyzer, "_post_fast_vision_request", post)
+    monkeypatch.setattr(vision_analyzer, "_post_vision_request", post)
     result = vision_analyzer.call_analysis_details_model(
         image_url="/uploads/photo.webp",
         target_style="自然",
@@ -292,9 +295,102 @@ def test_details_request_is_text_only_with_bounded_fallback(monkeypatch) -> None
     payload, kwargs = calls[0]
     user_content = payload["input"][1]["content"]
     assert [item["type"] for item in user_content] == ["input_text"]
-    assert kwargs == {"profile": "details", "fallback_timeout_seconds": 16}
+    assert len(calls) == 1
+    assert kwargs == {"timeout_seconds": 120}
+    assert payload["model"] == result["model_used"] == "full-vision"
     assert payload["thinking"] == {"type": "disabled"}
     assert result["platform_suggestions"]["小红书"]["crop_ratio"] == "4:5"
+
+
+@pytest.mark.parametrize("repair_succeeds", [True, False])
+def test_details_repairs_truncated_json_once_with_the_same_timeout(monkeypatch, repair_succeeds) -> None:
+    settings = SimpleNamespace(
+        ai_analysis_enabled=True,
+        resolved_ai_api_key="test-key",
+        resolved_ai_model="full-vision",
+    )
+    monkeypatch.setattr(vision_analyzer, "get_settings", lambda: settings)
+    calls = []
+
+    def post(payload, **kwargs):
+        calls.append((payload, kwargs))
+        if len(calls) == 1 or not repair_succeeds:
+            return {
+                "status": "incomplete",
+                "incomplete_details": {"reason": "max_output_tokens"},
+                "output_text": '{"editing_params":',
+            }
+        return {"output_text": '{"editing_params":{"lightroom":{"exposure":"+0.2"}}}'}
+
+    monkeypatch.setattr(vision_analyzer, "_post_vision_request", post)
+    arguments = dict(
+        image_url="/uploads/photo.webp",
+        target_style="自然",
+        target_platform="作品集",
+        analysis_summary="主体略暗",
+    )
+    if repair_succeeds:
+        result = vision_analyzer.call_analysis_details_model(**arguments)
+        assert result["editing_params"]["lightroom"]["exposure"] == "+0.2"
+    else:
+        with pytest.raises(vision_analyzer.VisionAnalysisError, match="修图参数返回不完整"):
+            vision_analyzer.call_analysis_details_model(**arguments)
+    assert len(calls) == 2
+    assert all(kwargs == {"timeout_seconds": 120} for _payload, kwargs in calls)
+    assert "max_output_tokens" not in calls[1][0]
+
+
+def test_details_rejects_empty_editing_parameters(monkeypatch) -> None:
+    monkeypatch.setattr(vision_analyzer, "get_settings", lambda: SimpleNamespace(
+        ai_analysis_enabled=True, resolved_ai_api_key="test-key", resolved_ai_model="full-vision",
+    ))
+    monkeypatch.setattr(vision_analyzer, "_post_vision_request", lambda *_args, **_kwargs: {
+        "output_text": '{"editing_params":{},"platform_suggestion":{}}',
+    })
+    with pytest.raises(vision_analyzer.VisionAnalysisError, match="未返回可用的修图参数"):
+        vision_analyzer.call_analysis_details_model(
+            image_url="/uploads/photo.webp", target_style="自然",
+            target_platform="作品集", analysis_summary="主体略暗",
+        )
+
+
+def test_provider_timeout_is_distinguished_from_connection_failure(monkeypatch, caplog) -> None:
+    settings = SimpleNamespace(
+        resolved_ai_base_url="https://provider.example/v3",
+        resolved_ai_api_key="secret-test-key",
+        ai_timeout_seconds=300,
+    )
+    monkeypatch.setattr(vision_analyzer, "get_settings", lambda: settings)
+
+    def timeout(request):
+        assert request.extensions["timeout"]["read"] == 120
+        raise httpx.ReadTimeout("private-provider-details", request=request)
+
+    with httpx.Client(transport=httpx.MockTransport(timeout)) as client:
+        monkeypatch.setattr(vision_analyzer, "_get_vision_http_client", lambda: client)
+        with pytest.raises(vision_analyzer.VisionAnalysisError, match="AI 服务响应超时"):
+            vision_analyzer._post_vision_request({"model": "full-vision"}, timeout_seconds=120)
+    assert "timeout_seconds=120" in caplog.text
+    assert "secret-test-key" not in caplog.text
+    assert "private-provider-details" not in caplog.text
+
+
+def test_details_cache_key_tracks_the_actual_full_model(tmp_path, monkeypatch) -> None:
+    settings = SimpleNamespace(
+        upload_path=tmp_path, ai_analysis_mode="api",
+        resolved_ai_fast_model="fast-vision", resolved_ai_model="full-vision",
+    )
+    monkeypatch.setattr(analyzer, "get_settings", lambda: settings)
+    monkeypatch.setattr(analysis_cache, "get_settings", lambda: settings)
+    arguments = dict(
+        user_id=7, image_url="/uploads/photo.webp", target_style="自然",
+        target_platform="作品集", analysis_summary="主体略暗",
+    )
+    original = analyzer.build_details_analysis_cache_key(**arguments)
+    settings.resolved_ai_fast_model = "another-fast-model"
+    assert analyzer.build_details_analysis_cache_key(**arguments) == original
+    settings.resolved_ai_model = "another-full-model"
+    assert analyzer.build_details_analysis_cache_key(**arguments) != original
 
 
 def test_quick_core_cache_returns_four_dimension_scores(tmp_path, monkeypatch) -> None:

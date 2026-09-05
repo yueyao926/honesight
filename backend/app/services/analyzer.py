@@ -378,8 +378,8 @@ def analyze_details_context_cached(
         db,
         user_id=user_id,
         cache_key=cache_key,
-        profile="details-v2-text-only",
-        model_used=settings.resolved_ai_fast_model,
+        profile="details-v3-full-model",
+        model_used=settings.resolved_ai_model,
         analyze=analyze,
     )
 
@@ -394,7 +394,7 @@ def build_details_analysis_cache_key(
 ) -> str:
     settings = get_settings()
     return build_analysis_cache_key(
-        profile="details-v2-text-only",
+        profile="details-v3-full-model",
         image_url=image_url,
         user_id=user_id,
         parameters={
@@ -402,7 +402,7 @@ def build_details_analysis_cache_key(
             "target_platform": target_platform,
             "analysis_summary": analysis_summary[:1800],
         },
-        model=settings.resolved_ai_fast_model,
+        model=settings.resolved_ai_model,
     )
 
 

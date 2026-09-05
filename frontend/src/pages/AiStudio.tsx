@@ -408,7 +408,8 @@ export default function AiStudio() {
           next_step: coreAnalysis.next_step,
         }),
       }, controller.signal);
-      const details = await waitForAnalysisJob(job, controller.signal, () => undefined, { maxWaitMs: 60_000 });
+      // Allow the 120-second details request plus one JSON repair attempt.
+      const details = await waitForAnalysisJob(job, controller.signal, () => undefined, { maxWaitMs: 270_000 });
       if (requestId !== analysisRequestIdRef.current) return;
       setAnalysis((current) => current ? {
         ...current,
