@@ -37,9 +37,7 @@ export default function HomePracticeCard({ isAuthenticated }: HomePracticeCardPr
               ) : (
                 <>
                   <HomeDrawnButton to="/register">开始注册</HomeDrawnButton>
-                  <HomeDrawnButton to="/login" className="home-drawn-btn--login">
-                    登录
-                  </HomeDrawnButton>
+                  <HomeDrawnButton to="/login">登录</HomeDrawnButton>
                   <HomeDrawnButton href="#daily-inspiration">今日灵感</HomeDrawnButton>
                 </>
               )}
