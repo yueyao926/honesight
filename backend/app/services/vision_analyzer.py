@@ -21,6 +21,7 @@ from app.services.signed_media import build_ai_media_url
 logger = logging.getLogger("uvicorn.error")
 _client_lock = threading.Lock()
 _vision_client: httpx.Client | None = None
+ANALYSIS_DETAILS_TIMEOUT_SECONDS = 120
 
 class VisionAnalysisError(RuntimeError):
     pass
@@ -350,7 +351,7 @@ def call_analysis_details_model(
         "参数必须具体、克制且可直接操作；所有文字使用简体中文；不要输出 Markdown。"
     )
     payload = {
-        "model": settings.resolved_ai_fast_model,
+        "model": settings.resolved_ai_model,
         "input": [
             {
                 "role": "system",
@@ -361,22 +362,33 @@ def call_analysis_details_model(
                 "content": [{"type": "input_text", "text": prompt}],
             },
         ],
-        "max_output_tokens": 900,
+        "max_output_tokens": 1800,
         "thinking": {"type": "disabled"},
     }
-    data = _post_fast_vision_request(
+    # This runs in a background job, not the first-screen quick-score path.
+    # A full editing report must not inherit that path's eight-second timeout,
+    # especially when AI_FAST_MODEL resolves to the same Pro model as AI_MODEL.
+    data = _post_vision_request(
         payload,
-        profile="details",
-        fallback_timeout_seconds=max(1, settings.ai_fast_timeout_seconds * 2),
+        timeout_seconds=ANALYSIS_DETAILS_TIMEOUT_SECONDS,
     )
     text = _extract_response_text(data)
     parsed = _parse_json_object(text)
     if not parsed:
-        raise VisionAnalysisError("Vision API did not return valid analysis details")
-    editing_params = parsed.get("editing_params")
+        parsed, text = _retry_invalid_json_response(
+            payload,
+            profile="details",
+            first_data=data,
+            timeout_seconds=ANALYSIS_DETAILS_TIMEOUT_SECONDS,
+        )
+    if not parsed:
+        raise VisionAnalysisError("修图参数返回不完整，请稍后重试")
+    editing_params = _normalize_editing_params(parsed.get("editing_params"))
+    if not editing_params:
+        raise VisionAnalysisError("AI 未返回可用的修图参数，请重新生成")
     platform_suggestion = parsed.get("platform_suggestion")
     result = {
-        "editing_params": _normalize_editing_params(editing_params if isinstance(editing_params, dict) else {}),
+        "editing_params": editing_params,
         "platform_suggestions": _normalize_platform_suggestions(
             platform_suggestion,
             target_platform,
@@ -575,6 +587,14 @@ def _post_vision_request(
         data = response.json()
     except httpx.HTTPStatusError as exc:
         raise VisionAnalysisError(f"Vision API request failed: {_safe_provider_error(exc.response)}") from exc
+    except httpx.TimeoutException as exc:
+        logger.warning(
+            "vision_api_timeout model=%s timeout_seconds=%s error_type=%s",
+            payload.get("model", "unknown"),
+            timeout_seconds or settings.ai_timeout_seconds,
+            type(exc).__name__,
+        )
+        raise VisionAnalysisError("AI 服务响应超时，请稍后重试") from exc
     except httpx.HTTPError as exc:
         raise VisionAnalysisError("Could not connect to the vision API") from exc
     except ValueError as exc:
@@ -627,6 +647,7 @@ def _retry_invalid_json_response(
     *,
     profile: str,
     first_data: dict[str, Any],
+    timeout_seconds: int | None = None,
 ) -> tuple[dict[str, Any] | None, str]:
     """Retry once without an output cap when a provider truncates or mangles JSON."""
     incomplete = first_data.get("incomplete_details")
@@ -657,7 +678,10 @@ def _retry_invalid_json_response(
                         ),
                     }
                 )
-    retry_data = _post_vision_request(retry_payload)
+    if timeout_seconds is None:
+        retry_data = _post_vision_request(retry_payload)
+    else:
+        retry_data = _post_vision_request(retry_payload, timeout_seconds=timeout_seconds)
     retry_text = _extract_response_text(retry_data)
     return _parse_json_object(retry_text), retry_text
 

@@ -8,7 +8,11 @@ import {
 } from "../api/analyze";
 import type { QuickAnalysis } from "../api/analyze";
 import { getAssetUrl } from "../api/client";
-import { generateProcessedImage } from "../api/imageProcess";
+import {
+  startProcessedImageJob,
+  waitForProcessedImageJob,
+} from "../api/imageProcess";
+import type { ImageProcessJob } from "../api/imageProcess";
 import { listPortfolio, savePhotoToPortfolio } from "../api/portfolio";
 import type { PortfolioPhotoSource } from "../api/portfolio";
 import {
@@ -65,6 +69,8 @@ const targetPlatforms = [
   "商业约拍",
 ];
 const steps = ["上传照片", "设置目标", "查看建议"];
+const ANALYSIS_GUIDANCE_MAX_LENGTH = 8000;
+const EDIT_INSTRUCTION_MAX_LENGTH = 600;
 
 type SaveCandidate = {
   imageUrl: string;
@@ -90,6 +96,34 @@ function scrollToStep(ref: RefObject<HTMLElement>) {
       ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   });
+}
+
+function joinLatestInstructions(instructions: string[], maxLength: number): string {
+  const selected: string[] = [];
+  let remaining = maxLength;
+  for (let index = instructions.length - 1; index >= 0 && remaining > 0; index -= 1) {
+    const separatorLength = selected.length ? 1 : 0;
+    const available = remaining - separatorLength;
+    if (available <= 0) break;
+    const instruction = instructions[index].trim();
+    if (!instruction) continue;
+    selected.unshift(instruction.length <= available ? instruction : instruction.slice(-available));
+    remaining -= Math.min(instruction.length, available) + separatorLength;
+  }
+  return selected.join("；");
+}
+
+function imageProcessStageLabel(job: ImageProcessJob): string {
+  const labels: Record<string, string> = {
+    queued: "精修任务正在排队…",
+    preparing: "正在准备原图与精修方案…",
+    strategizing: "正在整理精修方案…",
+    generating: "AI 正在生成精修图片…",
+    downloading: "图片已生成，正在下载…",
+    saving: "正在保存精修图片…",
+    completed: "AI 精修完成",
+  };
+  return labels[job.stage] || (job.status === "processing" ? "AI 正在精修图片…" : "正在准备精修任务…");
 }
 
 function StepSection({
@@ -131,6 +165,7 @@ export default function AiStudio() {
   const [saveSuccess, setSaveSuccess] = useState("");
   const [saveError, setSaveError] = useState("");
   const [error, setError] = useState("");
+  const [generationError, setGenerationError] = useState("");
   const [loading, setLoading] = useState(false);
   const [deepLoading, setDeepLoading] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(false);
@@ -138,6 +173,7 @@ export default function AiStudio() {
   const [analysisStage, setAnalysisStage] = useState("正在准备分析…");
   const [saving, setSaving] = useState(false);
   const [generatingImage, setGeneratingImage] = useState(false);
+  const [generationStage, setGenerationStage] = useState("");
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [selectedGeneratedImageUrl, setSelectedGeneratedImageUrl] = useState<string | null>(null);
   const [refinementInstructions, setRefinementInstructions] = useState<string[]>([]);
@@ -149,7 +185,10 @@ export default function AiStudio() {
   const stepThreeRef = useRef<HTMLElement>(null);
   const analysisControllerRef = useRef<AbortController | null>(null);
   const detailsControllerRef = useRef<AbortController | null>(null);
+  const generationControllerRef = useRef<AbortController | null>(null);
   const analysisRequestIdRef = useRef(0);
+  const generationRequestIdRef = useRef(0);
+  const generationInFlightRef = useRef(false);
 
   useEffect(() => {
     listPortfolio()
@@ -162,6 +201,9 @@ export default function AiStudio() {
     return () => {
       analysisControllerRef.current?.abort();
       detailsControllerRef.current?.abort();
+      generationRequestIdRef.current += 1;
+      generationControllerRef.current?.abort();
+      generationInFlightRef.current = false;
     };
   }, []);
 
@@ -178,10 +220,21 @@ export default function AiStudio() {
     setAnalysisStage("正在准备分析…");
   }
 
+  function cancelGeneration() {
+    generationRequestIdRef.current += 1;
+    generationControllerRef.current?.abort();
+    generationControllerRef.current = null;
+    generationInFlightRef.current = false;
+    setGeneratingImage(false);
+    setGenerationStage("");
+  }
+
   function handlePhotoChange(url: string | null) {
     cancelAnalysis();
+    cancelGeneration();
     setPhotoUrl(url);
     setError("");
+    setGenerationError("");
     if (!url) {
       setStep(1);
       setAnalysis(null);
@@ -217,6 +270,7 @@ export default function AiStudio() {
 
   function invalidateAnalysis() {
     cancelAnalysis();
+    cancelGeneration();
     if (analysis) setStep(2);
     setAnalysis(null);
     setQuickAnalysis(null);
@@ -225,6 +279,7 @@ export default function AiStudio() {
     setRefinementInstructions([]);
     setEditInstruction("");
     setError("");
+    setGenerationError("");
   }
 
   async function handleAnalyze() {
@@ -269,7 +324,7 @@ export default function AiStudio() {
               completed: current.cache_hit ? "已找到相同照片的快速评分" : "四项快速评分完成",
             };
             setAnalysisStage(labels[current.stage] || "正在快速分析…");
-          }, { maxWaitMs: 25_000 });
+          }, { maxWaitMs: 60_000 });
           if (requestId !== analysisRequestIdRef.current) return null;
           setQuickAnalysis(quick);
           setSaveSuccess("");
@@ -299,7 +354,7 @@ export default function AiStudio() {
               completed: current.cache_hit ? "已读取详细分析" : "详细分析完成",
             };
             setAnalysisStage(labels[current.stage] || "正在补充详细分析…");
-          }, { maxWaitMs: 90_000 });
+          }, { maxWaitMs: 330_000 });
           if (requestId !== analysisRequestIdRef.current) return null;
           setAnalysis(data);
           showResultStep();
@@ -353,7 +408,8 @@ export default function AiStudio() {
           next_step: coreAnalysis.next_step,
         }),
       }, controller.signal);
-      const details = await waitForAnalysisJob(job, controller.signal, () => undefined, { maxWaitMs: 25_000 });
+      // Allow the 120-second details request plus one JSON repair attempt.
+      const details = await waitForAnalysisJob(job, controller.signal, () => undefined, { maxWaitMs: 270_000 });
       if (requestId !== analysisRequestIdRef.current) return;
       setAnalysis((current) => current ? {
         ...current,
@@ -451,33 +507,54 @@ export default function AiStudio() {
   }
 
   async function handleGenerateImage() {
-    if (!photoUrl) return;
+    if (!photoUrl || generationInFlightRef.current) return;
     const currentInstruction = editInstruction.trim();
     if (generatedImages.length > 0 && !currentInstruction) return;
+    const controller = new AbortController();
+    const requestId = ++generationRequestIdRef.current;
+    generationControllerRef.current = controller;
+    generationInFlightRef.current = true;
     setGeneratingImage(true);
-    setError("");
+    setGenerationStage("正在准备精修任务…");
+    setGenerationError("");
     try {
-      const result = await generateProcessedImage({
+      const analysisGuidance = [
+        analysis?.summary,
+        analysis?.composition_advice,
+        analysis?.lighting_advice,
+        analysis?.color_advice,
+        analysis?.editing_params
+          ? `Editing parameters: ${JSON.stringify(analysis.editing_params)}`
+          : "",
+        analysis?.platform_suggestions
+          ? `Platform suggestions: ${JSON.stringify(analysis.platform_suggestions)}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n")
+        .slice(0, ANALYSIS_GUIDANCE_MAX_LENGTH);
+      const combinedInstruction = joinLatestInstructions(
+        [...refinementInstructions, currentInstruction],
+        EDIT_INSTRUCTION_MAX_LENGTH,
+      );
+      const job = await startProcessedImageJob({
         image_url: photoUrl,
         target_style: targetStyle,
         target_platform: targetPlatform,
-        analysis_guidance: [
-          analysis?.summary,
-          analysis?.composition_advice,
-          analysis?.lighting_advice,
-          analysis?.color_advice,
-          analysis?.editing_params
-            ? `Editing parameters: ${JSON.stringify(analysis.editing_params)}`
-            : "",
-          analysis?.platform_suggestions
-            ? `Platform suggestions: ${JSON.stringify(analysis.platform_suggestions)}`
-            : "",
-        ]
-          .filter(Boolean)
-          .join("\n"),
-        edit_instruction: [...refinementInstructions, currentInstruction].filter(Boolean).join("；") || undefined,
+        analysis_guidance: analysisGuidance,
+        edit_instruction: combinedInstruction || undefined,
         reference_image_urls: styleRefs,
-      });
+      }, controller.signal);
+      const result = await waitForProcessedImageJob(
+        job,
+        controller.signal,
+        (current) => {
+          if (requestId !== generationRequestIdRef.current) return;
+          setGenerationStage(imageProcessStageLabel(current));
+        },
+        { maxWaitMs: 8 * 60_000, maxConsecutivePollErrors: 4 },
+      );
+      if (requestId !== generationRequestIdRef.current) return;
       setGeneratedImages((current) => [...current, { imageUrl: result.image_url, thumbnailUrl: result.thumbnail_url, editingStrategy: result.editing_strategy }]);
       setSelectedGeneratedImageUrl(result.image_url);
       if (currentInstruction) {
@@ -485,14 +562,22 @@ export default function AiStudio() {
       }
       setEditInstruction("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "图片生成失败，请稍后重试");
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      if (requestId !== generationRequestIdRef.current) return;
+      setGenerationError(err instanceof Error ? err.message : "图片生成失败，请稍后重试");
     } finally {
-      setGeneratingImage(false);
+      if (requestId === generationRequestIdRef.current) {
+        generationControllerRef.current = null;
+        generationInFlightRef.current = false;
+        setGeneratingImage(false);
+        setGenerationStage("");
+      }
     }
   }
 
   function handleAnotherPhoto() {
     cancelAnalysis();
+    cancelGeneration();
     setStep(1);
     setPhotoUrl(null);
     setStyleRefs([]);
@@ -507,6 +592,7 @@ export default function AiStudio() {
     setSaveError("");
     setImprovedPhotoUrl(null);
     setError("");
+    setGenerationError("");
     scrollToStep(stepOneRef);
   }
 
@@ -674,6 +760,7 @@ export default function AiStudio() {
               ? "例如：再降低一点高光，让肤色更自然"
               : "例如：降低高光，保留自然肤色，增加一点胶片颗粒"}
             maxLength={600}
+            disabled={generatingImage}
           />
         </div>
         {refinementInstructions.length > 0 && (
@@ -693,11 +780,17 @@ export default function AiStudio() {
           disabled={generatingImage || (generatedImages.length > 0 && !editInstruction.trim())}
         >
           {generatingImage
-            ? "AI 正在精修，可能需要 1–5 分钟…"
+            ? generationStage || "AI 正在精修，可能需要 1–5 分钟…"
             : generatedImages.length ? "生成新版本" : "开始 AI 精修"}
         </button>
+        {generatingImage && (
+          <p className="mt-2 text-xs text-ink/70" role="status">任务已提交，页面会自动等待结果，请不要重复点击。</p>
+        )}
         {generatedImages.length > 0 && !editInstruction.trim() && (
           <p className="mt-2 text-xs text-ink/70">写下新的修改要求后即可继续精修。</p>
+        )}
+        {generationError && (
+          <p className="mt-3 text-sm text-red-500" role="alert">{generationError}</p>
         )}
       </>
     ),

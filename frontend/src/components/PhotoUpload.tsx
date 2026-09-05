@@ -1,7 +1,11 @@
 import { useRef, useState } from "react";
 import { getAssetUrl } from "../api/client";
 import { uploadImage } from "../api/upload";
-import type { ImageUploadPurpose, ImageUploadStage } from "../utils/imageUpload";
+import {
+  imageSourceLimits,
+  type ImageUploadPurpose,
+  type ImageUploadStage,
+} from "../utils/imageUpload";
 
 type Props = {
   value: string | null;
@@ -50,6 +54,8 @@ export default function PhotoUpload({
       : "正在上传…";
 
   const useOutline = outlineOnly || purpose === "practice";
+  const sourceLimits = imageSourceLimits(purpose);
+  const isHighResolutionPurpose = purpose === "analysis" || purpose === "practice";
 
   const panelPreviewStyle = compactPreview && previewMaxHeight
     ? { maxHeight: `${previewMaxHeight}px` }
@@ -100,7 +106,11 @@ export default function PhotoUpload({
         >
           <span className="font-display text-4xl font-light text-ink transition group-hover:text-ink">+</span>
           <span className={`mt-2 text-sm transition group-hover:text-ink ${useOutline ? "text-ink" : "text-muted"}`}>{stage ? statusText : label}</span>
-          <span className={`mt-1 text-xs transition group-hover:text-ink ${useOutline ? "text-ink/70" : "text-muted"}`}>JPG / PNG / WebP，单张最大 10MB</span>
+          <span className={`mt-1 text-xs transition group-hover:text-ink ${useOutline ? "text-ink/70" : "text-muted"}`}>
+            {isHighResolutionPurpose
+              ? `JPG / PNG / WebP，原图最高约 1.2 亿像素 / ${Math.round(sourceLimits.maxBytes / 1024 / 1024)}MB，上传前自动压缩`
+              : `JPG / PNG / WebP，单张最大 ${Math.round(sourceLimits.maxBytes / 1024 / 1024)}MB`}
+          </span>
         </button>
       )}
       <input

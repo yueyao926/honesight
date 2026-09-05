@@ -1,5 +1,9 @@
+import { readImageMetadata, type ImageMetadata } from "./imageDimensions";
+
 export const MAX_IMAGE_SOURCE_BYTES = 10 * 1024 * 1024;
 export const MAX_IMAGE_SOURCE_PIXELS = 40_000_000;
+export const MAX_AI_IMAGE_SOURCE_BYTES = 100 * 1024 * 1024;
+export const MAX_AI_IMAGE_SOURCE_PIXELS = 120_000_000;
 export const MAX_AVATAR_UPLOAD_BYTES = 1024 * 1024;
 
 export type ImageUploadPurpose = "standard" | "reference" | "analysis" | "practice" | "portfolio" | "community";
@@ -9,6 +13,11 @@ type CompressionProfile = {
   maxDimension: number;
   targetBytes: number;
   initialQuality: number;
+};
+
+type SourceLimits = {
+  maxBytes: number;
+  maxPixels: number;
 };
 
 const SUPPORTED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -38,6 +47,26 @@ const PROFILES: Record<ImageUploadPurpose, CompressionProfile> = {
   portfolio: { maxDimension: 2560, targetBytes: 1.5 * 1024 * 1024, initialQuality: 0.85 },
   community: { maxDimension: 2560, targetBytes: 1.5 * 1024 * 1024, initialQuality: 0.85 },
 };
+
+const STANDARD_SOURCE_LIMITS: SourceLimits = {
+  maxBytes: MAX_IMAGE_SOURCE_BYTES,
+  maxPixels: MAX_IMAGE_SOURCE_PIXELS,
+};
+
+const AI_SOURCE_LIMITS: SourceLimits = {
+  maxBytes: MAX_AI_IMAGE_SOURCE_BYTES,
+  maxPixels: MAX_AI_IMAGE_SOURCE_PIXELS,
+};
+
+export function imageSourceLimits(purpose: ImageUploadPurpose): SourceLimits {
+  return purpose === "analysis" || purpose === "practice"
+    ? AI_SOURCE_LIMITS
+    : STANDARD_SOURCE_LIMITS;
+}
+
+function megapixels(pixels: number): string {
+  return `${Math.round(pixels / 10_000_000) / 10} 亿`;
+}
 
 function loadImage(file: Blob): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -88,29 +117,44 @@ export async function optimizeImageForUpload(
   purpose: ImageUploadPurpose,
 ): Promise<File> {
   file = normalizeImageFile(file);
-  if (file.size > MAX_IMAGE_SOURCE_BYTES) {
-    throw new Error("单张图片不能超过 10MB");
+  const limits = imageSourceLimits(purpose);
+  if (file.size > limits.maxBytes) {
+    throw new Error(`单张原图不能超过 ${Math.round(limits.maxBytes / 1024 / 1024)}MB`);
   }
 
   const profile = PROFILES[purpose];
+  const metadata = await readImageMetadata(file);
+  if (metadata && metadata.width * metadata.height > limits.maxPixels) {
+    throw new Error(`图片像素过高，请缩小到 ${megapixels(limits.maxPixels)}像素以内`);
+  }
+  const highResolution = Boolean(
+    metadata && metadata.width * metadata.height > MAX_IMAGE_SOURCE_PIXELS,
+  );
   if (
     typeof Worker !== "undefined"
     && typeof OffscreenCanvas !== "undefined"
     && typeof createImageBitmap !== "undefined"
   ) {
     try {
-      return await optimizeInWorker(file, profile);
+      return await optimizeInWorker(file, profile, limits.maxPixels, metadata);
     } catch (error) {
       if (error instanceof Error && error.message.includes("像素过高")) throw error;
+      if (highResolution) {
+        throw new Error("超高像素原图后台压缩失败，请关闭其他占用内存的页面后重试，或改用桌面版 Chrome / Edge");
+      }
       // Older Safari/WebView builds may expose OffscreenCanvas without WebP encoding.
       // Fall back to the DOM canvas path in that case.
     }
   }
 
+  if (highResolution) {
+    throw new Error("当前浏览器无法安全处理超高像素原图，请使用桌面版 Chrome / Edge 上传");
+  }
+
   const image = await loadImage(file);
   const pixels = image.naturalWidth * image.naturalHeight;
-  if (!image.naturalWidth || !image.naturalHeight || pixels > MAX_IMAGE_SOURCE_PIXELS) {
-    throw new Error("图片像素过高，请缩小到 4000 万像素以内");
+  if (!image.naturalWidth || !image.naturalHeight || pixels > limits.maxPixels) {
+    throw new Error(`图片像素过高，请缩小到 ${megapixels(limits.maxPixels)}像素以内`);
   }
 
   if (
@@ -162,7 +206,12 @@ export async function optimizeImageForUpload(
 }
 
 
-function optimizeInWorker(file: File, profile: CompressionProfile): Promise<File> {
+function optimizeInWorker(
+  file: File,
+  profile: CompressionProfile,
+  maxPixels: number,
+  metadata: ImageMetadata | null,
+): Promise<File> {
   return new Promise((resolve, reject) => {
     const worker = new Worker(new URL("./imageUpload.worker.ts", import.meta.url), { type: "module" });
     worker.onmessage = (event: MessageEvent<{
@@ -190,7 +239,7 @@ function optimizeInWorker(file: File, profile: CompressionProfile): Promise<File
       worker.terminate();
       reject(new Error("浏览器后台图片处理不可用"));
     };
-    worker.postMessage({ file, profile, maxPixels: MAX_IMAGE_SOURCE_PIXELS });
+    worker.postMessage({ file, profile, maxPixels, metadata });
   });
 }
 

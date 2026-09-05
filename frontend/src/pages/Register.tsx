@@ -37,7 +37,7 @@ export default function Register() {
           <h1 className="mt-2 font-display text-4xl font-semibold">验证邮件已发送</h1>
           <p className="mt-8 text-sm leading-7 text-muted">
             我们已向 <span className="font-medium text-ink">{registeredEmail}</span> 发送验证邮件，
-            请查收并点击邮件中的链接完成验证后再登录。
+            请查收并点击邮件中的链接完成验证后再登录。若收件箱中没有，请同时检查垃圾邮件。
           </p>
           <Link className="btn-primary btn-primary--ink mt-6 inline-block" to="/login">去登录</Link>
           <p className="mt-4 text-center text-sm text-muted">
@@ -58,7 +58,18 @@ export default function Register() {
           <div><label className="label">用户名</label><input className="input ink-focus-frame" name="username" required /></div>
           <div><label className="label">邮箱</label><input className="input ink-focus-frame" name="email" type="email" required /></div>
           <div><label className="label">密码</label><input className="input ink-focus-frame" name="password" type="password" minLength={6} required /></div>
-          {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-ink">{error}</p>}
+          {error && (
+            <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-ink">
+              <p>{error}</p>
+              {(error.includes("已注册并完成验证") || error.includes("已有未验证账号")) && (
+                <p className="mt-2">
+                  <Link className="underline" to="/login">去登录</Link>
+                  <span className="mx-2">·</span>
+                  <Link className="underline" to="/forgot-password">找回密码</Link>
+                </p>
+              )}
+            </div>
+          )}
           <button className="btn-primary btn-primary--ink w-full" type="submit" disabled={submitting}>
             {submitting ? "创建中..." : "注册"}
           </button>

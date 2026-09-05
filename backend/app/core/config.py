@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     smtp_password: str | None = Field(default=None, alias="SMTP_PASSWORD")
     smtp_from: str = Field(default="HoneSight <noreply@honesight.app>", alias="SMTP_FROM")
     smtp_use_tls: bool = Field(default=True, alias="SMTP_USE_TLS")
+    smtp_use_ssl: bool = Field(default=False, alias="SMTP_USE_SSL")
     email_verification_expire_minutes: int = Field(default=1440, ge=1, le=10080, alias="EMAIL_VERIFICATION_EXPIRE_MINUTES")
     password_reset_expire_minutes: int = Field(default=30, ge=1, le=1440, alias="PASSWORD_RESET_EXPIRE_MINUTES")
     backend_cors_origins: str = Field(default="http://localhost:5173", alias="BACKEND_CORS_ORIGINS")
@@ -45,7 +46,9 @@ class Settings(BaseSettings):
     ai_base_url: str = Field(default="https://ark.cn-beijing.volces.com/api/v3", alias="AI_BASE_URL")
     ai_model: str = Field(default="doubao-seed-1.6-vision-250815", alias="AI_MODEL")
     ai_practice_model: str = Field(default="", alias="AI_PRACTICE_MODEL")
-    ai_fast_model: str = Field(default="doubao-seed-2-0-lite-260215", alias="AI_FAST_MODEL")
+    # Empty means reuse AI_MODEL. This avoids every request first hitting an
+    # unavailable fast model before falling back to the configured model.
+    ai_fast_model: str = Field(default="", alias="AI_FAST_MODEL")
     ai_fast_timeout_seconds: int = Field(default=8, alias="AI_FAST_TIMEOUT_SECONDS")
     ai_timeout_seconds: int = Field(default=45, alias="AI_TIMEOUT_SECONDS")
     ai_public_api_base_url: str = Field(default="", alias="AI_PUBLIC_API_BASE_URL")

@@ -1,19 +1,15 @@
-import logging
+import ssl
 import smtplib
 from email.message import EmailMessage
 
 from app.core.config import get_settings
 
-logger = logging.getLogger("lenscoach.email")
+class EmailDeliveryError(RuntimeError):
+    """Raised when an email cannot be handed to the configured SMTP server."""
 
 
 def send_email(*, to_email: str, subject: str, html_body: str) -> None:
-    """Send an email via SMTP, falling back to the log when SMTP is unconfigured.
-
-    The console fallback keeps the full flow working in local development without
-    any SMTP credentials: the email (including any verification/reset link) is
-    printed to the backend log instead.
-    """
+    """Send an email via SMTP or raise when delivery cannot be attempted."""
     settings = get_settings()
     message = EmailMessage()
     message["Subject"] = subject
@@ -23,20 +19,34 @@ def send_email(*, to_email: str, subject: str, html_body: str) -> None:
     message.add_alternative(html_body, subtype="html")
 
     if not settings.smtp_host:
-        logger.info("EMAIL (no SMTP configured) to=%s subject=%s\n%s", to_email, subject, html_body)
-        return
+        raise EmailDeliveryError("SMTP_HOST is not configured")
 
-    if settings.smtp_use_tls:
-        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=15) as server:
-            server.starttls()
-            if settings.smtp_username:
-                server.login(settings.smtp_username, settings.smtp_password or "")
-            server.send_message(message)
-    else:
-        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=15) as server:
-            if settings.smtp_username:
-                server.login(settings.smtp_username, settings.smtp_password or "")
-            server.send_message(message)
+    tls_context = ssl.create_default_context()
+    envelope_from = settings.smtp_username or None
+    try:
+        if settings.smtp_use_ssl:
+            with smtplib.SMTP_SSL(
+                settings.smtp_host,
+                settings.smtp_port,
+                timeout=15,
+                context=tls_context,
+            ) as server:
+                if settings.smtp_username:
+                    server.login(settings.smtp_username, settings.smtp_password or "")
+                server.send_message(message, from_addr=envelope_from, to_addrs=[to_email])
+        elif settings.smtp_use_tls:
+            with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=15) as server:
+                server.starttls(context=tls_context)
+                if settings.smtp_username:
+                    server.login(settings.smtp_username, settings.smtp_password or "")
+                server.send_message(message, from_addr=envelope_from, to_addrs=[to_email])
+        else:
+            with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=15) as server:
+                if settings.smtp_username:
+                    server.login(settings.smtp_username, settings.smtp_password or "")
+                server.send_message(message, from_addr=envelope_from, to_addrs=[to_email])
+    except (OSError, smtplib.SMTPException) as exc:
+        raise EmailDeliveryError(f"SMTP delivery failed: {exc}") from exc
 
 
 def send_verification_email(to_email: str, link: str) -> None:
@@ -46,6 +56,20 @@ def send_verification_email(to_email: str, link: str) -> None:
         "<p>请点击下方链接完成邮箱验证（24 小时内有效）：</p>"
         f'<p><a href="{link}">验证邮箱</a></p>'
         f'<p>如果按钮无法点击，请复制以下链接到浏览器打开：<br>{link}</p>'
+        "<p>如果不是你本人操作，请忽略此邮件。</p>"
+    )
+    send_email(to_email=to_email, subject=subject, html_body=html_body)
+
+
+def send_verified_account_email(to_email: str, frontend_base_url: str) -> None:
+    base_url = frontend_base_url.rstrip("/")
+    login_link = f"{base_url}/login"
+    reset_link = f"{base_url}/forgot-password"
+    subject = "你的 HoneSight 邮箱已完成验证 / Email already verified"
+    html_body = (
+        "<p>你好，这个邮箱对应的 HoneSight 账号已经完成验证，无需再次验证。</p>"
+        f'<p><a href="{login_link}">直接登录</a></p>'
+        f'<p>如果忘记了密码，请前往 <a href="{reset_link}">找回密码</a>。</p>'
         "<p>如果不是你本人操作，请忽略此邮件。</p>"
     )
     send_email(to_email=to_email, subject=subject, html_body=html_body)

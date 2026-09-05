@@ -32,7 +32,8 @@ export default function ResendVerification() {
         <h1 className="mt-2 font-display text-4xl font-semibold">重新发送验证邮件</h1>
         {sent ? (
           <p className="mt-8 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700">
-            如果该邮箱尚未验证，我们已发送验证邮件，请查收。
+            邮件已处理：尚未验证的账号会收到新的验证链接，已验证的账号会收到登录与找回密码说明。
+            为避免重复邮件，同一邮箱 60 秒内只发送一次；若刚操作过，请等待一分钟再试，并检查垃圾邮件。
           </p>
         ) : (
           <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
