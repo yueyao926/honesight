@@ -28,21 +28,21 @@ export default function HomePracticeCard({ isAuthenticated }: HomePracticeCardPr
               把一张喜欢的照片，再往前推一步。
             </h2>
 
-            <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="home-drawn-btn-group flex flex-wrap">
-                {isAuthenticated ? (
-                  <>
-                    <HomeDrawnButton to="/ai">上传分析</HomeDrawnButton>
-                    <HomeDrawnButton href="#daily-inspiration">今日灵感</HomeDrawnButton>
-                  </>
-                ) : (
-                  <>
-                    <HomeDrawnButton to="/register">开始注册</HomeDrawnButton>
-                    <HomeDrawnButton to="/login">登录</HomeDrawnButton>
-                    <HomeDrawnButton href="#daily-inspiration">今日灵感</HomeDrawnButton>
-                  </>
-                )}
-              </div>
+            <div className="home-practice-card-actions">
+              {isAuthenticated ? (
+                <>
+                  <HomeDrawnButton to="/ai">上传分析</HomeDrawnButton>
+                  <HomeDrawnButton href="#daily-inspiration">今日灵感</HomeDrawnButton>
+                </>
+              ) : (
+                <>
+                  <HomeDrawnButton to="/register">开始注册</HomeDrawnButton>
+                  <HomeDrawnButton to="/login" className="home-drawn-btn--login">
+                    登录
+                  </HomeDrawnButton>
+                  <HomeDrawnButton href="#daily-inspiration">今日灵感</HomeDrawnButton>
+                </>
+              )}
 
               <HomeDrawnButton
                 to={isAuthenticated ? "/practice" : "/register"}

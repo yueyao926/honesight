@@ -3197,6 +3197,22 @@ body,
     letter-spacing: inherit;
   }
 
+  .home-practice-card-actions {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+  }
+
+  .home-practice-card-cta {
+    flex-shrink: 0;
+    margin-left: auto;
+    align-self: center;
+  }
+
   @media (max-width: 767px) {
     .home-practice-card-border {
       display: none;
@@ -3735,6 +3751,28 @@ body,
       right: -0.04rem;
       bottom: 0.42rem;
       left: -0.04rem;
+    }
+  }
+
+  /* 小屏：登录略加宽；推荐练习缩小到与上方按钮同量级，描边贴字 */
+  @media (max-width: 639px) {
+    .home-drawn-btn--login {
+      min-width: 6.55rem;
+      padding-inline: 0.82rem 0.92rem;
+    }
+
+    .home-practice-card-cta.home-drawn-btn--box2 {
+      min-width: 7.1rem;
+      min-height: 1.85rem;
+      padding-inline: 1.05rem 1.15rem;
+      padding-block: 0.26rem;
+    }
+
+    .home-practice-card-cta.home-drawn-btn--box2 .home-drawn-btn-border {
+      top: -0.32rem;
+      right: -0.08rem;
+      bottom: 0.4rem;
+      left: -0.08rem;
     }
   }
 
