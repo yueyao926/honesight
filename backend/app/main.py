@@ -45,6 +45,7 @@ async def lifespan(_app: FastAPI):
         runtime.image_generation_enabled,
         bool(runtime.resolved_image_api_key),
     )
+    image_process.fail_interrupted_image_process_jobs()
     analyze.fail_stale_analysis_jobs()
     inspiration_sync_task = asyncio.create_task(run_inspiration_sync_loop())
     upload_cleanup_task = asyncio.create_task(run_upload_cleanup_loop())

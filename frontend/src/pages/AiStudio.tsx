@@ -8,7 +8,11 @@ import {
 } from "../api/analyze";
 import type { QuickAnalysis } from "../api/analyze";
 import { getAssetUrl } from "../api/client";
-import { generateProcessedImage } from "../api/imageProcess";
+import {
+  startProcessedImageJob,
+  waitForProcessedImageJob,
+} from "../api/imageProcess";
+import type { ImageProcessJob } from "../api/imageProcess";
 import { listPortfolio, savePhotoToPortfolio } from "../api/portfolio";
 import type { PortfolioPhotoSource } from "../api/portfolio";
 import {
@@ -109,6 +113,19 @@ function joinLatestInstructions(instructions: string[], maxLength: number): stri
   return selected.join("；");
 }
 
+function imageProcessStageLabel(job: ImageProcessJob): string {
+  const labels: Record<string, string> = {
+    queued: "精修任务正在排队…",
+    preparing: "正在准备原图与精修方案…",
+    strategizing: "正在整理精修方案…",
+    generating: "AI 正在生成精修图片…",
+    downloading: "图片已生成，正在下载…",
+    saving: "正在保存精修图片…",
+    completed: "AI 精修完成",
+  };
+  return labels[job.stage] || (job.status === "processing" ? "AI 正在精修图片…" : "正在准备精修任务…");
+}
+
 function StepSection({
   number,
   title,
@@ -156,6 +173,7 @@ export default function AiStudio() {
   const [analysisStage, setAnalysisStage] = useState("正在准备分析…");
   const [saving, setSaving] = useState(false);
   const [generatingImage, setGeneratingImage] = useState(false);
+  const [generationStage, setGenerationStage] = useState("");
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [selectedGeneratedImageUrl, setSelectedGeneratedImageUrl] = useState<string | null>(null);
   const [refinementInstructions, setRefinementInstructions] = useState<string[]>([]);
@@ -167,7 +185,10 @@ export default function AiStudio() {
   const stepThreeRef = useRef<HTMLElement>(null);
   const analysisControllerRef = useRef<AbortController | null>(null);
   const detailsControllerRef = useRef<AbortController | null>(null);
+  const generationControllerRef = useRef<AbortController | null>(null);
   const analysisRequestIdRef = useRef(0);
+  const generationRequestIdRef = useRef(0);
+  const generationInFlightRef = useRef(false);
 
   useEffect(() => {
     listPortfolio()
@@ -180,6 +201,9 @@ export default function AiStudio() {
     return () => {
       analysisControllerRef.current?.abort();
       detailsControllerRef.current?.abort();
+      generationRequestIdRef.current += 1;
+      generationControllerRef.current?.abort();
+      generationInFlightRef.current = false;
     };
   }, []);
 
@@ -196,8 +220,18 @@ export default function AiStudio() {
     setAnalysisStage("正在准备分析…");
   }
 
+  function cancelGeneration() {
+    generationRequestIdRef.current += 1;
+    generationControllerRef.current?.abort();
+    generationControllerRef.current = null;
+    generationInFlightRef.current = false;
+    setGeneratingImage(false);
+    setGenerationStage("");
+  }
+
   function handlePhotoChange(url: string | null) {
     cancelAnalysis();
+    cancelGeneration();
     setPhotoUrl(url);
     setError("");
     setGenerationError("");
@@ -236,6 +270,7 @@ export default function AiStudio() {
 
   function invalidateAnalysis() {
     cancelAnalysis();
+    cancelGeneration();
     if (analysis) setStep(2);
     setAnalysis(null);
     setQuickAnalysis(null);
@@ -471,10 +506,15 @@ export default function AiStudio() {
   }
 
   async function handleGenerateImage() {
-    if (!photoUrl) return;
+    if (!photoUrl || generationInFlightRef.current) return;
     const currentInstruction = editInstruction.trim();
     if (generatedImages.length > 0 && !currentInstruction) return;
+    const controller = new AbortController();
+    const requestId = ++generationRequestIdRef.current;
+    generationControllerRef.current = controller;
+    generationInFlightRef.current = true;
     setGeneratingImage(true);
+    setGenerationStage("正在准备精修任务…");
     setGenerationError("");
     try {
       const analysisGuidance = [
@@ -496,14 +536,24 @@ export default function AiStudio() {
         [...refinementInstructions, currentInstruction],
         EDIT_INSTRUCTION_MAX_LENGTH,
       );
-      const result = await generateProcessedImage({
+      const job = await startProcessedImageJob({
         image_url: photoUrl,
         target_style: targetStyle,
         target_platform: targetPlatform,
         analysis_guidance: analysisGuidance,
         edit_instruction: combinedInstruction || undefined,
         reference_image_urls: styleRefs,
-      });
+      }, controller.signal);
+      const result = await waitForProcessedImageJob(
+        job,
+        controller.signal,
+        (current) => {
+          if (requestId !== generationRequestIdRef.current) return;
+          setGenerationStage(imageProcessStageLabel(current));
+        },
+        { maxWaitMs: 8 * 60_000, maxConsecutivePollErrors: 4 },
+      );
+      if (requestId !== generationRequestIdRef.current) return;
       setGeneratedImages((current) => [...current, { imageUrl: result.image_url, thumbnailUrl: result.thumbnail_url, editingStrategy: result.editing_strategy }]);
       setSelectedGeneratedImageUrl(result.image_url);
       if (currentInstruction) {
@@ -511,14 +561,22 @@ export default function AiStudio() {
       }
       setEditInstruction("");
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      if (requestId !== generationRequestIdRef.current) return;
       setGenerationError(err instanceof Error ? err.message : "图片生成失败，请稍后重试");
     } finally {
-      setGeneratingImage(false);
+      if (requestId === generationRequestIdRef.current) {
+        generationControllerRef.current = null;
+        generationInFlightRef.current = false;
+        setGeneratingImage(false);
+        setGenerationStage("");
+      }
     }
   }
 
   function handleAnotherPhoto() {
     cancelAnalysis();
+    cancelGeneration();
     setStep(1);
     setPhotoUrl(null);
     setStyleRefs([]);
@@ -701,6 +759,7 @@ export default function AiStudio() {
               ? "例如：再降低一点高光，让肤色更自然"
               : "例如：降低高光，保留自然肤色，增加一点胶片颗粒"}
             maxLength={600}
+            disabled={generatingImage}
           />
         </div>
         {refinementInstructions.length > 0 && (
@@ -720,9 +779,12 @@ export default function AiStudio() {
           disabled={generatingImage || (generatedImages.length > 0 && !editInstruction.trim())}
         >
           {generatingImage
-            ? "AI 正在精修，可能需要 1–5 分钟…"
+            ? generationStage || "AI 正在精修，可能需要 1–5 分钟…"
             : generatedImages.length ? "生成新版本" : "开始 AI 精修"}
         </button>
+        {generatingImage && (
+          <p className="mt-2 text-xs text-ink/70" role="status">任务已提交，页面会自动等待结果，请不要重复点击。</p>
+        )}
         {generatedImages.length > 0 && !editInstruction.trim() && (
           <p className="mt-2 text-xs text-ink/70">写下新的修改要求后即可继续精修。</p>
         )}
