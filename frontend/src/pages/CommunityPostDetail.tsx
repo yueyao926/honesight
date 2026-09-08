@@ -14,6 +14,7 @@ import {
 import { followUser, unfollowUser } from "../api/profile";
 import { getAssetUrl } from "../api/client";
 import { invalidateCommunityFeedCache } from "../utils/communityFeedPrefetch";
+import { shareUrl } from "../utils/shareUrl";
 import CommentSection from "../components/community/CommentSection";
 import CommunityCameraNotes from "../components/community/CommunityCameraNotes";
 import CommunityPostDetailActions from "../components/community/CommunityPostDetailActions";
@@ -55,6 +56,8 @@ export default function CommunityPostDetail() {
   const [activeImage, setActiveImage] = useState(0);
   const [showScrollHint, setShowScrollHint] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
+  const [shareMessage, setShareMessage] = useState("");
+  const [manualShareUrl, setManualShareUrl] = useState("");
   const asideRef = useRef<HTMLElement>(null);
 
   const updateScrollHint = useCallback(() => {
@@ -313,13 +316,29 @@ export default function CommunityPostDetail() {
               post={post}
               onToggleLike={toggleLike}
               onToggleFavorite={toggleFavorite}
-              onShare={() => {
-                const shareUrl = window.location.href;
-                return navigator.share
-                  ? navigator.share({ title: post.title, url: shareUrl })
-                  : navigator.clipboard.writeText(shareUrl);
+              onShare={async () => {
+                setShareMessage("");
+                setManualShareUrl("");
+                const url = window.location.href;
+                const result = await shareUrl(post.title, url);
+                if (result === "copied") setShareMessage("链接已复制，可以粘贴分享");
+                if (result === "manual") {
+                  setShareMessage("自动复制失败，请手动复制下方链接");
+                  setManualShareUrl(url);
+                }
               }}
             />
+            {shareMessage && <p className="mt-3 text-sm text-muted" role="status">{shareMessage}</p>}
+            {manualShareUrl && (
+              <input
+                className="mt-2 w-full rounded-lg border border-current bg-transparent px-3 py-2 text-sm"
+                aria-label="分享链接"
+                readOnly
+                value={manualShareUrl}
+                onFocus={(event) => event.currentTarget.select()}
+                onClick={(event) => event.currentTarget.select()}
+              />
+            )}
 
             <CommentSection
               postId={post.id}
